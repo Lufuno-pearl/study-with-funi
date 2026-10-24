@@ -1,21 +1,22 @@
-/* Study with Funi — v1
- * - Instant start: every phone gets a private hidden account (Supabase anonymous sign-in, no email).
- * - Optional username + password so the same account works on another device.
- * - Tests/exams live in Supabase (table: assessments), with a local copy for offline.
+/* Study with Funi — v1.1
+ * - Welcome screen: Create account (username, password, confirm) or Log in. No email, no OTP.
+ *   Usernames are stored in Supabase as username@users.studywithfuni.app; nothing is ever emailed.
+ * - Tests/exams live in Supabase (table: assessments) with a local copy for offline.
  * - Notification bell + "Download app" button (iPhone: Add to Home Screen steps).
  */
 (function () {
   "use strict";
 
-  const USERNAME_DOMAIN = "users.studywithfuni.app"; // usernames are stored as username@this-domain; no email is ever sent
+  const USERNAME_DOMAIN = "users.studywithfuni.app";
   const CACHE_KEY = "funi.items.v1";
   const $ = (id) => document.getElementById(id);
   let sb = null;
+  let me = null;      // the logged-in Supabase user
   let items = [];
 
   /* ---------- small helpers ---------- */
   function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
-  function todayISO() { return new Date().toLocaleDateString("en-CA"); } // YYYY-MM-DD in local time
+  function todayISO() { return new Date().toLocaleDateString("en-CA"); } // YYYY-MM-DD, local time
   function daysLeft(dateStr) {
     const t = new Date(); t.setHours(0, 0, 0, 0);
     return Math.round((new Date(dateStr + "T00:00:00") - t) / 86400000);
@@ -34,12 +35,98 @@
     const t = $("toast"); t.textContent = msg; t.hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
   }
-  function showError(id, msg) { const el = $(id); el.textContent = msg; el.hidden = !msg; }
-  function status(msg) { const el = $("status"); el.textContent = msg || ""; el.hidden = !msg; }
+  function showError(id, msg) { const el = $(id); el.textContent = msg || ""; el.hidden = !msg; }
+  function status(id, msg) { const el = $(id); el.textContent = msg || ""; el.hidden = !msg; }
 
-  document.querySelectorAll("[data-close]").forEach((b) => {
-    b.addEventListener("click", () => $(b.dataset.close).close());
+  document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => $(b.dataset.close).close()));
+  document.querySelectorAll("[data-eye]").forEach((b) => b.addEventListener("click", () => {
+    const input = $(b.dataset.eye);
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    b.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  }));
+
+  /* ---------- screens ---------- */
+  function showAuth() {
+    $("appScreen").hidden = true; $("authScreen").hidden = false;
+    document.querySelectorAll("dialog[open]").forEach((d) => d.close());
+  }
+  async function showApp() {
+    $("authScreen").hidden = true; $("appScreen").hidden = false;
+    $("greeting").textContent = "Hi, " + usernameOf(me);
+    items = read(CACHE_KEY + "." + me.id, []);
+    render();
+    await loadItems();
+  }
+
+  /* ---------- create account / log in ---------- */
+  function setTab(which) {
+    const signup = which === "signup";
+    $("tabSignup").setAttribute("aria-selected", String(signup));
+    $("tabLogin").setAttribute("aria-selected", String(!signup));
+    $("signupForm").hidden = !signup; $("loginForm").hidden = signup;
+    showError("signupError", ""); showError("loginError", "");
+  }
+  $("tabSignup").onclick = () => setTab("signup");
+  $("tabLogin").onclick = () => setTab("login");
+
+  function cleanUsername(raw) { return String(raw || "").trim().toLowerCase(); }
+  function usernameProblem(u) {
+    if (u.length < 3) return "Your username needs at least 3 characters.";
+    if (u.length > 20) return "Keep your username to 20 characters or fewer.";
+    if (!/^[a-z0-9_.]+$/.test(u)) return "Use only letters, numbers, dots or underscores. No spaces.";
+    return "";
+  }
+
+  $("signupForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!sb) return showError("signupError", "Funi can't reach the internet. Check your connection and try again.");
+    const user = cleanUsername($("suUser").value), p1 = $("suPass").value, p2 = $("suPass2").value;
+    const bad = usernameProblem(user);
+    if (bad) return showError("signupError", bad);
+    if (p1.length < 6) return showError("signupError", "Your password needs at least 6 characters.");
+    if (p1 !== p2) return showError("signupError", "The two passwords don't match.");
+    showError("signupError", "");
+    $("signupBtn").disabled = true; $("signupBtn").textContent = "Creating…";
+    const { data, error } = await sb.auth.signUp({ email: user + "@" + USERNAME_DOMAIN, password: p1 });
+    $("signupBtn").disabled = false; $("signupBtn").textContent = "Create account";
+    if (error) {
+      const taken = /already|registered|exists/i.test(error.message);
+      return showError("signupError", taken ? "That username is taken. Try another one." : error.message);
+    }
+    if (!data.session) {
+      return showError("signupError", "Account made, but Supabase is still asking for email confirmation. Turn off 'Confirm email' in Supabase, then log in.");
+    }
+    me = data.user;
+    $("suPass").value = ""; $("suPass2").value = "";
+    toast("Welcome to Funi, " + user + "!");
+    showApp();
   });
+
+  $("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!sb) return showError("loginError", "Funi can't reach the internet. Check your connection and try again.");
+    const user = cleanUsername($("liUser").value), pass = $("liPass").value;
+    if (!user || !pass) return showError("loginError", "Enter your username and password.");
+    showError("loginError", "");
+    $("loginBtn").disabled = true; $("loginBtn").textContent = "Logging in…";
+    const { data, error } = await sb.auth.signInWithPassword({ email: user + "@" + USERNAME_DOMAIN, password: pass });
+    $("loginBtn").disabled = false; $("loginBtn").textContent = "Log in";
+    if (error) return showError("loginError", "Wrong username or password. Forgot it? Message Funi support to reset it.");
+    me = data.user;
+    $("liPass").value = "";
+    toast("Welcome back, " + user + ".");
+    showApp();
+  });
+
+  $("accountBtn").onclick = () => { $("accName").textContent = usernameOf(me); $("accountDlg").showModal(); };
+  $("logoutBtn").onclick = async () => {
+    if (sb) await sb.auth.signOut();
+    me = null; items = [];
+    setTab("login");
+    showAuth();
+    toast("Logged out.");
+  };
 
   /* ---------- rendering ---------- */
   function upcoming() {
@@ -80,112 +167,18 @@
 
     const soon = list.filter((x) => daysLeft(x.due_date) <= 7).length;
     $("badge").hidden = !soon; $("badge").textContent = soon;
-    updateNudge();
   }
-
-  /* ---------- account (no emails) ---------- */
-  async function currentUser() {
-    if (!sb) return null;
-    const { data } = await sb.auth.getUser();
-    return data ? data.user : null;
-  }
-
-  let lastAuthError = "";
-  async function ensureSession() {
-    if (!sb) { lastAuthError = "Funi isn't connected yet. Check your internet and refresh."; return false; }
-    const { data } = await sb.auth.getSession();
-    if (data && data.session) return true;
-    const { error } = await sb.auth.signInAnonymously();
-    if (error) {
-      lastAuthError = /anonymous/i.test(error.message)
-        ? "Anonymous sign-ins are turned off in Supabase (Authentication › Sign In / Providers)."
-        : "Funi couldn't start your account: " + error.message;
-      status(lastAuthError);
-      return false;
-    }
-    lastAuthError = "";
-    status("");
-    return true;
-  }
-
-  async function updateGreeting() {
-    const u = await currentUser();
-    const name = usernameOf(u);
-    $("greeting").textContent = name ? "Hi, " + name : "Study with Funi";
-  }
-
-  async function updateNudge() {
-    const u = await currentUser();
-    $("nudge").hidden = !(u && u.is_anonymous && items.length >= 2);
-  }
-
-  async function openAccount() {
-    const u = await currentUser();
-    const saved = u && !u.is_anonymous && u.email;
-    $("accSaved").hidden = !saved;
-    $("saveForm").hidden = !!saved;
-    $("loginForm").hidden = true;
-    if (saved) $("accName").textContent = usernameOf(u);
-    showError("saveError", ""); showError("loginError", "");
-    $("accountDlg").showModal();
-  }
-  $("accountBtn").onclick = openAccount;
-  $("nudgeBtn").onclick = openAccount;
-  $("showLogin").onclick = () => { $("saveForm").hidden = true; $("loginForm").hidden = false; };
-  $("backToSave").onclick = () => { $("loginForm").hidden = true; $("saveForm").hidden = false; };
-
-  function cleanUsername(raw) { return String(raw || "").trim().toLowerCase(); }
-  function validUsername(u) { return /^[a-z0-9_.]{3,20}$/.test(u); }
-
-  $("saveForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const user = cleanUsername($("sUser").value), pass = $("sPass").value;
-    if (!validUsername(user)) return showError("saveError", "Use 3–20 letters, numbers, dots or underscores.");
-    if (pass.length < 6) return showError("saveError", "Your password needs at least 6 characters.");
-    showError("saveError", "");
-    if (!(await ensureSession())) return showError("saveError", lastAuthError);
-    const email = user + "@" + USERNAME_DOMAIN;
-    let res = await sb.auth.updateUser({ email: email });
-    if (res.error) {
-      const taken = /already|registered|exists/i.test(res.error.message);
-      return showError("saveError", taken ? "That username is taken. Try another one." : res.error.message);
-    }
-    res = await sb.auth.updateUser({ password: pass });
-    if (res.error) return showError("saveError", res.error.message);
-    $("accountDlg").close();
-    $("sPass").value = "";
-    toast("Saved. Log in with " + user + " on any device.");
-    updateGreeting(); updateNudge();
-  });
-
-  $("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const user = cleanUsername($("lUser").value), pass = $("lPass").value;
-    showError("loginError", "");
-    const { error } = await sb.auth.signInWithPassword({ email: user + "@" + USERNAME_DOMAIN, password: pass });
-    if (error) return showError("loginError", "Wrong username or password. Forgot it? Message Funi support to reset it.");
-    $("accountDlg").close(); $("lPass").value = "";
-    toast("Welcome back, " + user + ".");
-    await updateGreeting(); await loadItems();
-  });
-
-  $("logoutBtn").onclick = async () => {
-    await sb.auth.signOut();
-    items = []; store(CACHE_KEY, []);
-    await ensureSession();
-    $("accountDlg").close();
-    toast("Logged out.");
-    await updateGreeting(); await loadItems();
-  };
 
   /* ---------- tests & exams ---------- */
+  function saveCache() { if (me) store(CACHE_KEY + "." + me.id, items); }
+
   async function loadItems() {
-    if (!sb) return render();
+    if (!sb || !me) return render();
     const { data, error } = await sb.from("assessments").select("*").gte("due_date", todayISO()).order("due_date");
-    if (error) { status("Showing your saved copy. Couldn't reach Funi's server."); render(); return; }
-    status("");
+    if (error) { status("status", "Showing your saved copy. Couldn't reach Funi's server."); render(); return; }
+    status("status", "");
     items = data || [];
-    store(CACHE_KEY, items);
+    saveCache();
     render();
     dailyCheck();
   }
@@ -206,12 +199,11 @@
       venue: $("fVenue").value.trim() || null
     };
     if (!row.module || !row.due_date) return showError("addError", "Add the module and the date.");
-    if (!(await ensureSession())) return showError("addError", lastAuthError);
     $("addSave").disabled = true;
     const { data, error } = await sb.from("assessments").insert(row).select().single();
     $("addSave").disabled = false;
     if (error) return showError("addError", "Couldn't save: " + error.message);
-    items.push(data); store(CACHE_KEY, items);
+    items.push(data); saveCache();
     $("addDlg").close(); render();
     const d = daysLeft(data.due_date);
     toast(d === 0 ? "Saved. It's today, you've got this!" : "Saved. " + d + (d === 1 ? " day" : " days") + " to go.");
@@ -223,7 +215,7 @@
     const id = btn.dataset.id;
     const { error } = await sb.from("assessments").delete().eq("id", id);
     if (error) return toast("Couldn't delete: " + error.message);
-    items = items.filter((x) => x.id !== id); store(CACHE_KEY, items); render();
+    items = items.filter((x) => x.id !== id); saveCache(); render();
     toast("Deleted.");
   });
 
@@ -273,19 +265,26 @@
 
   /* ---------- start ---------- */
   async function start() {
-    items = read(CACHE_KEY, []);
-    render();
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
     try {
       const res = await fetch("/api/config", { cache: "no-store" });
       const cfg = await res.json();
-      if (!cfg.url || !cfg.anonKey) { status("Funi isn't connected to its database yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel."); return; }
+      if (!cfg.url || !cfg.anonKey) {
+        showAuth(); status("authStatus", "Funi isn't connected to its database yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel.");
+        return;
+      }
       sb = window.supabase.createClient(cfg.url, cfg.anonKey, { auth: { persistSession: true, autoRefreshToken: true } });
     } catch (e) {
-      status("You're offline. Showing your saved countdowns.");
+      showAuth(); status("authStatus", "You're offline. Connect to the internet to log in.");
       return;
     }
-    if (await ensureSession()) { await updateGreeting(); await loadItems(); }
+    const { data } = await sb.auth.getSession();
+    const user = data && data.session ? data.session.user : null;
+    if (user && !user.is_anonymous && user.email) { me = user; showApp(); }
+    else {
+      if (user) await sb.auth.signOut(); // clear any old hidden account from the first version
+      showAuth();
+    }
   }
   start();
 })();

@@ -1,5 +1,5 @@
 // Service worker: keeps Funi opening offline and shows notifications.
-const CACHE = "funi-v2";
+const CACHE = "funi-v3";
 const SHELL = [
   "/", "/index.html", "/styles.css", "/app.js", "/manifest.json",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"

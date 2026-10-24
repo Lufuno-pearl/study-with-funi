@@ -11,9 +11,9 @@ Live: https://study-with-funi.vercel.app
 - `sw.js` is the service worker (offline + notifications). `manifest.json` makes it installable.
 
 ## Accounts (no email)
-1. Every new phone gets a private hidden account automatically (Supabase anonymous sign-in).
-2. Students can save a **username + password**. It's stored as `username@users.studywithfuni.app`. Nothing is ever emailed.
-3. They log in with that username on another device.
+1. The welcome screen has **Create account** (username, password, confirm password) and **Log in**.
+2. Usernames are stored in Supabase as `username@users.studywithfuni.app`. Nothing is ever emailed and there are no OTPs.
+3. The same username and password work on any device.
 
 ### Resetting a forgotten password
 In Supabase, open **SQL Editor**, replace `USERNAME` and `NEW_PASSWORD`, and run:
@@ -27,6 +27,5 @@ where email = 'USERNAME@users.studywithfuni.app';
 Then tell the student their new password.
 
 ## Settings that must stay on in Supabase
-- Authentication → Sign In / Providers → **Allow anonymous sign-ins: ON**
 - Authentication → Email → **Confirm email: OFF**
 - Vercel → Settings → Environment Variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
