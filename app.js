@@ -281,7 +281,24 @@
   $("goPlan").onclick = () => openTab("tabPlan");
 
   /* ---------- focus timer ---------- */
-  let fLeft = 25 * 60, fTimer = null, fBreak = false;
+  let fDurationMinutes = 25, fLeft = 25 * 60, fTimer = null, fBreak = false;
+  $("focusApply").onclick = () => {
+    const minutes = Number($("focusMinutes").value);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) {
+      toast("Choose a whole number from 1 to 240 minutes.");
+      $("focusMinutes").focus();
+      return;
+    }
+    fStop();
+    fDurationMinutes = minutes;
+    fLeft = fDurationMinutes * 60;
+    fBreak = false;
+    fDraw();
+    $("focusLabel").textContent = "READY WHEN YOU ARE";
+    $("focusStart").textContent = "Start focus";
+    $("focusDescription").textContent = "Your focus timer is set to " + (minutes >= 60 ? (Math.floor(minutes/60) + " hour" + (Math.floor(minutes/60)===1?"":"s") + (minutes%60 ? " " + minutes%60 + " minutes" : "")) : minutes + " minutes") + ". You can change it whenever you like.";
+    toast("Focus timer set for " + minutes + " minute" + (minutes===1?"":"s") + ".");
+  };
   function fDraw() {
     const m = Math.floor(fLeft / 60), s = fLeft % 60;
     $("focusClock").textContent = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
@@ -301,14 +318,14 @@
         notify("Focus session done", "Take a 5 minute break. You earned it.");
         fBreak = true; fLeft = 5 * 60; $("focusLabel").textContent = "BREAK READY";
       } else {
-        notify("Break's over", "Ready for another 25 minutes?");
-        fBreak = false; fLeft = 25 * 60; $("focusLabel").textContent = "READY WHEN YOU ARE";
+        notify("Break's over", "Ready for another " + fDurationMinutes + " minute focus session?");
+        fBreak = false; fLeft = fDurationMinutes * 60; $("focusLabel").textContent = "READY WHEN YOU ARE";
       }
       $("focusStart").textContent = fBreak ? "Start break" : "Start focus"; fDraw();
     }, 1000);
   };
   $("focusReset").onclick = () => {
-    fStop(); fBreak = false; fLeft = 25 * 60; fDraw();
+    fStop(); fBreak = false; fLeft = fDurationMinutes * 60; fDraw();
     $("focusStart").textContent = "Start focus"; $("focusLabel").textContent = "READY WHEN YOU ARE";
   };
   $("focusDone").textContent = "Sessions finished today: " + read("funi.focus." + todayISO(), 0);
