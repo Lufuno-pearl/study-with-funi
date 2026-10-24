@@ -58,6 +58,8 @@
     items = read(CACHE_KEY + "." + me.id, []);
     render();
     await loadItems();
+    await loadModules();
+    await initStudyCircle();
   }
 
   /* ---------- create account / log in ---------- */
@@ -267,9 +269,10 @@
 
   /* ---------- bottom tabs ---------- */
   function openTab(id) {
-    ["tabHome", "tabPlan", "tabModules", "tabFocus", "tabMarks"].forEach((t) => { $(t).hidden = t !== id; });
+    ["tabHome", "tabPlan", "tabModules", "tabCircle", "tabFocus", "tabMarks"].forEach((t) => { $(t).hidden = t !== id; });
     if (id === "tabPlan") renderPlan();
     if (id === "tabModules") renderModules();
+    if (id === "tabCircle") renderCircleModuleChoices();
     document.querySelectorAll(".tab[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === id));
     window.scrollTo(0, 0);
   }
@@ -556,6 +559,145 @@
     store("funi.plan." + me.id, { hours: +$("psHours").value, rest: +$("psRest").value, from: $("psFrom").value, to: $("psTo").value, classes: draftClasses });
     $("planDlg").close(); renderPlan(); toast("Plan rebuilt.");
   };
+
+
+  /* ---------- Study Circle: module matching, moods, invitations, chat ---------- */
+  const CIRCLE_MOODS = ["Feeling great","Happy","Okay","Confused","Stressed","Need help"];
+  const CIRCLE_FACES = {"Feeling great":"🤩","Happy":"😊","Okay":"🙂","Confused":"😕","Stressed":"😟","Need help":"🥺"};
+  let circleChosenModules = new Set(), circlePartners = [], circleActiveSession = null;
+  function circleFace(mood) { return CIRCLE_FACES[mood] || "🙂"; }
+  function circleSay(message) { $("circleStatus").textContent = message; }
+  function circleErr(prefix, error) { console.error(prefix, error); circleSay(prefix + (error && error.message ? " " + error.message : "")); }
+  async function initStudyCircle() {
+    if (!sb || !me) return;
+    $("circleMood").onchange = () => { $("circleMyFace").textContent = circleFace($("circleMood").value); };
+    $("circleSaveMood").onclick = saveCircleMood;
+    $("circleSaveModules").onclick = saveCircleModules;
+    $("circleRefresh").onclick = async () => { await saveCircleModules(); await loadCircleMatches(); await loadCircleConnections(); };
+    $("circleChatPartner").onchange = loadCircleMessages;
+    $("circleMessageForm").onsubmit = sendCircleMessage;
+    $("circleStartSession").onclick = startCircleSession;
+    $("circleEndSession").onclick = endCircleSession;
+    const {data,error}=await sb.from("study_profiles").select("id,username,feeling").eq("id",me.id).maybeSingle();
+    if (error) { circleErr("Study Circle database is not ready. Run study-circle-complete-setup.sql in Supabase SQL Editor.",error); return; }
+    const profile = {id:me.id,username:usernameOf(me).toLowerCase(),feeling:"Okay",...(data||{})};
+    const {error:upsertError}=await sb.from("study_profiles").upsert(profile,{onConflict:"id"});
+    if (upsertError) { circleErr("Couldn't prepare your Study Circle profile:",upsertError); return; }
+    $("circleMood").value=profile.feeling; $("circleMyFace").textContent=circleFace(profile.feeling);
+    renderCircleModuleChoices();
+    await loadCircleSavedModules();
+    await loadCircleMatches();
+    await loadCircleConnections();
+    await loadCircleSession();
+  }
+  function renderCircleModuleChoices() {
+    const box=$("circleModuleChoices"); if(!box)return;
+    if(!modules.length){box.innerHTML='<div class="circle-empty">Add your modules in the Modules tab first, then choose them here.</div>';return;}
+    box.innerHTML=modules.map(m=>'<label class="circle-module-choice"><input type="checkbox" data-circle-module="'+esc(m.code)+'" '+(circleChosenModules.has(m.code.toUpperCase())?'checked':'')+'> '+esc(m.code)+'</label>').join("");
+    $("circleSessionModule").innerHTML='<option value="">Choose a module</option>'+modules.map(m=>'<option value="'+esc(m.code)+'">'+esc(m.code+(m.name?' · '+m.name:''))+'</option>').join("");
+    box.querySelectorAll("[data-circle-module]").forEach(el=>el.onchange=()=>{const code=el.dataset.circleModule.toUpperCase();el.checked?circleChosenModules.add(code):circleChosenModules.delete(code);});
+  }
+  async function loadCircleSavedModules(){
+    const {data,error}=await sb.from("study_profile_modules").select("module_code").eq("user_id",me.id);
+    if(error){circleErr("Couldn't load your saved matching modules:",error);return;}
+    circleChosenModules=new Set((data||[]).map(x=>x.module_code.toUpperCase()));
+    // Keep module list in sync only when no previous module choices exist.
+    if(!circleChosenModules.size && modules.length) circleChosenModules=new Set(modules.map(m=>m.code.toUpperCase()));
+    renderCircleModuleChoices();
+  }
+  async function saveCircleMood(){
+    const feeling=$("circleMood").value;
+    const {error}=await sb.from("study_profiles").update({feeling,updated_at:new Date().toISOString()}).eq("id",me.id);
+    if(error)return circleErr("Couldn't save your mood:",error);
+    $("circleMyFace").textContent=circleFace(feeling);circleSay("Mood saved. Your partners can see your latest check-in.");await loadCircleMatches();await loadCircleConnections();
+  }
+  async function saveCircleModules(){
+    const checked=[...document.querySelectorAll("[data-circle-module]:checked")].map(x=>x.dataset.circleModule.toUpperCase());
+    if(!checked.length){circleSay("Choose at least one module to find study partners.");return;}
+    const {error:delError}=await sb.from("study_profile_modules").delete().eq("user_id",me.id);
+    if(delError)return circleErr("Couldn't update your modules:",delError);
+    const {error}=await sb.from("study_profile_modules").insert(checked.map(module_code=>({user_id:me.id,module_code})));
+    if(error)return circleErr("Couldn't save your modules:",error);
+    circleChosenModules=new Set(checked);circleSay("Modules saved. Looking for students who share them…");await loadCircleMatches();
+  }
+  function circleEmpty(msg){return '<div class="circle-empty">'+esc(msg)+'</div>';}
+  function circlePersonCard(person,kind){
+    const mood=person.feeling||"Okay",shared=person.shared_modules||[];
+    let actions="";
+    if(kind==="match") actions='<div class="circle-person-actions"><button class="primary" data-circle-invite="'+esc(person.user_id)+'">Invite to study</button></div>';
+    if(kind==="incoming") actions='<div class="circle-person-actions"><button class="primary" data-circle-accept="'+esc(person.id)+'">Accept</button><button class="ghost" data-circle-reject="'+esc(person.id)+'">Decline</button></div>';
+    if(kind==="partner") actions='<div class="circle-person-actions"><button class="primary" data-circle-chat="'+esc(person.id)+'">Message</button></div>';
+    return '<article class="circle-person"><div class="circle-person-top"><div class="circle-face">'+circleFace(mood)+'</div><div><div class="circle-person-name">'+esc(person.username)+'</div><div class="circle-person-mood">'+esc(mood)+'</div></div></div>'+(shared.length?'<div class="circle-tags">'+shared.map(m=>'<span class="circle-tag">'+esc(m)+'</span>').join("")+'</div>':'')+actions+'</article>';
+  }
+  async function loadCircleMatches(){
+    const {data,error}=await sb.rpc("find_study_matches");
+    if(error){$("circleMatches").innerHTML=circleEmpty("Couldn't load matches. Check that study-circle-complete-setup.sql ran successfully.");circleErr("Matching isn't available yet:",error);return;}
+    $("circleMatches").innerHTML=data&&data.length?data.map(p=>circlePersonCard(p,"match")).join(""):circleEmpty("No matches yet. Other students need to create a Study Circle profile and choose at least one of the same modules. Share the Study Circle link with classmates so they can join.");
+  }
+  async function loadCircleConnections(){
+    const {data,error}=await sb.from("study_partners").select("*").or('requester_id.eq.'+me.id+',addressee_id.eq.'+me.id).order("created_at",{ascending:false});
+    if(error){circleErr("Couldn't load invitations:",error);return;}
+    const rows=data||[], incoming=rows.filter(p=>p.addressee_id===me.id&&p.status==="pending"), accepted=rows.filter(p=>p.status==="accepted");
+    const ids=[...new Set(rows.map(p=>p.requester_id===me.id?p.addressee_id:p.requester_id))];
+    let profiles={};
+    if(ids.length){const {data:ps,error:pe}=await sb.from("study_profiles").select("id,username,feeling").in("id",ids);if(!pe)(ps||[]).forEach(p=>profiles[p.id]=p);}
+    $("circleRequests").innerHTML=incoming.length?incoming.map(p=>circlePersonCard({...profiles[p.requester_id],id:p.id},"incoming")).join(""):circleEmpty("No new invitations right now.");
+    circlePartners=accepted.map(p=>{const id=p.requester_id===me.id?p.addressee_id:p.requester_id;return {...(profiles[id]||{username:"Study partner",feeling:"Okay"}),id};});
+    $("circlePartners").innerHTML=circlePartners.length?circlePartners.map(p=>circlePersonCard(p,"partner")).join(""):circleEmpty("Your accepted study partners will appear here.");
+    $("circleChatPartner").innerHTML=circlePartners.length?circlePartners.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.username)+'</option>').join(""):'<option value="">No partners yet</option>';
+    if(circlePartners.length)await loadCircleMessages();
+  }
+  async function circleConnectionAction(id,status){
+    const {error}=await sb.from("study_partners").update({status}).eq("id",id).eq("addressee_id",me.id);
+    if(error)return circleErr("Couldn't update invitation:",error);
+    circleSay(status==="accepted"?"Partner added! Private chat is now available.":"Invitation declined.");await loadCircleConnections();await loadCircleMatches();
+  }
+  async function loadCircleMessages(){
+    const other=$("circleChatPartner").value,box=$("circleMessages");
+    if(!other){box.innerHTML='<p class="hint">Accept a partner invitation to start chatting.</p>';return;}
+    const {data,error}=await sb.from("study_messages").select("*").or('and(sender_id.eq.'+me.id+',recipient_id.eq.'+other+'),and(sender_id.eq.'+other+',recipient_id.eq.'+me.id+')').order("created_at",{ascending:true}).limit(100);
+    if(error){box.innerHTML=circleEmpty("Couldn't load messages.");return circleErr("Chat unavailable:",error);}
+    box.innerHTML=data&&data.length?data.map(m=>'<div class="circle-bubble '+(m.sender_id===me.id?'mine':'')+'">'+esc(m.body)+'<small>'+new Date(m.created_at).toLocaleString()+'</small></div>').join(""):'<p class="hint">Say hello and plan your first study session.</p>';
+    box.scrollTop=box.scrollHeight;
+  }
+  async function sendCircleMessage(e){
+    e.preventDefault();const recipient_id=$("circleChatPartner").value,body=$("circleMessageInput").value.trim();
+    if(!recipient_id||!body)return;
+    const {error}=await sb.from("study_messages").insert({sender_id:me.id,recipient_id,body});
+    if(error)return circleErr("Message wasn't sent:",error);
+    $("circleMessageInput").value="";await loadCircleMessages();
+  }
+  async function startCircleSession(){
+    const module_code=$("circleSessionModule").value;if(!module_code)return circleSay("Choose a module for your session.");
+    const {error}=await sb.from("study_sessions").update({is_active:false,ended_at:new Date().toISOString()}).eq("user_id",me.id).eq("is_active",true);
+    if(error)return circleErr("Couldn't update your previous session:",error);
+    const {data,error:insertError}=await sb.from("study_sessions").insert({user_id:me.id,module_code,feeling:$("circleMood").value,activity:$("circleSessionActivity").value,share_with_partners:$("circleShareSession").checked}).select().single();
+    if(insertError)return circleErr("Couldn't start your session:",insertError);
+    circleActiveSession=data;$("circleSessionStatus").textContent="Active: "+module_code+" · "+data.activity;circleSay("Study session started.");await loadCircleConnections();
+  }
+  async function endCircleSession(){
+    if(!circleActiveSession)return circleSay("You don't have an active session.");
+    const {error}=await sb.from("study_sessions").update({is_active:false,ended_at:new Date().toISOString()}).eq("id",circleActiveSession.id).eq("user_id",me.id);
+    if(error)return circleErr("Couldn't end session:",error);
+    circleActiveSession=null;$("circleSessionStatus").textContent="No active session.";circleSay("Study session ended.");
+  }
+  async function loadCircleSession(){
+    const {data,error}=await sb.from("study_sessions").select("*").eq("user_id",me.id).eq("is_active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();
+    if(error)return;
+    circleActiveSession=data||null;$("circleSessionStatus").textContent=data?"Active: "+data.module_code+" · "+data.activity:"No active session.";
+  }
+  $("tabCircle")?.addEventListener("click",()=>{loadCircleConnections();loadCircleMatches();});
+  $("tabCircle") && $("tabCircle").addEventListener("click",()=>{});
+  document.addEventListener("click",async e=>{
+    const b=e.target.closest("[data-circle-invite],[data-circle-accept],[data-circle-reject],[data-circle-chat]");if(!b||!sb||!me)return;
+    if(b.dataset.circleInvite){
+      const {error}=await sb.from("study_partners").insert({requester_id:me.id,addressee_id:b.dataset.circleInvite,status:"pending"});
+      if(error)return circleErr("Couldn't send invitation (they may already have an invitation):",error);
+      b.disabled=true;b.textContent="Invitation sent";circleSay("Study invitation sent.");
+    }else if(b.dataset.circleAccept)await circleConnectionAction(b.dataset.circleAccept,"accepted");
+    else if(b.dataset.circleReject)await circleConnectionAction(b.dataset.circleReject,"rejected");
+    else if(b.dataset.circleChat){$("circleChatPartner").value=b.dataset.circleChat;await loadCircleMessages();$("circleMessageInput").focus();}
+  });
 
   /* ---------- start ---------- */
   async function start() {
