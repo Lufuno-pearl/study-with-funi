@@ -342,3 +342,17 @@ input[type=range] { height: 32px; padding: 0; border: 0; accent-color: var(--lav
 .circle-person-avatar svg { width:100%;height:100%;display:block; }
 .circle-person-avatar.purple {background:#D9D1FF}.circle-person-avatar.mint {background:#CDEDE3}.circle-person-avatar.peach {background:#FFE0CF}
 @media(max-width:380px){.circle-shortcuts{grid-template-columns:1fr}.circle-shortcut{min-height:110px}.circle-heading{padding:19px}.circle-hero-actions button{flex:1}}
+
+
+/* Optional large, distraction-free focus timer */
+.focus-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.focus-heading h1 { margin: 0; }
+#tabFocus.focus-big-mode { position: fixed; inset: 0; z-index: 9999; overflow: auto; background: var(--bg, #fbf8ff); padding: clamp(18px, 4vw, 48px); display: flex; flex-direction: column; justify-content: center; }
+#tabFocus.focus-big-mode .focus-settings, #tabFocus.focus-big-mode #focusDescription, #tabFocus.focus-big-mode #focusDone { display: none; }
+#tabFocus.focus-big-mode .focus-heading { position: absolute; top: 18px; left: clamp(18px, 4vw, 48px); right: clamp(18px, 4vw, 48px); }
+#tabFocus.focus-big-mode .focus-card { width: 100%; min-height: min(68vh, 720px); justify-content: center; gap: clamp(20px, 4vh, 48px); padding: clamp(24px, 5vw, 64px); }
+#tabFocus.focus-big-mode .focus-clock { font-size: clamp(100px, 22vw, 300px); letter-spacing: -0.04em; }
+#tabFocus.focus-big-mode .focus-card .eyebrow { font-size: clamp(13px, 1.6vw, 20px); }
+#tabFocus.focus-big-mode .focus-btns { max-width: 520px; }
+#tabFocus.focus-big-mode .focus-btns button { min-height: 56px; font-size: 18px; }
+@media (max-width: 520px) { #tabFocus.focus-big-mode .focus-clock { font-size: clamp(76px, 20vw, 140px); } #tabFocus.focus-big-mode .focus-btns { flex-direction: column; } }
