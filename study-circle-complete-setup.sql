@@ -57,7 +57,7 @@ alter table public.study_profile_modules enable row level security;
 
 drop policy if exists study_profiles_read_self_or_partners on public.study_profiles;
 create policy study_profiles_read_self_or_partners on public.study_profiles for select to authenticated
-using (id=auth.uid() or exists (select 1 from public.study_partners p where p.status='accepted' and ((p.requester_id=auth.uid() and p.addressee_id=study_profiles.id) or (p.addressee_id=auth.uid() and p.requester_id=study_profiles.id))));
+using (id=auth.uid() or exists (select 1 from public.study_partners p where p.status in ('accepted','pending') and ((p.requester_id=auth.uid() and p.addressee_id=study_profiles.id) or (p.addressee_id=auth.uid() and p.requester_id=study_profiles.id))));
 drop policy if exists study_profiles_insert_self on public.study_profiles;
 create policy study_profiles_insert_self on public.study_profiles for insert to authenticated with check (id=auth.uid());
 drop policy if exists study_profiles_update_self on public.study_profiles;
