@@ -90,14 +90,21 @@
     return data ? data.user : null;
   }
 
+  let lastAuthError = "";
   async function ensureSession() {
+    if (!sb) { lastAuthError = "Funi isn't connected yet. Check your internet and refresh."; return false; }
     const { data } = await sb.auth.getSession();
     if (data && data.session) return true;
     const { error } = await sb.auth.signInAnonymously();
     if (error) {
-      status("Funi couldn't start your account. Check your connection and refresh. (" + error.message + ")");
+      lastAuthError = /anonymous/i.test(error.message)
+        ? "Anonymous sign-ins are turned off in Supabase (Authentication › Sign In / Providers)."
+        : "Funi couldn't start your account: " + error.message;
+      status(lastAuthError);
       return false;
     }
+    lastAuthError = "";
+    status("");
     return true;
   }
 
@@ -136,6 +143,7 @@
     if (!validUsername(user)) return showError("saveError", "Use 3–20 letters, numbers, dots or underscores.");
     if (pass.length < 6) return showError("saveError", "Your password needs at least 6 characters.");
     showError("saveError", "");
+    if (!(await ensureSession())) return showError("saveError", lastAuthError);
     const email = user + "@" + USERNAME_DOMAIN;
     let res = await sb.auth.updateUser({ email: email });
     if (res.error) {
@@ -198,6 +206,7 @@
       venue: $("fVenue").value.trim() || null
     };
     if (!row.module || !row.due_date) return showError("addError", "Add the module and the date.");
+    if (!(await ensureSession())) return showError("addError", lastAuthError);
     $("addSave").disabled = true;
     const { data, error } = await sb.from("assessments").insert(row).select().single();
     $("addSave").disabled = false;
