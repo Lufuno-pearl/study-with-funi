@@ -273,7 +273,7 @@
     ["tabHome", "tabPlan", "tabModules", "tabCircle", "tabFocus", "tabMarks"].forEach((t) => { $(t).hidden = t !== id; });
     if (id === "tabPlan") renderPlan();
     if (id === "tabModules") renderModules();
-    if (id === "tabCircle") renderCircleModuleChoices();
+    if (id === "tabCircle") { renderCircleModuleChoices(); $("circleToday").textContent = new Date().toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" }); }
     document.querySelectorAll(".tab[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === id));
     window.scrollTo(0, 0);
   }
@@ -567,6 +567,12 @@
   const CIRCLE_FACES = {"Feeling great":"🤩","Happy":"😊","Okay":"🙂","Confused":"😕","Stressed":"😟","Need help":"🥺"};
   let circleChosenModules = new Set(), circlePartners = [], circleActiveSession = null;
   function circleFace(mood) { return CIRCLE_FACES[mood] || "🙂"; }
+  function circleAvatarMarkup(mood,seed) {
+    const looks=[{skin:"#E9A878",hair:"#4B2B28",shirt:"#9A83E8",bg:"peach"},{skin:"#8B5439",hair:"#263D53",shirt:"#F1A77E",bg:"purple"},{skin:"#A96845",hair:"#29222D",shirt:"#72B8A6",bg:"mint"},{skin:"#D99A70",hair:"#3D302B",shirt:"#E9A15B",bg:"peach"}];
+    let n=0;for(const ch of String(seed||mood||"funi"))n=(n+ch.charCodeAt(0))%looks.length;
+    const p=looks[n],smile=mood==="Stressed"||mood==="Confused"||mood==="Need help"?'M41 61Q50 55 59 61':'M41 59Q50 68 59 59';
+    return '<div class="circle-person-avatar '+p.bg+'"><svg viewBox="0 0 100 110" aria-hidden="true"><path fill="'+p.hair+'" d="M18 49Q7 9 43 8Q80 1 83 39L78 65H22Z"/><path fill="'+p.skin+'" d="M24 39Q24 19 49 19Q74 20 74 43V60Q68 80 49 81Q29 76 24 59Z"/><path fill="'+p.hair+'" d="M22 39Q18 10 48 12Q76 10 79 39L69 34 63 25Q46 39 25 32Z"/><circle cx="39" cy="48" r="3" fill="#302328"/><circle cx="59" cy="48" r="3" fill="#302328"/><path d="'+smile+'" fill="none" stroke="#713B34" stroke-width="3" stroke-linecap="round"/><path fill="'+p.shirt+'" d="M12 109Q13 79 35 75L49 86 64 75Q87 81 89 109Z"/></svg></div>';
+  }
   function circleSay(message) { $("circleStatus").textContent = message; }
   function circleErr(prefix, error) { console.error(prefix, error); circleSay(prefix + (error && error.message ? " " + error.message : "")); }
   async function initStudyCircle() {
@@ -578,7 +584,7 @@
     const profile = {id:me.id,username:usernameOf(me).toLowerCase(),feeling:"Okay",...(data||{})};
     const {error:upsertError}=await sb.from("study_profiles").upsert(profile,{onConflict:"id"});
     if (upsertError) { circleErr("Couldn't prepare your Study Circle profile:",upsertError); return; }
-    $("circleMood").value=profile.feeling; $("circleMyFace").textContent=circleFace(profile.feeling);
+    $("circleMood").value=profile.feeling; $("circleMyFace").innerHTML=circleAvatarMarkup(profile.feeling,me.id);
     renderCircleModuleChoices();
     await loadCircleSavedModules();
     await loadCircleMatches();
@@ -618,7 +624,7 @@
     const feeling=$("circleMood").value;
     const {error}=await sb.from("study_profiles").update({feeling,updated_at:new Date().toISOString()}).eq("id",me.id);
     if(error)return circleErr("Couldn't save your mood:",error);
-    $("circleMyFace").textContent=circleFace(feeling);circleSay("Mood saved. Your partners can see your latest check-in.");await loadCircleMatches();await loadCircleConnections();
+    $("circleMyFace").innerHTML=circleAvatarMarkup(feeling,me.id);circleSay("Mood saved. Your partners can see your latest check-in.");await loadCircleMatches();await loadCircleConnections();
   }
   function updateCircleModuleSaveButton(){
     const button=$("circleSaveModules");
@@ -656,7 +662,7 @@
     if(kind==="match") actions='<div class="circle-person-actions"><button class="primary" data-circle-invite="'+esc(person.user_id)+'">Invite to study</button></div>';
     if(kind==="incoming") actions='<div class="circle-person-actions"><button class="primary" data-circle-accept="'+esc(person.id)+'">Accept</button><button class="ghost" data-circle-reject="'+esc(person.id)+'">Decline</button></div>';
     if(kind==="partner") actions='<div class="circle-person-actions"><button class="primary" data-circle-chat="'+esc(person.id)+'">Message</button></div>';
-    return '<article class="circle-person"><div class="circle-person-top"><div class="circle-face">'+circleFace(mood)+'</div><div><div class="circle-person-name">'+esc(person.username)+'</div><div class="circle-person-mood">'+esc(mood)+'</div></div></div>'+(shared.length?'<div class="circle-tags">'+shared.map(m=>'<span class="circle-tag">'+esc(m)+'</span>').join("")+'</div>':'')+actions+'</article>';
+    return '<article class="circle-person"><div class="circle-person-top">'+circleAvatarMarkup(mood,person.user_id||person.id||person.username)+'<div><div class="circle-person-name">'+esc(person.username)+'</div><div class="circle-person-mood">'+esc(mood)+'</div></div></div>'+(shared.length?'<div class="circle-tags">'+shared.map(m=>'<span class="circle-tag">'+esc(m)+'</span>').join("")+'</div>':'')+actions+'</article>';
   }
   async function loadCircleMatches(){
     const {data,error}=await sb.rpc("find_study_matches");
@@ -743,6 +749,35 @@
   };
   $("circleStartSession").onclick = () => sb && me ? startCircleSession() : circleSay("Please log in and wait for Funi to connect.");
   $("circleEndSession").onclick = () => sb && me ? endCircleSession() : circleSay("Please log in and wait for Funi to connect.");
+
+
+  // Study Circle dashboard shortcuts and invitation sharing.
+  function circleScrollToModules() {
+    const card=$("circleModuleChoices");
+    if(card) card.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+  $("circleStart").onclick = () => {
+    circleScrollToModules();
+    circleSay("Choose the modules you want to study with, then save them to find classmates.");
+  };
+  $("circleFindShortcut").onclick = () => {
+    circleScrollToModules();
+    $("circleSaveModules").focus({preventScroll:true});
+    circleSay("Choose your modules and save them to find matching students.");
+  };
+  $("circleFocusShortcut").onclick = () => openTab("tabFocus");
+  $("circleInviteFriend").onclick = async () => {
+    const shareData={title:"Study with Funi — Study Circle",text:"Join me on Study with Funi so we can find study partners for our modules.",url:window.location.origin};
+    try {
+      if(navigator.share) await navigator.share(shareData);
+      else if(navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareData.url);
+        toast("Study with Funi link copied. Send it to a friend!");
+      } else window.prompt("Copy this Study with Funi link and send it to a friend:",shareData.url);
+    } catch(e) {
+      if(e && e.name!=="AbortError") toast("Copy the app link from your browser address bar to invite a friend.");
+    }
+  };
 
   /* ---------- start ---------- */
   async function start() {
