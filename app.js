@@ -570,14 +570,8 @@
   function circleErr(prefix, error) { console.error(prefix, error); circleSay(prefix + (error && error.message ? " " + error.message : "")); }
   async function initStudyCircle() {
     if (!sb || !me) return;
-    $("circleMood").onchange = () => { $("circleMyFace").textContent = circleFace($("circleMood").value); };
-    $("circleSaveMood").onclick = saveCircleMood;
-    $("circleSaveModules").onclick = saveCircleModules;
-    $("circleRefresh").onclick = async () => { await saveCircleModules(); await loadCircleMatches(); await loadCircleConnections(); };
-    $("circleChatPartner").onchange = loadCircleMessages;
-    $("circleMessageForm").onsubmit = sendCircleMessage;
-    $("circleStartSession").onclick = startCircleSession;
-    $("circleEndSession").onclick = endCircleSession;
+    // Event handlers are registered once at startup below, so slow database loading
+    // cannot leave the Study Circle buttons unresponsive.
     const {data,error}=await sb.from("study_profiles").select("id,username,feeling").eq("id",me.id).maybeSingle();
     if (error) { circleErr("Study Circle database is not ready. Run study-circle-complete-setup.sql in Supabase SQL Editor.",error); return; }
     const profile = {id:me.id,username:usernameOf(me).toLowerCase(),feeling:"Okay",...(data||{})};
@@ -686,8 +680,6 @@
     if(error)return;
     circleActiveSession=data||null;$("circleSessionStatus").textContent=data?"Active: "+data.module_code+" · "+data.activity:"No active session.";
   }
-  $("tabCircle")?.addEventListener("click",()=>{loadCircleConnections();loadCircleMatches();});
-  $("tabCircle") && $("tabCircle").addEventListener("click",()=>{});
   document.addEventListener("click",async e=>{
     const b=e.target.closest("[data-circle-invite],[data-circle-accept],[data-circle-reject],[data-circle-chat]");if(!b||!sb||!me)return;
     if(b.dataset.circleInvite){
@@ -698,6 +690,24 @@
     else if(b.dataset.circleReject)await circleConnectionAction(b.dataset.circleReject,"rejected");
     else if(b.dataset.circleChat){$("circleChatPartner").value=b.dataset.circleChat;await loadCircleMessages();$("circleMessageInput").focus();}
   });
+
+  // Wire Study Circle controls immediately, even before Supabase requests finish.
+  $("circleMood").onchange = () => { $("circleMyFace").textContent = circleFace($("circleMood").value); };
+  $("circleSaveMood").onclick = () => sb && me ? saveCircleMood() : circleSay("Please log in and wait for Funi to connect before saving your mood.");
+  $("circleSaveModules").onclick = () => sb && me ? saveCircleModules() : circleSay("Please log in and wait for Funi to connect before saving modules.");
+  $("circleRefresh").onclick = async () => {
+    if (!sb || !me) return circleSay("Please log in and wait for Funi to connect.");
+    circleSay("Refreshing your matches…");
+    await loadCircleMatches();
+    await loadCircleConnections();
+  };
+  $("circleChatPartner").onchange = () => { if (sb && me) loadCircleMessages(); };
+  $("circleMessageForm").onsubmit = (e) => {
+    if (!sb || !me) { e.preventDefault(); circleSay("Please log in and wait for Funi to connect."); return; }
+    return sendCircleMessage(e);
+  };
+  $("circleStartSession").onclick = () => sb && me ? startCircleSession() : circleSay("Please log in and wait for Funi to connect.");
+  $("circleEndSession").onclick = () => sb && me ? endCircleSession() : circleSay("Please log in and wait for Funi to connect.");
 
   /* ---------- start ---------- */
   async function start() {
