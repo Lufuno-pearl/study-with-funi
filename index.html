@@ -146,7 +146,23 @@
 
    <!-- Study Circle -->
    <section id="tabCircle" hidden>
-    <div class="circle-heading"><span class="circle-kicker">YOUR STUDY COMMUNITY</span><h1>Study Circle <span>✦</span></h1><p>Find people studying the same modules, check in with your mood, and study together.</p></div>
+    <div class="circle-dashboard">
+      <div class="circle-heading">
+        <span class="circle-kicker" id="circleToday">YOUR STUDY COMMUNITY</span>
+        <h1>Find your people. <span>✦</span></h1>
+        <p>Study is easier together. Find classmates, share your mood and keep each other going.</p>
+        <div class="circle-hero-people" aria-label="Illustrated student community">
+          <div class="student-art student-art-one"><svg viewBox="0 0 100 110" role="img" aria-label="Smiling student with curly hair"><path fill="#4B2B28" d="M18 49Q7 9 43 8Q80 1 83 39L78 65H22Z"/><path fill="#E9A878" d="M24 39Q24 19 49 19Q74 20 74 43V60Q68 80 49 81Q29 76 24 59Z"/><path fill="#4B2B28" d="M22 39Q18 10 48 12Q76 10 79 39L69 34 63 25Q46 39 25 32Z"/><circle cx="39" cy="48" r="3" fill="#302328"/><circle cx="59" cy="48" r="3" fill="#302328"/><path d="M41 61Q49 70 58 60" fill="none" stroke="#9B4F45" stroke-width="3" stroke-linecap="round"/><path fill="#9A83E8" d="M12 109Q13 79 35 75L49 86 64 75Q87 81 89 109Z"/></svg></div>
+          <div class="student-art student-art-two"><svg viewBox="0 0 100 110" role="img" aria-label="Happy student with short hair"><path fill="#263D53" d="M20 44Q17 13 48 12Q80 12 79 44V61H20Z"/><path fill="#8B5439" d="M25 39Q28 22 49 22Q70 22 73 42V61Q67 79 49 81Q30 77 25 60Z"/><path fill="#263D53" d="M22 41Q16 15 48 13Q70 12 79 35L68 34 57 24 41 31 27 30Z"/><circle cx="40" cy="49" r="3" fill="#2A2021"/><circle cx="59" cy="49" r="3" fill="#2A2021"/><path d="M41 61Q50 68 59 60" fill="none" stroke="#7E3B35" stroke-width="3" stroke-linecap="round"/><path fill="#F1A77E" d="M10 109Q13 80 34 76L49 86 64 76Q86 81 90 109Z"/></svg></div>
+          <div class="student-art student-art-three"><svg viewBox="0 0 100 110" role="img" aria-label="Student smiling with braided hair"><path fill="#29222D" d="M20 42Q18 12 49 12Q80 12 79 43L80 76 69 79 67 38 30 38 30 79 19 76Z"/><path fill="#A96845" d="M26 39Q28 21 49 21Q70 21 73 41V61Q67 79 49 81Q31 77 26 60Z"/><path fill="#29222D" d="M24 42Q16 12 48 12Q78 10 80 40L68 34 61 25 42 32 28 31Z"/><circle cx="40" cy="49" r="3" fill="#2A2021"/><circle cx="59" cy="49" r="3" fill="#2A2021"/><path d="M41 61Q50 68 59 60" fill="none" stroke="#713B34" stroke-width="3" stroke-linecap="round"/><path fill="#72B8A6" d="M10 109Q13 80 34 76L49 86 64 76Q86 81 90 109Z"/></svg></div>
+        </div>
+        <div class="circle-hero-actions"><button class="primary" type="button" id="circleStart">Start a Circle</button><button class="circle-invite-button" type="button" id="circleInviteFriend">Invite a friend ↗</button></div>
+      </div>
+      <div class="circle-shortcuts">
+        <button type="button" class="circle-shortcut" id="circleFocusShortcut"><span class="shortcut-icon">◷</span><b>Modules & focus timer</b><small>Pick a module and get studying</small><span class="shortcut-arrow">→</span></button>
+        <button type="button" class="circle-shortcut" id="circleFindShortcut"><span class="shortcut-icon">✦</span><b>Find my study people</b><small>Match with students taking your modules</small><span class="shortcut-arrow">→</span></button>
+      </div>
+    </div>
     <div class="circle-mood card">
       <div class="circle-avatar" id="circleMyFace" aria-hidden="true">😊</div>
       <div class="circle-mood-copy"><b>How are you feeling today?</b><span>Your study mood helps your partners know how to support you.</span></div>
