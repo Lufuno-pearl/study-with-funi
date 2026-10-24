@@ -79,6 +79,7 @@
 <!-- ========== The app ========== -->
 <div id="appScreen" hidden>
   <main class="app">
+   <section id="tabHome">
     <header class="top">
       <div class="brand">
         <img src="/icons/icon-192.png" alt="" width="40" height="40">
@@ -111,12 +112,59 @@
     </section>
 
     <p class="status" id="status" hidden></p>
+   </section>
+
+   <!-- Focus timer -->
+   <section id="tabFocus" hidden>
+    <h1>Focus</h1>
+    <p>25 minutes of real work, then a 5 minute break.</p>
+    <div class="focus-card">
+      <span class="eyebrow" id="focusLabel">READY WHEN YOU ARE</span>
+      <span class="focus-clock" id="focusClock">25:00</span>
+      <div class="focus-btns">
+        <button type="button" class="primary big" id="focusStart">Start focus</button>
+        <button type="button" class="ghost big" id="focusReset">Reset</button>
+      </div>
+    </div>
+    <p class="hint" id="focusDone">Sessions finished today: 0</p>
+   </section>
+
+   <!-- What do I need? -->
+   <section id="tabMarks" hidden>
+    <h1>What do I need?</h1>
+    <p>Move the sliders. Funi works out the exam mark you need.</p>
+    <div class="card marks">
+      <label for="mClass">Class mark so far: <b id="mClassV">52%</b></label>
+      <input type="range" id="mClass" min="0" max="100" value="52">
+      <label for="mWeight">Exam counts for: <b id="mWeightV">60%</b></label>
+      <input type="range" id="mWeight" min="10" max="100" step="5" value="60">
+      <label for="mSub">Exam subminimum: <b id="mSubV">40%</b></label>
+      <input type="range" id="mSub" min="0" max="50" step="5" value="40">
+    </div>
+    <div class="hero">
+      <span class="eyebrow">TO PASS (50%) YOU NEED</span>
+      <div class="row"><span class="num" id="mPass">49%</span><div class="what">in the exam</div></div>
+      <span class="sub" id="mNote"></span>
+    </div>
+    <div class="two">
+      <div class="card"><small>For 60%</small><div class="stat" id="m60"></div></div>
+      <div class="card"><small>For 75% (distinction)</small><div class="stat" id="m75"></div></div>
+    </div>
+   </section>
   </main>
 
-  <button class="fab" id="addBtn">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-    Add test or exam
-  </button>
+  <nav class="tabbar" aria-label="Main">
+    <button type="button" class="tab active" data-tab="tabHome">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Countdown</button>
+    <button type="button" class="tab" data-tab="tabFocus">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg>Focus</button>
+    <button type="button" class="tab-add" id="addBtn" aria-label="Add test or exam">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button type="button" class="tab" data-tab="tabMarks">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Marks</button>
+    <button type="button" class="tab" id="navAccount">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Account</button>
+  </nav>
 </div>
 
 <!-- Add a test or exam -->

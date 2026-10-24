@@ -53,6 +53,7 @@
   }
   async function showApp() {
     $("authScreen").hidden = true; $("appScreen").hidden = false;
+    openTab("tabHome");
     $("greeting").textContent = "Hi, " + usernameOf(me);
     items = read(CACHE_KEY + "." + me.id, []);
     render();
@@ -262,6 +263,64 @@
     store("funi.lastNotified", today);
     if (upcoming().some((x) => daysLeft(x.due_date) <= 7)) notify("This week with Funi", weekSummary());
   }
+
+  /* ---------- bottom tabs ---------- */
+  function openTab(id) {
+    ["tabHome", "tabFocus", "tabMarks"].forEach((t) => { $(t).hidden = t !== id; });
+    document.querySelectorAll(".tab[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === id));
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll(".tab[data-tab]").forEach((b) => b.addEventListener("click", () => openTab(b.dataset.tab)));
+  $("navAccount").onclick = () => $("accountBtn").click();
+
+  /* ---------- focus timer ---------- */
+  let fLeft = 25 * 60, fTimer = null, fBreak = false;
+  function fDraw() {
+    const m = Math.floor(fLeft / 60), s = fLeft % 60;
+    $("focusClock").textContent = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function fStop() { clearInterval(fTimer); fTimer = null; }
+  $("focusStart").onclick = () => {
+    if (fTimer) { fStop(); $("focusStart").textContent = "Resume"; $("focusLabel").textContent = "PAUSED"; return; }
+    $("focusStart").textContent = "Pause";
+    $("focusLabel").textContent = fBreak ? "BREAK TIME" : "FOCUSING";
+    fTimer = setInterval(() => {
+      fLeft--; fDraw();
+      if (fLeft > 0) return;
+      fStop();
+      if (!fBreak) {
+        const key = "funi.focus." + todayISO(); const n = read(key, 0) + 1; store(key, n);
+        $("focusDone").textContent = "Sessions finished today: " + n;
+        notify("Focus session done", "Take a 5 minute break. You earned it.");
+        fBreak = true; fLeft = 5 * 60; $("focusLabel").textContent = "BREAK READY";
+      } else {
+        notify("Break's over", "Ready for another 25 minutes?");
+        fBreak = false; fLeft = 25 * 60; $("focusLabel").textContent = "READY WHEN YOU ARE";
+      }
+      $("focusStart").textContent = fBreak ? "Start break" : "Start focus"; fDraw();
+    }, 1000);
+  };
+  $("focusReset").onclick = () => {
+    fStop(); fBreak = false; fLeft = 25 * 60; fDraw();
+    $("focusStart").textContent = "Start focus"; $("focusLabel").textContent = "READY WHEN YOU ARE";
+  };
+  $("focusDone").textContent = "Sessions finished today: " + read("funi.focus." + todayISO(), 0);
+
+  /* ---------- what do I need? ---------- */
+  function marks() {
+    const cm = +$("mClass").value, w = +$("mWeight").value / 100, sub = +$("mSub").value;
+    $("mClassV").textContent = cm + "%"; $("mWeightV").textContent = Math.round(w * 100) + "%"; $("mSubV").textContent = sub + "%";
+    const need = (t) => Math.max(0, Math.ceil(Math.max((t - cm * (1 - w)) / w, sub)));
+    const fmt = (n) => (n > 100 ? "Out of reach" : n + "%");
+    const p = need(50);
+    $("mPass").textContent = p > 100 ? "—" : p + "%";
+    $("mNote").textContent = p > 100 ? "This exam alone can't get you there. Ask about a supp or deferred exam."
+      : p <= sub ? "Your class mark carries you. Just clear the subminimum."
+      : "That's " + Math.max(0, p - cm) + " points above your class mark.";
+    $("m60").textContent = fmt(need(60)); $("m75").textContent = fmt(need(75));
+  }
+  ["mClass", "mWeight", "mSub"].forEach((id) => $(id).addEventListener("input", marks));
+  marks();
 
   /* ---------- start ---------- */
   async function start() {
