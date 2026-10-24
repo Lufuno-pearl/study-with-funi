@@ -13,6 +13,7 @@
   let sb = null;
   let me = null;      // the logged-in Supabase user
   let items = [];
+  let circleModulesSaved = false;
 
   /* ---------- small helpers ---------- */
   function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
@@ -593,12 +594,22 @@
     }
     box.innerHTML=modules.map(m=>'<label class="circle-module-choice"><input type="checkbox" data-circle-module="'+esc(m.code)+'" '+(circleChosenModules.has(m.code.toUpperCase())?'checked':'')+'> '+esc(m.code)+'</label>').join("");
     $("circleSessionModule").innerHTML='<option value="">Choose a module</option>'+modules.map(m=>'<option value="'+esc(m.code)+'">'+esc(m.code+(m.name?' · '+m.name:''))+'</option>').join("");
-    box.querySelectorAll("[data-circle-module]").forEach(el=>el.onchange=()=>{const code=el.dataset.circleModule.toUpperCase();el.checked?circleChosenModules.add(code):circleChosenModules.delete(code);});
+    box.querySelectorAll("[data-circle-module]").forEach(el=>el.onchange=()=>{
+      const code=el.dataset.circleModule.toUpperCase();
+      el.checked?circleChosenModules.add(code):circleChosenModules.delete(code);
+      circleModulesSaved=false;
+      const saveButton=$("circleSaveModules");
+      saveButton.disabled=false;
+      saveButton.textContent="Save changes";
+      circleSay("You have unsaved module changes.");
+    });
+    updateCircleModuleSaveButton();
   }
   async function loadCircleSavedModules(){
     const {data,error}=await sb.from("study_profile_modules").select("module_code").eq("user_id",me.id);
     if(error){circleErr("Couldn't load your saved matching modules:",error);return;}
     circleChosenModules=new Set((data||[]).map(x=>x.module_code.toUpperCase()));
+    circleModulesSaved=circleChosenModules.size>0;
     // Keep module list in sync only when no previous module choices exist.
     if(!circleChosenModules.size && modules.length) circleChosenModules=new Set(modules.map(m=>m.code.toUpperCase()));
     renderCircleModuleChoices();
@@ -608,6 +619,12 @@
     const {error}=await sb.from("study_profiles").update({feeling,updated_at:new Date().toISOString()}).eq("id",me.id);
     if(error)return circleErr("Couldn't save your mood:",error);
     $("circleMyFace").textContent=circleFace(feeling);circleSay("Mood saved. Your partners can see your latest check-in.");await loadCircleMatches();await loadCircleConnections();
+  }
+  function updateCircleModuleSaveButton(){
+    const button=$("circleSaveModules");
+    if(!button)return;
+    button.textContent=circleModulesSaved?"Modules saved ✓":(circleChosenModules.size?"Save changes":"Save modules and find matches");
+    button.disabled=circleModulesSaved;
   }
   async function saveCircleModules(){
     const checked=[...document.querySelectorAll("[data-circle-module]:checked")].map(x=>x.dataset.circleModule.toUpperCase());
@@ -627,7 +644,9 @@
       if(error)return circleErr("Your selected modules were saved, but an old choice couldn't be removed:",error);
     }
     circleChosenModules=new Set(checked);
-    circleSay("Modules saved. Looking for students who share them…");
+    circleModulesSaved=true;
+    updateCircleModuleSaveButton();
+    circleSay("Your modules are saved successfully.");
     await loadCircleMatches();
   }
   function circleEmpty(msg){return '<div class="circle-empty">'+esc(msg)+'</div>';}
