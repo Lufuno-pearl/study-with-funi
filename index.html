@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Study with Funi</title>
+<meta name="description" content="Exam countdowns and study planning for university students.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Funi">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FBF7F4">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div class="brand">
+      <img src="/icons/icon-192.png" alt="" width="40" height="40">
+      <div>
+        <small id="today"></small>
+        <h1 id="greeting">Study with Funi</h1>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="installBtn" aria-label="Download the app" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      </button>
+      <button class="icon-btn" id="bellBtn" aria-label="Notifications">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+        <span class="badge" id="badge" hidden></span>
+      </button>
+      <button class="icon-btn" id="accountBtn" aria-label="Your account">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="nudge" id="nudge" hidden>
+    <span>Save a username so you don't lose your exams if you change phones.</span>
+    <button class="link-btn" id="nudgeBtn">Save now</button>
+  </div>
+
+  <section id="hero" aria-live="polite">
+    <div class="card loading">Getting your countdowns…</div>
+  </section>
+
+  <section id="listWrap" hidden>
+    <h2>Coming up</h2>
+    <div class="list" id="list"></div>
+  </section>
+
+  <p class="status" id="status" hidden></p>
+</main>
+
+<button class="fab" id="addBtn">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  Add test or exam
+</button>
+
+<!-- Add a test or exam -->
+<dialog id="addDlg">
+  <form id="addForm">
+    <h2>New test or exam</h2>
+    <label for="fModule">Module</label>
+    <input id="fModule" required maxlength="60" placeholder="e.g. COMS2015A" autocomplete="off">
+    <label for="fKind">Type</label>
+    <select id="fKind"><option>Exam</option><option>Test</option><option>Assignment</option><option>Quiz</option></select>
+    <div class="two">
+      <div><label for="fDate">Date</label><input id="fDate" type="date" required></div>
+      <div><label for="fTime">Time</label><input id="fTime" type="time" value="09:00"></div>
+    </div>
+    <label for="fVenue">Venue (optional)</label>
+    <input id="fVenue" maxlength="80" placeholder="e.g. Great Hall">
+    <p class="form-error" id="addError" hidden></p>
+    <div class="btns">
+      <button type="button" class="ghost" data-close="addDlg">Cancel</button>
+      <button type="submit" class="primary" id="addSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Account -->
+<dialog id="accountDlg">
+  <div id="accSaved" hidden>
+    <h2>Your account</h2>
+    <p>You're signed in as <b id="accName"></b>. Use this username and your password to open Funi on another phone or laptop.</p>
+    <div class="btns">
+      <button type="button" class="ghost" id="logoutBtn">Log out</button>
+      <button type="button" class="primary" data-close="accountDlg">Done</button>
+    </div>
+  </div>
+
+  <form id="saveForm" hidden>
+    <h2>Save your account</h2>
+    <p>Pick a username and password. No email needed. If you forget your password, message Funi support to reset it.</p>
+    <label for="sUser">Username</label>
+    <input id="sUser" required minlength="3" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. lufuno_p">
+    <label for="sPass">Password</label>
+    <input id="sPass" type="password" required minlength="6" autocomplete="new-password" placeholder="At least 6 characters">
+    <p class="form-error" id="saveError" hidden></p>
+    <div class="btns">
+      <button type="button" class="ghost" data-close="accountDlg">Not now</button>
+      <button type="submit" class="primary">Save account</button>
+    </div>
+    <button type="button" class="link-btn center" id="showLogin">I already have a username</button>
+  </form>
+
+  <form id="loginForm" hidden>
+    <h2>Log in</h2>
+    <p>Exams you added on this phone without a username won't move over.</p>
+    <label for="lUser">Username</label>
+    <input id="lUser" required autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label for="lPass">Password</label>
+    <input id="lPass" type="password" required autocomplete="current-password">
+    <p class="form-error" id="loginError" hidden></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="backToSave">Back</button>
+      <button type="submit" class="primary">Log in</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- iPhone install steps -->
+<dialog id="iosDlg">
+  <h2>Get Funi on your iPhone</h2>
+  <ol class="steps">
+    <li>Open this page in <b>Safari</b></li>
+    <li>Tap the <b>Share</b> button (the square with an arrow)</li>
+    <li>Scroll down and tap <b>Add to Home Screen</b></li>
+    <li>Open Funi from your home screen, then tap the bell to turn on reminders</li>
+  </ol>
+  <div class="btns"><button type="button" class="primary" data-close="iosDlg">Got it</button></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
