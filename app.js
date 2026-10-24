@@ -281,6 +281,12 @@
   $("goPlan").onclick = () => openTab("tabPlan");
 
   /* ---------- focus timer ---------- */
+  const focusBigToggle = $("focusBigToggle");
+  focusBigToggle.onclick = () => {
+    const big = $("tabFocus").classList.toggle("focus-big-mode");
+    focusBigToggle.setAttribute("aria-pressed", String(big));
+    focusBigToggle.textContent = big ? "✕ Exit big timer" : "⛶ Big timer";
+  };
   let fDurationMinutes = 25, fLeft = 25 * 60, fTimer = null, fBreak = false;
   $("focusApply").onclick = () => {
     const minutes = Number($("focusMinutes").value);
