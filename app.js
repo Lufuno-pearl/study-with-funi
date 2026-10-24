@@ -586,7 +586,11 @@
   }
   function renderCircleModuleChoices() {
     const box=$("circleModuleChoices"); if(!box)return;
-    if(!modules.length){box.innerHTML='<div class="circle-empty">Add your modules in the Modules tab first, then choose them here.</div>';return;}
+    if(!modules.length){
+      box.innerHTML='<div class="circle-empty">Add your modules in the Modules tab first, then choose them here.</div>';
+      $("circleSessionModule").innerHTML='<option value="">Add a module first</option>';
+      return;
+    }
     box.innerHTML=modules.map(m=>'<label class="circle-module-choice"><input type="checkbox" data-circle-module="'+esc(m.code)+'" '+(circleChosenModules.has(m.code.toUpperCase())?'checked':'')+'> '+esc(m.code)+'</label>').join("");
     $("circleSessionModule").innerHTML='<option value="">Choose a module</option>'+modules.map(m=>'<option value="'+esc(m.code)+'">'+esc(m.code+(m.name?' · '+m.name:''))+'</option>').join("");
     box.querySelectorAll("[data-circle-module]").forEach(el=>el.onchange=()=>{const code=el.dataset.circleModule.toUpperCase();el.checked?circleChosenModules.add(code):circleChosenModules.delete(code);});
@@ -608,11 +612,23 @@
   async function saveCircleModules(){
     const checked=[...document.querySelectorAll("[data-circle-module]:checked")].map(x=>x.dataset.circleModule.toUpperCase());
     if(!checked.length){circleSay("Choose at least one module to find study partners.");return;}
-    const {error:delError}=await sb.from("study_profile_modules").delete().eq("user_id",me.id);
-    if(delError)return circleErr("Couldn't update your modules:",delError);
-    const {error}=await sb.from("study_profile_modules").insert(checked.map(module_code=>({user_id:me.id,module_code})));
-    if(error)return circleErr("Couldn't save your modules:",error);
-    circleChosenModules=new Set(checked);circleSay("Modules saved. Looking for students who share them…");await loadCircleMatches();
+    circleSay("Saving your modules…");
+    // Save selected modules first. If saving fails, existing choices are preserved.
+    const {error:saveError}=await sb.from("study_profile_modules").upsert(
+      checked.map(module_code=>({user_id:me.id,module_code,updated_at:new Date().toISOString()})),
+      {onConflict:"user_id,module_code"}
+    );
+    if(saveError)return circleErr("Couldn't save your modules:",saveError);
+    const {data:existing,error:readError}=await sb.from("study_profile_modules").select("module_code").eq("user_id",me.id);
+    if(readError)return circleErr("Modules were saved, but I couldn't finish syncing your choices:",readError);
+    const removed=(existing||[]).map(x=>x.module_code).filter(code=>!checked.includes(String(code).toUpperCase()));
+    for(const code of removed){
+      const {error}=await sb.from("study_profile_modules").delete().eq("user_id",me.id).eq("module_code",code);
+      if(error)return circleErr("Your selected modules were saved, but an old choice couldn't be removed:",error);
+    }
+    circleChosenModules=new Set(checked);
+    circleSay("Modules saved. Looking for students who share them…");
+    await loadCircleMatches();
   }
   function circleEmpty(msg){return '<div class="circle-empty">'+esc(msg)+'</div>';}
   function circlePersonCard(person,kind){
