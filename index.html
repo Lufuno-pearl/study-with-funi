@@ -111,7 +111,37 @@
       <div class="list" id="list"></div>
     </section>
 
+    <button type="button" class="primary big wide" id="goPlan">Build my study plan →</button>
     <p class="status" id="status" hidden></p>
+   </section>
+
+   <!-- Study plan -->
+   <section id="tabPlan" hidden>
+    <div class="head-row">
+      <div><small id="planWeek"></small><h1>Your study plan</h1></div>
+      <button class="icon-btn" id="planSettingsBtn" aria-label="Plan settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+      </button>
+    </div>
+    <div class="days" id="planDays"></div>
+    <div id="planBody"></div>
+    <p class="hint">Funi puts the closest exams and the modules you feel weakest in first. Change your hours, rest day and classes with the settings button.</p>
+   </section>
+
+   <!-- Modules: what matters most -->
+   <section id="tabModules" hidden>
+    <h1>What matters most?</h1>
+    <p>Rank your modules with the arrows and tap the dots to rate how ready you feel. Your plan gives more time to the top and the shaky ones.</p>
+    <div id="modList"></div>
+    <form class="card add-mod" id="modForm">
+      <h2>Add a module</h2>
+      <div class="two">
+        <div><label for="modCode">Code</label><input id="modCode" required maxlength="20" placeholder="APPM2023A" autocomplete="off"></div>
+        <div><label for="modName">Name (optional)</label><input id="modName" maxlength="40" placeholder="Mechanics II" autocomplete="off"></div>
+      </div>
+      <p class="form-error" id="modError" hidden></p>
+      <button type="submit" class="primary big">Add module</button>
+    </form>
    </section>
 
    <!-- Focus timer -->
@@ -132,7 +162,7 @@
    <!-- What do I need? -->
    <section id="tabMarks" hidden>
     <h1>What do I need?</h1>
-    <p>Move the sliders. Funi works out the exam mark you need.</p>
+    <p id="marksFor">Move the sliders. Funi works out the exam mark you need.</p>
     <div class="card marks">
       <label for="mClass">Class mark so far: <b id="mClassV">52%</b></label>
       <input type="range" id="mClass" min="0" max="100" value="52">
@@ -156,14 +186,14 @@
   <nav class="tabbar" aria-label="Main">
     <button type="button" class="tab active" data-tab="tabHome">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Countdown</button>
-    <button type="button" class="tab" data-tab="tabFocus">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg>Focus</button>
+    <button type="button" class="tab" data-tab="tabPlan">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Plan</button>
     <button type="button" class="tab-add" id="addBtn" aria-label="Add test or exam">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-    <button type="button" class="tab" data-tab="tabMarks">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Marks</button>
-    <button type="button" class="tab" id="navAccount">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Account</button>
+    <button type="button" class="tab" data-tab="tabModules">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h16M4 18h7"/></svg>Modules</button>
+    <button type="button" class="tab" data-tab="tabFocus">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg>Focus</button>
   </nav>
 </div>
 
@@ -197,6 +227,32 @@
     <button type="button" class="ghost" id="logoutBtn">Log out</button>
     <button type="button" class="primary" data-close="accountDlg">Done</button>
   </div>
+</dialog>
+
+<!-- Plan settings -->
+<dialog id="planDlg">
+  <h2>Plan settings</h2>
+  <div class="two">
+    <div><label for="psHours">Study hours a day</label>
+      <select id="psHours"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>8</option></select></div>
+    <div><label for="psRest">Rest day</label>
+      <select id="psRest"><option value="-1">No rest day</option><option value="0" selected>Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div>
+  </div>
+  <div class="two">
+    <div><label for="psFrom">Study from</label><input id="psFrom" type="time" value="08:00"></div>
+    <div><label for="psTo">Stop studying at</label><input id="psTo" type="time" value="22:00"></div>
+  </div>
+  <h2 class="mt">Your classes</h2>
+  <p>Funi won't put study blocks on top of these.</p>
+  <div id="classList"></div>
+  <div class="class-add">
+    <select id="cDay" aria-label="Day"><option value="1">Mon</option><option value="2">Tue</option><option value="3">Wed</option><option value="4">Thu</option><option value="5">Fri</option><option value="6">Sat</option><option value="0">Sun</option></select>
+    <input id="cStart" type="time" value="08:00" aria-label="Start">
+    <input id="cEnd" type="time" value="09:45" aria-label="End">
+    <input id="cLabel" maxlength="30" placeholder="e.g. COMS lecture" aria-label="Class name">
+    <button type="button" class="ghost" id="cAdd">Add class</button>
+  </div>
+  <div class="btns"><button type="button" class="primary" id="psSave">Save and rebuild plan</button></div>
 </dialog>
 
 <!-- iPhone install steps -->

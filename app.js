@@ -182,6 +182,7 @@
     saveCache();
     render();
     dailyCheck();
+    await loadModules();
   }
 
   $("addBtn").onclick = () => {
@@ -266,12 +267,14 @@
 
   /* ---------- bottom tabs ---------- */
   function openTab(id) {
-    ["tabHome", "tabFocus", "tabMarks"].forEach((t) => { $(t).hidden = t !== id; });
+    ["tabHome", "tabPlan", "tabModules", "tabFocus", "tabMarks"].forEach((t) => { $(t).hidden = t !== id; });
+    if (id === "tabPlan") renderPlan();
+    if (id === "tabModules") renderModules();
     document.querySelectorAll(".tab[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === id));
     window.scrollTo(0, 0);
   }
   document.querySelectorAll(".tab[data-tab]").forEach((b) => b.addEventListener("click", () => openTab(b.dataset.tab)));
-  $("navAccount").onclick = () => $("accountBtn").click();
+  $("goPlan").onclick = () => openTab("tabPlan");
 
   /* ---------- focus timer ---------- */
   let fLeft = 25 * 60, fTimer = null, fBreak = false;
@@ -320,7 +323,239 @@
     $("m60").textContent = fmt(need(60)); $("m75").textContent = fmt(need(75));
   }
   ["mClass", "mWeight", "mSub"].forEach((id) => $(id).addEventListener("input", marks));
+  let marksModule = null, marksSaveTimer = null;
+  $("mClass").addEventListener("change", () => {
+    if (!marksModule || !sb) return;
+    const val = +$("mClass").value;
+    clearTimeout(marksSaveTimer);
+    marksSaveTimer = setTimeout(async () => {
+      const { error } = await sb.from("modules").update({ class_mark: val }).eq("id", marksModule.id);
+      if (!error) { marksModule.class_mark = val; toast("Class mark saved for " + marksModule.code + "."); }
+    }, 300);
+  });
+  function openMarksFor(mod) {
+    marksModule = mod;
+    $("marksFor").textContent = mod.code + (mod.name ? " · " + mod.name : "") + ". Your class mark saves automatically.";
+    if (mod.class_mark != null) $("mClass").value = mod.class_mark;
+    marks(); openTab("tabMarks");
+  }
   marks();
+
+  /* ---------- modules: what matters most ---------- */
+  let modules = [];
+  async function loadModules() {
+    if (!sb || !me) return;
+    const { data, error } = await sb.from("modules").select("*").order("priority", { ascending: true, nullsFirst: false }).order("created_at");
+    if (!error) { modules = data || []; store("funi.mods." + me.id, modules); }
+    else modules = read("funi.mods." + me.id, []);
+  }
+  const READY = ["", "Lost", "Shaky", "Okay", "Good", "Ready"];
+  function renderModules() {
+    const box = $("modList");
+    if (!modules.length) {
+      box.innerHTML = '<div class="empty"><b>No modules yet</b><span>Add your modules below. Funi also picks up modules from your tests and exams.</span></div>';
+      suggestModules(); return;
+    }
+    box.innerHTML = modules.map((m, i) => {
+      const conf = m.confidence || 3;
+      let dots = "";
+      for (let k = 1; k <= 5; k++) dots += '<button type="button" class="dot' + (k <= conf ? " on" : "") + (conf <= 2 ? " low" : "") + '" data-conf="' + k + '" data-id="' + esc(m.id) + '" aria-label="Readiness ' + k + ' of 5"></button>';
+      const exam = nextExamFor(m.code);
+      return '<div class="mod"><span class="rank">' + (i + 1) + '</span><div class="body">' +
+        "<b>" + esc(m.code) + (m.name ? " · " + esc(m.name) : "") + "</b>" +
+        "<span>" + (exam ? exam.kind + " in " + daysLeft(exam.due_date) + " days" : "No test or exam added") + (m.class_mark != null ? " · class mark " + m.class_mark + "%" : "") + "</span>" +
+        '<div class="dots">' + dots + "<em>" + READY[conf] + "</em></div>" +
+        '<div class="mod-links"><button type="button" data-need="' + esc(m.id) + '">What do I need?</button><button type="button" class="rm" data-rm="' + esc(m.id) + '">Remove</button></div>' +
+        '</div><div class="acts"><button type="button" class="arrow" data-up="' + i + '" aria-label="Move up">▲</button><button type="button" class="arrow" data-down="' + i + '" aria-label="Move down">▼</button></div></div>';
+    }).join("");
+    suggestModules();
+  }
+  // Offer modules that appear in tests/exams but aren't in the list yet
+  function suggestModules() {
+    const have = new Set(modules.map((m) => m.code.toUpperCase()));
+    const missing = [...new Set(items.map((x) => x.module.trim()))].filter((c) => c && !have.has(c.toUpperCase()));
+    if (!missing.length) return;
+    $("modList").insertAdjacentHTML("beforeend", '<div class="nudge"><span>From your tests: ' + missing.map(esc).join(", ") + '</span><button class="link-btn" type="button" id="addMissing">Add them</button></div>');
+    $("addMissing").onclick = async () => {
+      for (const code of missing) await addModule(code, "");
+      renderModules();
+    };
+  }
+  function nextExamFor(code) {
+    return upcoming().find((x) => x.module.trim().toUpperCase() === String(code).trim().toUpperCase());
+  }
+  async function addModule(code, name) {
+    const row = { code: code.trim().toUpperCase(), name: name.trim() || null, priority: modules.length + 1, confidence: 3 };
+    const { data, error } = await sb.from("modules").insert(row).select().single();
+    if (error) { showError("modError", "Couldn't add: " + error.message); return false; }
+    modules.push(data); store("funi.mods." + me.id, modules); return true;
+  }
+  $("modForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!sb) return showError("modError", "You're offline.");
+    const code = $("modCode").value.trim();
+    if (!code) return showError("modError", "Add the module code.");
+    if (modules.some((m) => m.code.toUpperCase() === code.toUpperCase())) return showError("modError", "That module is already in your list.");
+    showError("modError", "");
+    if (await addModule(code, $("modName").value)) { $("modForm").reset(); renderModules(); toast("Module added."); }
+  });
+  async function savePriorities() {
+    modules.forEach((m, i) => { m.priority = i + 1; });
+    store("funi.mods." + me.id, modules);
+    await Promise.all(modules.map((m) => sb.from("modules").update({ priority: m.priority }).eq("id", m.id)));
+  }
+  $("modList").addEventListener("click", async (e) => {
+    const t = e.target.closest("button"); if (!t || !sb) return;
+    if (t.dataset.conf) {
+      const m = modules.find((x) => x.id === t.dataset.id); const v = +t.dataset.conf;
+      m.confidence = v; renderModules();
+      await sb.from("modules").update({ confidence: v }).eq("id", m.id);
+    } else if (t.dataset.up || t.dataset.down) {
+      const i = +(t.dataset.up || t.dataset.down), j = t.dataset.up ? i - 1 : i + 1;
+      if (j < 0 || j >= modules.length) return;
+      [modules[i], modules[j]] = [modules[j], modules[i]];
+      renderModules(); await savePriorities();
+    } else if (t.dataset.need) {
+      openMarksFor(modules.find((x) => x.id === t.dataset.need));
+    } else if (t.dataset.rm) {
+      const { error } = await sb.from("modules").delete().eq("id", t.dataset.rm);
+      if (error) return toast("Couldn't remove: " + error.message);
+      modules = modules.filter((x) => x.id !== t.dataset.rm); await savePriorities(); renderModules();
+    }
+  });
+
+  /* ---------- study plan ---------- */
+  const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  function planSettings() {
+    return read("funi.plan." + (me ? me.id : "x"), { hours: 3, rest: 0, from: "08:00", to: "22:00", classes: [] });
+  }
+  function toMin(t) { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); }
+  function toHM(n) { const h = Math.floor(n / 60), m = n % 60; return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m; }
+  function isoOf(d) { return d.toLocaleDateString("en-CA"); }
+
+  // Free time = study window minus classes
+  function freeSlots(date, st, isToday) {
+    let start = toMin(st.from), end = toMin(st.to);
+    if (isToday) { const now = new Date(); start = Math.max(start, Math.ceil((now.getHours() * 60 + now.getMinutes() + 15) / 30) * 30); }
+    const busy = st.classes.filter((c) => +c.day === date.getDay()).map((c) => [toMin(c.start), toMin(c.end)]).sort((a, b) => a[0] - b[0]);
+    const slots = []; let cur = start;
+    for (const [b0, b1] of busy) { if (b0 > cur) slots.push([cur, Math.min(b0, end)]); cur = Math.max(cur, b1 + 15); }
+    if (cur < end) slots.push([cur, end]);
+    return slots.filter(([a, b]) => b - a >= 45);
+  }
+
+  function subjectsFor(dateISO) {
+    const n = Math.max(modules.length, 1);
+    const codes = new Map();
+    modules.forEach((m, i) => codes.set(m.code.toUpperCase(), { code: m.code, rank: i, conf: m.confidence || 3 }));
+    upcoming().forEach((x) => { const k = x.module.trim().toUpperCase(); if (!codes.has(k)) codes.set(k, { code: x.module.trim(), rank: n, conf: 3 }); });
+    const out = [];
+    codes.forEach((s, k) => {
+      const exam = upcoming().find((x) => x.module.trim().toUpperCase() === k && x.due_date > dateISO);
+      const sameDay = upcoming().some((x) => x.module.trim().toUpperCase() === k && x.due_date === dateISO);
+      if (sameDay) return; // don't study a module on its own exam day
+      const daysTo = exam ? Math.round((new Date(exam.due_date + "T00:00:00") - new Date(dateISO + "T00:00:00")) / 86400000) : 60;
+      const score = 10 / Math.max(daysTo, 1) + 3 * (n - Math.min(s.rank, n) + 1) / (n + 1) + 3 * (6 - s.conf) / 5;
+      out.push({ code: s.code, conf: s.conf, daysTo: daysTo, exam: exam, score: score });
+    });
+    return out;
+  }
+
+  function taskFor(s) {
+    if (s.exam && s.daysTo <= 3) return "Timed past paper, then mark it with the memo";
+    if (s.exam && s.daysTo <= 7) return "Past paper questions on your weakest topics";
+    if (s.conf <= 2) return "Rework your notes and redo tutorial problems";
+    return "Practice questions and a quick summary sheet";
+  }
+
+  function buildDay(date, st, isToday) {
+    const dateISO = isoOf(date);
+    if (+st.rest === date.getDay()) return { rest: true, blocks: [] };
+    const subs = subjectsFor(dateISO);
+    let left = st.hours * 60; const blocks = [];
+    if (!subs.length) return { rest: false, blocks: [], empty: true };
+    for (const [a, b] of freeSlots(date, st, isToday)) {
+      let t = a;
+      while (left >= 30 && b - t >= 45) {
+        const len = Math.min(90, left, b - t);
+        subs.sort((x, y) => y.score - x.score);
+        const s = subs[0];
+        blocks.push({ start: t, end: t + len, code: s.code, task: taskFor(s), daysTo: s.daysTo, exam: s.exam, conf: s.conf, key: dateISO + "|" + t + "|" + s.code });
+        s.score *= 0.55; // mix subjects through the day
+        left -= len; t += len + 15;
+      }
+      if (left < 30) break;
+    }
+    return { rest: false, blocks: blocks };
+  }
+
+  let planSel = 0;
+  function renderPlan() {
+    const st = planSettings();
+    const base = new Date(); base.setHours(0, 0, 0, 0);
+    $("planWeek").textContent = "Next 7 days · " + st.hours + "h a day";
+    let strip = "";
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base); d.setDate(base.getDate() + i);
+      const rest = +st.rest === d.getDay();
+      strip += '<button type="button" class="day' + (i === planSel ? " sel" : "") + (rest ? " rest" : "") + '" data-pi="' + i + '"><small>' + (i === 0 ? "Today" : DAY[d.getDay()]) + "</small><b>" + d.getDate() + "</b></button>";
+    }
+    $("planDays").innerHTML = strip;
+
+    const day = new Date(base); day.setDate(base.getDate() + planSel);
+    const plan = buildDay(day, st, planSel === 0);
+    const done = read("funi.done." + (me ? me.id : "x"), {});
+    if (plan.rest) { $("planBody").innerHTML = '<div class="card rest-card"><h2>Rest day</h2><p>No study blocks today. Rest is part of the plan.</p></div>'; return; }
+    if (plan.empty) { $("planBody").innerHTML = '<div class="empty"><b>Nothing to plan yet</b><span>Add your tests and exams, and your modules, then come back.</span></div>'; return; }
+
+    const classes = st.classes.filter((c) => +c.day === day.getDay()).map((c) => ({ start: toMin(c.start), html: '<div class="slot"><span class="at">' + c.start + '</span><div class="cls">Class · ' + esc(c.label || "Class") + " until " + c.end + "</div></div>" }));
+    const blocks = plan.blocks.map((b) => {
+      const urgent = b.exam && b.daysTo <= 7;
+      const tag = b.exam ? '<span class="tag ' + (b.daysTo <= 7 ? "soon" : "mid") + '">' + b.exam.kind.toUpperCase() + " IN " + b.daysTo + " D</span>" : (b.conf <= 2 ? '<span class="tag mid">SHAKY</span>' : '<span class="tag far">REVIEW</span>');
+      const isDone = !!done[b.key];
+      return { start: b.start, html: '<div class="slot"><span class="at">' + toHM(b.start) + '</span><div class="blk' + (urgent ? " urgent" : "") + (isDone ? " done" : "") + '">' +
+        '<div class="blk-top"><b>' + esc(b.code) + " · " + (b.end - b.start >= 60 ? Math.floor((b.end - b.start) / 60) + "h" + ((b.end - b.start) % 60 ? " " + (b.end - b.start) % 60 + "m" : "") : (b.end - b.start) + "m") + "</b>" + tag + "</div>" +
+        "<p>" + esc(b.task) + "</p>" +
+        '<div class="blk-btns">' + (planSel === 0 && !isDone ? '<button type="button" class="mini primary" data-start="1">Start</button>' : "") +
+        '<button type="button" class="mini ghost" data-done="' + esc(b.key) + '">' + (isDone ? "Undo" : "Mark done") + "</button></div></div></div>" };
+    });
+    $("planBody").innerHTML = '<div class="slots">' + classes.concat(blocks).sort((x, y) => x.start - y.start).map((x) => x.html).join("") + "</div>";
+  }
+  $("planDays").addEventListener("click", (e) => { const b = e.target.closest("[data-pi]"); if (!b) return; planSel = +b.dataset.pi; renderPlan(); });
+  $("planBody").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.start) { openTab("tabFocus"); return; }
+    if (b.dataset.done) {
+      const key = "funi.done." + me.id, done = read(key, {});
+      if (done[b.dataset.done]) delete done[b.dataset.done]; else done[b.dataset.done] = 1;
+      store(key, done); renderPlan();
+    }
+  });
+
+  // settings
+  let draftClasses = [];
+  function drawClasses() {
+    $("classList").innerHTML = draftClasses.length ? draftClasses.map((c, i) =>
+      '<div class="class-row"><span>' + DAY[c.day] + " " + c.start + "–" + c.end + " · " + esc(c.label || "Class") + '</span><button type="button" data-ci="' + i + '">Remove</button></div>').join("")
+      : '<p class="hint">No classes added yet.</p>';
+  }
+  $("planSettingsBtn").onclick = () => {
+    const st = planSettings();
+    $("psHours").value = String(st.hours); $("psRest").value = String(st.rest); $("psFrom").value = st.from; $("psTo").value = st.to;
+    draftClasses = st.classes.slice(); drawClasses(); $("planDlg").showModal();
+  };
+  $("cAdd").onclick = () => {
+    const c = { day: +$("cDay").value, start: $("cStart").value, end: $("cEnd").value, label: $("cLabel").value.trim() };
+    if (!c.start || !c.end || toMin(c.end) <= toMin(c.start)) return toast("The class must end after it starts.");
+    draftClasses.push(c); draftClasses.sort((a, b) => (a.day - b.day) || (toMin(a.start) - toMin(b.start)));
+    $("cLabel").value = ""; drawClasses();
+  };
+  $("classList").addEventListener("click", (e) => { const b = e.target.closest("[data-ci]"); if (!b) return; draftClasses.splice(+b.dataset.ci, 1); drawClasses(); });
+  $("psSave").onclick = () => {
+    if (toMin($("psTo").value) <= toMin($("psFrom").value)) return toast("'Stop studying at' must be after 'Study from'.");
+    store("funi.plan." + me.id, { hours: +$("psHours").value, rest: +$("psRest").value, from: $("psFrom").value, to: $("psTo").value, classes: draftClasses });
+    $("planDlg").close(); renderPlan(); toast("Plan rebuilt.");
+  };
 
   /* ---------- start ---------- */
   async function start() {
