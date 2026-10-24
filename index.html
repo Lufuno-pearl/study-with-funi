@@ -196,7 +196,12 @@
    <!-- Focus timer -->
    <section id="tabFocus" hidden>
     <h1>Focus</h1>
-    <p>25 minutes of real work, then a 5 minute break.</p>
+    <p id="focusDescription">Choose how long you want to focus. You can set it to 25 minutes, 2 hours, or anything in between.</p>
+    <div class="focus-settings card">
+      <label for="focusMinutes">Focus length (minutes)</label>
+      <div class="focus-setting-row"><input type="number" id="focusMinutes" min="1" max="240" step="1" value="25" inputmode="numeric"><button type="button" class="primary" id="focusApply">Set timer</button></div>
+      <p class="hint">Choose 120 for two hours. Your timer length is up to you.</p>
+    </div>
     <div class="focus-card">
       <span class="eyebrow" id="focusLabel">READY WHEN YOU ARE</span>
       <span class="focus-clock" id="focusClock">25:00</span>
