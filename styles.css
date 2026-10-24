@@ -290,3 +290,30 @@ input[type=range] { height: 32px; padding: 0; border: 0; accent-color: var(--lav
 .class-add button { height: 44px; border-radius: 14px; font: 800 14px var(--body); }
 .class-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 700; }
 .class-row button { border: 0; background: none; color: #A12C2C; font: 800 13px var(--body); cursor: pointer; }
+
+
+/* Study Circle */
+.circle-heading { background: linear-gradient(135deg,#EEE7FF,#FFF0E7); border-radius:26px; padding:22px; }
+.circle-heading h1 { margin:5px 0 8px; }.circle-heading h1 span { color:#9A83E8; }
+.circle-heading p,.circle-module-card p,.circle-section-title p,.circle-session p { margin:0; color:var(--muted); font-size:14px; }
+.circle-kicker { color:var(--lav-deep); font-size:11px; font-weight:800; letter-spacing:.12em; }
+.circle-mood { display:grid; grid-template-columns:64px 1fr; gap:12px; align-items:center; }
+.circle-avatar { width:60px;height:60px;border-radius:22px;background:#FFE4D7;display:flex;align-items:center;justify-content:center;font-size:35px; }
+.circle-mood-copy { display:flex;flex-direction:column;gap:4px; }.circle-mood-copy span {font-size:13px;color:var(--muted);}
+.circle-mood select,.circle-mood button { grid-column:span 2; }
+.circle-module-card { display:flex;flex-direction:column;gap:12px; }.circle-module-card h2 {margin:0 0 5px;}
+.circle-module-choices { display:flex;flex-wrap:wrap;gap:8px; }
+.circle-module-choice { display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:13px;padding:8px 10px;background:#fff;font-size:13px;font-weight:800; }
+.circle-module-choice input {width:17px;height:17px;accent-color:var(--lav);}
+.circle-section-title { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:5px; }
+.circle-section-title h2 { margin:0 0 4px;font-size:20px; }.circle-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px; }
+.circle-person { background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0; }
+.circle-person-top {display:flex;align-items:center;gap:10px;}.circle-face {width:54px;height:54px;flex-shrink:0;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:31px;background:#E8E0FF;}
+.circle-person-name {font-weight:800;overflow-wrap:anywhere;}.circle-person-mood {font-size:12px;color:var(--muted);}.circle-tags {display:flex;flex-wrap:wrap;gap:5px;}.circle-tag {background:var(--lav-soft);color:var(--lav-deep);padding:5px 8px;border-radius:9px;font-size:11px;font-weight:800;}
+.circle-person-actions {display:flex;gap:8px;flex-wrap:wrap;}.circle-person-actions button {flex:1;min-height:38px;border-radius:12px;font:800 13px var(--body);cursor:pointer;}
+.circle-empty {grid-column:1/-1;background:var(--card);border:1px dashed #D9CDEC;border-radius:18px;padding:16px;color:var(--muted);font-size:14px;}
+.circle-chat,.circle-session {display:flex;flex-direction:column;gap:10px;}.circle-messages {height:220px;overflow:auto;background:#FBF8FF;border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px;}
+.circle-bubble {max-width:88%;align-self:flex-start;padding:9px 12px;background:#EEE7FF;border-radius:14px 14px 14px 4px;overflow-wrap:anywhere;font-size:14px;}.circle-bubble.mine {align-self:flex-end;background:#DDF4E8;border-radius:14px 14px 4px 14px;}.circle-bubble small {display:block;font-size:10px;color:var(--muted);margin-top:3px;}
+.circle-message-form {display:flex;flex-direction:row;gap:8px;}.circle-message-form input {flex:1;min-width:0;}.circle-message-form button {padding:0 18px;border-radius:14px;font:800 14px var(--body);}
+.circle-check {display:flex;align-items:center;gap:8px;}.circle-check input {width:18px;height:18px;}.circle-session .btns {margin-top:2px;}
+@media(min-width:520px){.circle-mood {grid-template-columns:64px 1fr auto;}.circle-mood select,.circle-mood button {grid-column:auto;}.circle-mood button {height:44px;padding:0 14px;border-radius:13px;}}
