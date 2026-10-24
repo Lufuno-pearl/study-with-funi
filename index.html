@@ -144,6 +144,39 @@
     </form>
    </section>
 
+   <!-- Study Circle -->
+   <section id="tabCircle" hidden>
+    <div class="circle-heading"><span class="circle-kicker">YOUR STUDY COMMUNITY</span><h1>Study Circle <span>✦</span></h1><p>Find people studying the same modules, check in with your mood, and study together.</p></div>
+    <div class="circle-mood card">
+      <div class="circle-avatar" id="circleMyFace" aria-hidden="true">😊</div>
+      <div class="circle-mood-copy"><b>How are you feeling today?</b><span>Your study mood helps your partners know how to support you.</span></div>
+      <select id="circleMood" aria-label="Your mood"><option>Feeling great</option><option>Happy</option><option selected>Okay</option><option>Confused</option><option>Stressed</option><option>Need help</option></select>
+      <button class="primary" id="circleSaveMood" type="button">Save mood</button>
+    </div>
+    <div class="card circle-module-card"><div><h2>Your modules</h2><p>Choose the modules you want to find study partners for.</p></div><div id="circleModuleChoices" class="circle-module-choices"></div><button class="primary big" id="circleSaveModules" type="button">Save modules and find matches</button></div>
+    <div class="circle-section-title"><div><h2>Your matches</h2><p>Students are ranked by how many modules you share.</p></div><button class="ghost mini" id="circleRefresh" type="button">Refresh</button></div>
+    <div id="circleMatches" class="circle-grid"><div class="empty"><b>Finding your circle…</b><span>Matches appear when other students have saved the same modules.</span></div></div>
+    <div class="circle-section-title"><div><h2>Invitations</h2><p>Requests to study together.</p></div></div>
+    <div id="circleRequests" class="circle-grid"></div>
+    <div class="circle-section-title"><div><h2>Your study partners</h2><p>Accept an invitation to unlock private chat and shared study sessions.</p></div></div>
+    <div id="circlePartners" class="circle-grid"></div>
+    <div class="card circle-chat">
+      <div class="circle-section-title"><div><h2>Private chat</h2><p>Messages are only available between accepted partners.</p></div></div>
+      <label for="circleChatPartner">Choose a partner</label><select id="circleChatPartner"><option value="">No partners yet</option></select>
+      <div id="circleMessages" class="circle-messages"><p class="hint">Accept a partner invitation to start chatting.</p></div>
+      <form id="circleMessageForm" class="circle-message-form"><input id="circleMessageInput" maxlength="4000" placeholder="Write a message…" autocomplete="off" aria-label="Message"><button class="primary" type="submit">Send</button></form>
+    </div>
+    <div class="card circle-session">
+      <h2>Study session</h2><p>Share what you're working on with accepted partners.</p>
+      <label for="circleSessionModule">Module</label><select id="circleSessionModule"><option value="">Choose a module</option></select>
+      <label for="circleSessionActivity">What are you doing?</label><select id="circleSessionActivity"><option>Practice questions</option><option>Reviewing notes</option><option>Preparing for a test</option><option>Working on an assignment</option><option>Quiet study</option></select>
+      <label class="circle-check"><input type="checkbox" id="circleShareSession" checked> Share this session with my partners</label>
+      <div class="btns"><button type="button" class="primary" id="circleStartSession">Start session</button><button type="button" class="ghost" id="circleEndSession">End active session</button></div>
+      <p class="hint" id="circleSessionStatus">No active session.</p>
+    </div>
+    <p class="hint" id="circleStatus" role="status">Study Circle connects students through Supabase.</p>
+   </section>
+
    <!-- Focus timer -->
    <section id="tabFocus" hidden>
     <h1>Focus</h1>
@@ -192,7 +225,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
     <button type="button" class="tab" data-tab="tabModules">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h16M4 18h7"/></svg>Modules</button>
-    <button type="button" class="tab" data-tab="tabFocus">
+    <button type="button" class="tab" data-tab="tabCircle">\n      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-4 2.8-6 7-6s7 2 7 6M15 15c3.8-.4 6.5 1.5 7 4"/></svg>Circle</button>\n    <button type="button" class="tab" data-tab="tabFocus">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg>Focus</button>
   </nav>
 </div>
