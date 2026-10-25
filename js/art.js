@@ -103,6 +103,15 @@
     return brows + eyes + blush + '<path d="M58.5 62Q60 63.5 61.5 62" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="1.6" stroke-linecap="round"/>' + mouth + extra;
   }
 
+  /* ---------- hands under the chin (the "dreamy" pose) ---------- */
+  function chinHands(hood, hoodD, skin, shade) {
+    const arm = (d) => '<path d="' + d + '" fill="' + hood + '" stroke="' + hoodD + '" stroke-width="2.2" stroke-linejoin="round"/>';
+    return arm("M16 124Q22 104 38 94L50 96Q44 108 42 124Z") + arm("M104 124Q98 104 82 94L70 96Q76 108 78 124Z") +
+      '<rect x="36" y="90" width="17" height="8" rx="4" fill="' + hoodD + '"/><rect x="67" y="90" width="17" height="8" rx="4" fill="' + hoodD + '"/>' +
+      '<ellipse cx="49" cy="87" rx="8.5" ry="6.2" fill="' + skin + '"/><ellipse cx="71" cy="87" rx="8.5" ry="6.2" fill="' + skin + '"/>' +
+      '<path d="M45 84.5Q48 83 51 85M65 85Q68 83 71 84.5" fill="none" stroke="' + shade + '" stroke-width="1.5" stroke-linecap="round"/>';
+  }
+
   /* ---------- the avatar bust ---------- */
   function avatarSVG(lookRaw, feeling, seed, opts) {
     const o = opts || {};
@@ -123,6 +132,7 @@
       '<circle cx="36" cy="58" r="5.5" fill="' + shade + '"/><circle cx="84" cy="58" r="5.5" fill="' + shade + '"/>' +
       '<ellipse cx="60" cy="55" rx="25" ry="27" fill="' + skin + '"/>' +
       hairFront(L.hair, hair) + face(feeling || "Happy") +
+      (o.chin ? chinHands(hood, hoodD, skin, shade) : "") +
       "</g></svg>";
   }
 
@@ -184,8 +194,16 @@
       "</svg>";
   }
 
+  function dreamyScene(look, feeling, seed) {
+    return '<svg viewBox="0 0 200 180" class="scene-svg" aria-hidden="true">' +
+      sparkle(26, 40, 1, "#B9A3F7") + sparkle(178, 30, 0.9, "#C9B8FF") + sparkle(184, 120, 0.6, "#B9A3F7") + sparkle(18, 128, 0.55, "#C9B8FF") +
+      '<path d="M166 66c-4-6-12-2-10 4 1 4 10 9 10 9s9-5 10-9c2-6-6-10-10-4z" fill="#B49CF5"/>' +
+      '<path d="M34 86c-3-4-9-1-7 3 1 3 7 6 7 6s6-3 7-6c2-4-4-7-7-3z" fill="#D8C9FF"/>' +
+      '<g transform="translate(28 22) scale(1.2)">' + avatarSVG(look, feeling, seed, { noBg: true, chin: true }) + "</g></svg>";
+  }
+
   window.FuniArt = {
     SKIN, HAIR_COLORS, HOODIES, HAIR_STYLES, FEELINGS, BG,
-    parseLook, defaultLook, avatarSVG, feelingSVG, studyScene, friendsScene
+    parseLook, defaultLook, avatarSVG, feelingSVG, studyScene, friendsScene, dreamyScene
   };
 })();
