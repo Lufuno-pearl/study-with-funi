@@ -202,7 +202,18 @@
       '<g transform="translate(28 22) scale(1.2)">' + avatarSVG(look, feeling, seed, { noBg: true, chin: true }) + "</g></svg>";
   }
 
+  // ready-made avatars for the profile picker
+  const PRESETS = [
+    { look: { skin: 4, hair: "puffs", hairColor: 0, hoodie: 0 }, kind: "Girls" }, { look: { skin: 2, hair: "afro", hairColor: 1, hoodie: 1 }, kind: "Girls" },
+    { look: { skin: 1, hair: "bun", hairColor: 3, hoodie: 2 }, kind: "Girls" }, { look: { skin: 0, hair: "long", hairColor: 4, hoodie: 4 }, kind: "Girls" },
+    { look: { skin: 5, hair: "braids", hairColor: 0, hoodie: 3 }, kind: "Girls" }, { look: { skin: 3, hair: "long", hairColor: 0, hoodie: 5 }, kind: "Girls" },
+    { look: { skin: 4, hair: "short", hairColor: 0, hoodie: 5 }, kind: "Guys" }, { look: { skin: 3, hair: "curly", hairColor: 0, hoodie: 2 }, kind: "Guys" },
+    { look: { skin: 5, hair: "afro", hairColor: 0, hoodie: 3 }, kind: "Guys" }, { look: { skin: 1, hair: "short", hairColor: 3, hoodie: 1 }, kind: "Guys" },
+    { look: { skin: 2, hair: "curly", hairColor: 1, hoodie: 0 }, kind: "Guys" }, { look: { skin: 0, hair: "short", hairColor: 4, hoodie: 4 }, kind: "Guys" }
+  ];
+
   window.FuniArt = {
+    PRESETS,
     SKIN, HAIR_COLORS, HOODIES, HAIR_STYLES, FEELINGS, BG,
     parseLook, defaultLook, avatarSVG, feelingSVG, studyScene, friendsScene, dreamyScene
   };
