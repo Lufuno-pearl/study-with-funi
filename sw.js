@@ -1,7 +1,8 @@
 // Service worker: keeps Funi opening offline and shows notifications.
-const CACHE = "funi-v5";
+const CACHE = "funi-v6";
 const SHELL = [
-  "/", "/index.html", "/styles.css", "/app.js", "/manifest.json",
+  "/", "/index.html", "/styles.css", "/manifest.json",
+  "/js/art.js", "/js/core.js", "/js/study.js", "/js/social.js", "/js/boot.js",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"
 ];
 
@@ -22,7 +23,7 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const sameOrigin = url.origin === location.origin;
   const isLibrary = url.hostname === "cdn.jsdelivr.net";
-  if (!sameOrigin && !isLibrary) return;
+  if ((!sameOrigin && !isLibrary) || url.pathname.startsWith("/api/")) return;
   e.respondWith(
     fetch(e.request).then((res) => {
       if (res.ok) {
@@ -36,7 +37,7 @@ self.addEventListener("fetch", (e) => {
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: "window" }).then((list) => {
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
     if (list.length) return list[0].focus();
     return self.clients.openWindow("/");
   }));

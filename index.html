@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="lavender">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Study with Funi</title>
-<meta name="description" content="Exam countdowns and study planning for university students.">
+<meta name="description" content="Exam countdowns, study plans and study partners for university students.">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -12,23 +12,26 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Funi">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#FBF7F4">
+<meta name="theme-color" content="#F7F3FB">
+<script>
+  // apply the saved theme before anything paints, so there's no flash
+  try { var t = localStorage.getItem("funi.theme"); if (t) document.documentElement.setAttribute("data-theme", JSON.parse(t)); } catch (e) {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
-<!-- ========== Welcome: create account / log in ========== -->
+<!-- ===================== Welcome: create account / log in ===================== -->
 <section class="auth" id="authScreen" hidden>
+  <div class="auth-art" id="authArt"></div>
   <div class="auth-hero">
-    <img src="/icons/icon-512.png" alt="Funi" width="88" height="88">
     <h1>Welcome to Funi</h1>
-    <p>Your tests and exams, counted down and planned out.</p>
+    <p>Plan your studying, count down to exams and study with friends.</p>
   </div>
-
-  <div class="auth-card">
-    <div class="tabs" role="tablist">
+  <div class="card">
+    <div class="seg" role="tablist">
       <button type="button" role="tab" id="tabSignup" aria-selected="true">Create account</button>
       <button type="button" role="tab" id="tabLogin" aria-selected="false">Log in</button>
     </div>
@@ -43,17 +46,17 @@
       <div class="field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
         <input id="suPass" type="password" autocomplete="new-password" placeholder="At least 6 characters">
-        <button type="button" class="eye" data-eye="suPass" aria-label="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="eye" data-eye="suPass" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <label for="suPass2">Confirm password</label>
       <div class="field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
         <input id="suPass2" type="password" autocomplete="new-password" placeholder="Type it again">
-        <button type="button" class="eye" data-eye="suPass2" aria-label="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="eye" data-eye="suPass2" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <p class="form-error" id="signupError" hidden></p>
-      <button type="submit" class="primary big" id="signupBtn">Create account</button>
-      <p class="hint">No email needed. Remember your password: if you forget it, message Funi support to reset it.</p>
+      <button type="submit" class="btn primary block" id="signupBtn" style="margin-top:16px">Create account</button>
+      <p class="hint" style="text-align:center;margin-top:10px">No email needed. If you forget your password, message Funi support to reset it.</p>
     </form>
 
     <form id="loginForm" novalidate hidden>
@@ -66,229 +69,376 @@
       <div class="field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
         <input id="liPass" type="password" autocomplete="current-password">
-        <button type="button" class="eye" data-eye="liPass" aria-label="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="eye" data-eye="liPass" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <p class="form-error" id="loginError" hidden></p>
-      <button type="submit" class="primary big" id="loginBtn">Log in</button>
-      <p class="hint">Forgot your password? Message Funi support and we'll reset it.</p>
+      <button type="submit" class="btn primary block" id="loginBtn" style="margin-top:16px">Log in</button>
     </form>
   </div>
-  <p class="status" id="authStatus" hidden></p>
+  <p class="status-line" id="authStatus" hidden></p>
 </section>
 
-<!-- ========== The app ========== -->
+<!-- ===================== The app ===================== -->
 <div id="appScreen" hidden>
-  <main class="app">
-   <section id="tabHome">
+<main class="app">
+
+  <!-- ---------- HOME ---------- -->
+  <section class="view" id="vHome">
     <header class="top">
       <div class="brand">
-        <img src="/icons/icon-192.png" alt="" width="40" height="40">
-        <div>
-          <small id="today"></small>
-          <h1 id="greeting">Study with Funi</h1>
-        </div>
+        <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7"/></svg></span>
+        <b>Funi</b>
       </div>
       <div class="top-actions">
         <button class="icon-btn" id="installBtn" aria-label="Download the app" hidden>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
         </button>
         <button class="icon-btn" id="bellBtn" aria-label="Notifications">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
-          <span class="badge" id="badge" hidden></span>
-        </button>
-        <button class="icon-btn" id="accountBtn" aria-label="Your account">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+          <span class="badge" id="bellBadge" hidden></span>
         </button>
       </div>
     </header>
 
-    <section id="hero" aria-live="polite">
-      <div class="card loading">Getting your countdowns…</div>
-    </section>
+    <div class="greet">
+      <h1><span id="greetName">Hey there!</span> <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9.2C1 8.2 3.4 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.6 0 6 3.7 4.5 7.3C19.5 16.4 12 21 12 21z"/></svg></h1>
+      <p>Better together, brighter future.</p>
+    </div>
 
-    <section id="listWrap" hidden>
-      <h2>Coming up</h2>
-      <div class="list" id="list"></div>
-    </section>
+    <div id="homeHero"></div>
 
-    <button type="button" class="primary big wide" id="goPlan">Build my study plan →</button>
-    <p class="status" id="status" hidden></p>
-   </section>
+    <div class="card circle-card">
+      <div class="art" id="homeCircleArt"></div>
+      <div class="stack">
+        <h2>Your study circle</h2>
+        <div class="stats">
+          <div class="stat"><b id="statPartners">0</b><span>Study partners</span></div>
+          <div class="stat"><b id="statLive">0</b><span>Studying now</span></div>
+        </div>
+        <button class="btn primary small block" data-go="partners">View study partners</button>
+      </div>
+    </div>
 
-   <!-- Study plan -->
-   <section id="tabPlan" hidden>
-    <div class="head-row">
-      <div><small id="planWeek"></small><h1>Your study plan</h1></div>
-      <button class="icon-btn" id="planSettingsBtn" aria-label="Plan settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    <div class="stack">
+      <h2>Quick actions</h2>
+      <div class="tiles">
+        <button class="tile" data-go="study:plan"><i class="t-lav"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6"/></svg></i>Study plan</button>
+        <button class="tile" data-go="study:modules"><i class="t-peach"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></i>Modules</button>
+        <button class="tile" data-go="study:focus"><i class="t-mint"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Focus timer</button>
+        <button class="tile" data-go="study:tasks"><i class="t-pink"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></i>Tasks</button>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="section-title"><h2>Today</h2><button class="link" data-go="study:tasks">See all</button></div>
+      <div id="homeToday"></div>
+    </div>
+
+    <div class="stack" id="homeComingWrap">
+      <div class="section-title"><h2>Coming up</h2><button class="link" data-go="study:exams">All tests</button></div>
+      <div class="list" id="homeComing"></div>
+    </div>
+    <p class="status-line" id="homeStatus" hidden></p>
+  </section>
+
+  <!-- ---------- STUDY ---------- -->
+  <section class="view" id="vStudy" hidden>
+    <div class="between">
+      <h1 id="studyTitle">Study</h1>
+      <button class="icon-btn" id="planSettingsBtn" aria-label="Plan settings: hours, rest day and classes">
+        <svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
       </button>
     </div>
-    <div class="days" id="planDays"></div>
-    <div id="planBody"></div>
-    <p class="hint">Funi puts the closest exams and the modules you feel weakest in first. Change your hours, rest day and classes with the settings button.</p>
-   </section>
+    <div class="seg" role="tablist" id="studySeg">
+      <button type="button" role="tab" data-seg="plan" aria-selected="true">Plan</button>
+      <button type="button" role="tab" data-seg="modules" aria-selected="false">Modules</button>
+      <button type="button" role="tab" data-seg="focus" aria-selected="false">Focus</button>
+      <button type="button" role="tab" data-seg="tasks" aria-selected="false">Tasks</button>
+      <button type="button" role="tab" data-seg="exams" aria-selected="false">Tests</button>
+    </div>
 
-   <!-- Modules: what matters most -->
-   <section id="tabModules" hidden>
-    <h1>What matters most?</h1>
-    <p>Rank your modules with the arrows and tap the dots to rate how ready you feel. Your plan gives more time to the top and the shaky ones.</p>
-    <div id="modList"></div>
-    <form class="card add-mod" id="modForm">
-      <h2>Add a module</h2>
-      <div class="two">
-        <div><label for="modCode">Code</label><input id="modCode" required maxlength="20" placeholder="APPM2023A" autocomplete="off"></div>
-        <div><label for="modName">Name (optional)</label><input id="modName" maxlength="40" placeholder="Mechanics II" autocomplete="off"></div>
-      </div>
-      <p class="form-error" id="modError" hidden></p>
-      <button type="submit" class="primary big">Add module</button>
-    </form>
-   </section>
+    <!-- plan -->
+    <div class="stack" id="segPlan">
+      <p class="hint" id="planInfo"></p>
+      <div class="week" id="planDays"></div>
+      <div id="planBody"></div>
+    </div>
 
-   <!-- Study Circle -->
-   <section id="tabCircle" hidden>
-    <div class="circle-dashboard">
-      <div class="circle-heading">
-        <span class="circle-kicker" id="circleToday">YOUR STUDY COMMUNITY</span>
-        <h1>Find your people. <span>✦</span></h1>
-        <p>Study is easier together. Find classmates, share your mood and keep each other going.</p>
-        <div class="circle-hero-people" aria-label="Illustrated student community">
-          <div class="student-art student-art-one"><svg viewBox="0 0 100 110" role="img" aria-label="Smiling student with curly hair"><path fill="#4B2B28" d="M18 49Q7 9 43 8Q80 1 83 39L78 65H22Z"/><path fill="#E9A878" d="M24 39Q24 19 49 19Q74 20 74 43V60Q68 80 49 81Q29 76 24 59Z"/><path fill="#4B2B28" d="M22 39Q18 10 48 12Q76 10 79 39L69 34 63 25Q46 39 25 32Z"/><circle cx="39" cy="48" r="3" fill="#302328"/><circle cx="59" cy="48" r="3" fill="#302328"/><path d="M41 61Q49 70 58 60" fill="none" stroke="#9B4F45" stroke-width="3" stroke-linecap="round"/><path fill="#9A83E8" d="M12 109Q13 79 35 75L49 86 64 75Q87 81 89 109Z"/></svg></div>
-          <div class="student-art student-art-two"><svg viewBox="0 0 100 110" role="img" aria-label="Happy student with short hair"><path fill="#263D53" d="M20 44Q17 13 48 12Q80 12 79 44V61H20Z"/><path fill="#8B5439" d="M25 39Q28 22 49 22Q70 22 73 42V61Q67 79 49 81Q30 77 25 60Z"/><path fill="#263D53" d="M22 41Q16 15 48 13Q70 12 79 35L68 34 57 24 41 31 27 30Z"/><circle cx="40" cy="49" r="3" fill="#2A2021"/><circle cx="59" cy="49" r="3" fill="#2A2021"/><path d="M41 61Q50 68 59 60" fill="none" stroke="#7E3B35" stroke-width="3" stroke-linecap="round"/><path fill="#F1A77E" d="M10 109Q13 80 34 76L49 86 64 76Q86 81 90 109Z"/></svg></div>
-          <div class="student-art student-art-three"><svg viewBox="0 0 100 110" role="img" aria-label="Student smiling with braided hair"><path fill="#29222D" d="M20 42Q18 12 49 12Q80 12 79 43L80 76 69 79 67 38 30 38 30 79 19 76Z"/><path fill="#A96845" d="M26 39Q28 21 49 21Q70 21 73 41V61Q67 79 49 81Q31 77 26 60Z"/><path fill="#29222D" d="M24 42Q16 12 48 12Q78 10 80 40L68 34 61 25 42 32 28 31Z"/><circle cx="40" cy="49" r="3" fill="#2A2021"/><circle cx="59" cy="49" r="3" fill="#2A2021"/><path d="M41 61Q50 68 59 60" fill="none" stroke="#713B34" stroke-width="3" stroke-linecap="round"/><path fill="#72B8A6" d="M10 109Q13 80 34 76L49 86 64 76Q86 81 90 109Z"/></svg></div>
+    <!-- modules + marks -->
+    <div class="stack" id="segModules" hidden>
+      <div class="card flat stack">
+        <h2>What matters most?</h2>
+        <p>Drag your class mark for each module. Funi works out the exam mark you need, and modules that need more get more study time.</p>
+        <div class="seg" role="tablist" aria-label="Who sets the order">
+          <button type="button" role="tab" data-prio="auto" aria-selected="true">Funi decides</button>
+          <button type="button" role="tab" data-prio="manual" aria-selected="false">I decide (drag)</button>
         </div>
-        <div class="circle-hero-actions"><button class="primary" type="button" id="circleStart">Start a Circle</button><button class="circle-invite-button" type="button" id="circleInviteFriend">Invite a friend ↗</button></div>
       </div>
-      <div class="circle-shortcuts">
-        <button type="button" class="circle-shortcut" id="circleFocusShortcut"><span class="shortcut-icon">◷</span><b>Modules & focus timer</b><small>Pick a module and get studying</small><span class="shortcut-arrow">→</span></button>
-        <button type="button" class="circle-shortcut" id="circleFindShortcut"><span class="shortcut-icon">✦</span><b>Find my study people</b><small>Match with students taking your modules</small><span class="shortcut-arrow">→</span></button>
+      <div class="stack" id="modList"></div>
+      <form class="card flat" id="modForm">
+        <h2>Add a module</h2>
+        <div class="two">
+          <div><label for="modCode">Code</label><input id="modCode" maxlength="20" placeholder="APPM2023A" autocomplete="off"></div>
+          <div><label for="modName">Name (optional)</label><input id="modName" maxlength="40" placeholder="Mechanics II" autocomplete="off"></div>
+        </div>
+        <p class="form-error" id="modError" hidden></p>
+        <button type="submit" class="btn primary block" style="margin-top:14px">Add module</button>
+      </form>
+    </div>
+
+    <!-- focus / study session -->
+    <div class="stack" id="segFocus" hidden>
+      <form class="card flat stack" id="sessionForm">
+        <h2>Start a study session</h2>
+        <label for="sesModule" style="margin-top:0">What are you studying?</label>
+        <select id="sesModule"></select>
+        <span class="label">How are you feeling?</span>
+        <div class="feelings" id="sesFeelings"></div>
+        <span class="label">What will you work on?</span>
+        <div class="radio-list" id="sesActivity">
+          <label><input type="radio" name="act" value="Reviewing lecture notes" checked> Reviewing lecture notes</label>
+          <label><input type="radio" name="act" value="Tutorial questions"> Tutorial questions</label>
+          <label><input type="radio" name="act" value="Past paper practice"> Past paper practice</label>
+          <label><input type="radio" name="act" value="Assignment work"> Assignment work</label>
+        </div>
+        <div class="two">
+          <div><label for="sesMinutes">Minutes</label><input id="sesMinutes" type="number" inputmode="numeric" min="1" max="240" value="25"></div>
+          <div><label for="sesBreak">Break (min)</label><input id="sesBreak" type="number" inputmode="numeric" min="1" max="60" value="5"></div>
+        </div>
+        <div class="switch"><span>Share with my study partners</span><input type="checkbox" id="sesShare" checked aria-label="Share with my study partners"></div>
+        <p class="form-error" id="sesError" hidden></p>
+        <button type="submit" class="btn primary block">Start studying</button>
+      </form>
+
+      <div class="stack" id="sessionLive" hidden>
+        <div class="card flat mood-row">
+          <span class="ava" id="sesAva"></span>
+          <div class="grow"><b id="sesTitle"></b><div class="hint" id="sesSub"></div></div>
+          <span class="pill mint">In progress</span>
+        </div>
+        <div class="card flat mood-row">
+          <span class="face lg" id="sesFace"></span>
+          <div class="grow"><small>Your mood</small><div><b id="sesMood"></b></div></div>
+          <button type="button" class="btn ghost small" id="sesMoodEdit">Edit</button>
+        </div>
+        <div class="session-card">
+          <div class="scene" id="sesScene"></div>
+          <h2 id="sesCheer">Keep going!</h2>
+          <div class="clock" id="sesClock" role="timer" aria-live="off">25:00</div>
+          <p id="sesPhase">Focus time</p>
+          <div class="session-btns">
+            <button type="button" class="btn primary" id="sesPause">Pause</button>
+            <button type="button" class="btn ghost" id="sesBig">Big timer</button>
+          </div>
+          <button type="button" class="btn ghost block" id="sesEnd">End session</button>
+        </div>
+        <div class="share-note" id="sesShareNote">
+          <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+          <span>Sharing with your study partners. They were told you started and how you're feeling.</span>
+        </div>
       </div>
     </div>
-    <div class="circle-mood card">
-      <div class="circle-avatar" id="circleMyFace" aria-hidden="true">😊</div>
-      <div class="circle-mood-copy"><b>How are you feeling today?</b><span>Your study mood helps your partners know how to support you.</span></div>
-      <select id="circleMood" aria-label="Your mood"><option>Feeling great</option><option>Happy</option><option selected>Okay</option><option>Confused</option><option>Stressed</option><option>Need help</option></select>
-      <button class="primary" id="circleSaveMood" type="button">Save mood</button>
-    </div>
-    <div class="card circle-module-card"><div><h2>Your modules</h2><p>Choose the modules you want to find study partners for.</p></div><div id="circleModuleChoices" class="circle-module-choices"></div><button class="primary big" id="circleSaveModules" type="button">Save modules and find matches</button></div>
-    <div class="circle-section-title"><div><h2>Your matches</h2><p>Students are ranked by how many modules you share.</p></div><button class="ghost mini" id="circleRefresh" type="button">Refresh</button></div>
-    <div id="circleMatches" class="circle-grid"><div class="empty"><b>Finding your circle…</b><span>Matches appear when other students have saved the same modules.</span></div></div>
-    <div class="circle-section-title"><div><h2>Invitations</h2><p>Requests to study together.</p></div></div>
-    <div id="circleRequests" class="circle-grid"></div>
-    <div class="circle-section-title"><div><h2>Your study partners</h2><p>Accept an invitation to unlock private chat and shared study sessions.</p></div></div>
-    <div id="circlePartners" class="circle-grid"></div>
-    <div class="card circle-chat">
-      <div class="circle-section-title"><div><h2>Private chat</h2><p>Messages are only available between accepted partners.</p></div></div>
-      <label for="circleChatPartner">Choose a partner</label><select id="circleChatPartner"><option value="">No partners yet</option></select>
-      <div id="circleMessages" class="circle-messages"><p class="hint">Accept a partner invitation to start chatting.</p></div>
-      <form id="circleMessageForm" class="circle-message-form"><input id="circleMessageInput" maxlength="4000" placeholder="Write a message…" autocomplete="off" aria-label="Message"><button class="primary" type="submit">Send</button></form>
-    </div>
-    <div class="card circle-session">
-      <h2>Study session</h2><p>Share what you're working on with accepted partners.</p>
-      <label for="circleSessionModule">Module</label><select id="circleSessionModule"><option value="">Choose a module</option></select>
-      <label for="circleSessionActivity">What are you doing?</label><select id="circleSessionActivity"><option>Practice questions</option><option>Reviewing notes</option><option>Preparing for a test</option><option>Working on an assignment</option><option>Quiet study</option></select>
-      <label class="circle-check"><input type="checkbox" id="circleShareSession" checked> Share this session with my partners</label>
-      <div class="btns"><button type="button" class="primary" id="circleStartSession">Start session</button><button type="button" class="ghost" id="circleEndSession">End active session</button></div>
-      <p class="hint" id="circleSessionStatus">No active session.</p>
-    </div>
-    <p class="hint" id="circleStatus" role="status">Study Circle connects students through Supabase.</p>
-   </section>
 
-   <!-- Focus timer -->
-   <section id="tabFocus" hidden>
-    <div class="focus-heading"><h1>Focus</h1><button type="button" class="ghost" id="focusBigToggle" aria-pressed="false">⛶ Big timer</button></div>
-    <p id="focusDescription">Choose how long you want to focus. You can set it to 25 minutes, 2 hours, or anything in between.</p>
-    <div class="focus-settings card">
-      <label for="focusMinutes">Focus length (minutes)</label>
-      <div class="focus-setting-row"><input type="number" id="focusMinutes" min="1" max="240" step="1" value="25" inputmode="numeric"><button type="button" class="primary" id="focusApply">Set timer</button></div>
-      <p class="hint">Choose 120 for two hours. Your timer length is up to you.</p>
+    <!-- tasks & reminders -->
+    <div class="stack" id="segTasks" hidden>
+      <div class="week" id="taskDays"></div>
+      <form class="card flat stack" id="taskForm">
+        <label for="taskTitle" style="margin-top:0">New task or reminder</label>
+        <input id="taskTitle" maxlength="120" placeholder="e.g. Finish tutorial 4" autocomplete="off">
+        <div class="two">
+          <div><label for="taskTime">Time (optional)</label><input id="taskTime" type="time"></div>
+          <div><label for="taskModule">Module (optional)</label><select id="taskModule"></select></div>
+        </div>
+        <p class="form-error" id="taskError" hidden></p>
+        <button type="submit" class="btn primary block">Add to <span id="taskDayName">today</span></button>
+      </form>
+      <div class="timeline" id="taskList"></div>
     </div>
-    <div class="focus-card">
-      <span class="eyebrow" id="focusLabel">READY WHEN YOU ARE</span>
-      <span class="focus-clock" id="focusClock">25:00</span>
-      <div class="focus-btns">
-        <button type="button" class="primary big" id="focusStart">Start focus</button>
-        <button type="button" class="ghost big" id="focusReset">Reset</button>
+
+    <!-- tests & exams -->
+    <div class="stack" id="segExams" hidden>
+      <button type="button" class="btn primary block" id="addExamBtn">Add a test or exam</button>
+      <div class="list" id="examList"></div>
+    </div>
+  </section>
+
+  <!-- ---------- PARTNERS ---------- -->
+  <section class="view" id="vPartners" hidden>
+    <h1>Study partners</h1>
+    <div class="card feeling-card">
+      <span class="ava lg" id="myAvaBig"></span>
+      <div class="txt">
+        <small>Your current feeling</small>
+        <b><span class="face" id="myFace"></span><span id="myFeeling">Okay</span></b>
+      </div>
+      <button type="button" class="btn soft-btn small" id="changeFeeling">Change</button>
+    </div>
+    <div class="seg" role="tablist" id="partnerSeg">
+      <button type="button" role="tab" data-pseg="circle" aria-selected="true">My circle</button>
+      <button type="button" role="tab" data-pseg="invites" aria-selected="false">Invitations<span class="count" id="inviteCount" hidden></span></button>
+      <button type="button" role="tab" data-pseg="find" aria-selected="false">Add a friend</button>
+    </div>
+    <div class="stack" id="psCircle"></div>
+    <div class="stack" id="psInvites" hidden></div>
+    <div class="stack" id="psFind" hidden>
+      <div class="card flat invite-hero">
+        <div class="art" id="inviteArt"></div>
+        <h2>Invite a friend to be your study partner</h2>
+        <p>Study together, share how you feel, and keep each other going.</p>
+      </div>
+      <label for="findInput" class="sr-only">Search by username</label>
+      <input id="findInput" type="search" placeholder="Search by username" autocapitalize="none" autocomplete="off" spellcheck="false">
+      <div class="stack" id="findResults"></div>
+      <div class="section-title"><h2>Suggested for you</h2></div>
+      <p class="hint">Students taking the same modules as you.</p>
+      <div class="stack" id="suggestions"></div>
+      <button type="button" class="btn ghost block" id="shareLink">Share the Funi link with a friend</button>
+    </div>
+  </section>
+
+  <!-- ---------- MESSAGES ---------- -->
+  <section class="view" id="vMessages" hidden>
+    <h1>Messages</h1>
+    <div id="convoList"></div>
+  </section>
+
+  <!-- ---------- CHAT ---------- -->
+  <section class="view" id="vChat" hidden>
+    <header class="chat-head">
+      <button type="button" class="icon-btn" id="chatBack" aria-label="Back to messages"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="ava-wrap"><span class="ava sm" id="chatAva"></span><span class="live" id="chatLive" hidden></span></span>
+      <div class="txt"><b id="chatName"></b><span id="chatStatus"></span></div>
+      <span class="face" id="chatFace"></span>
+    </header>
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+  </section>
+
+  <!-- ---------- PROFILE ---------- -->
+  <section class="view" id="vProfile" hidden>
+    <div class="profile-top">
+      <span class="ava xl" id="profAva"></span>
+      <div><h1 id="profName"></h1><p id="profUser"></p></div>
+      <button type="button" class="btn soft-btn small" id="editLook">Change my cartoon</button>
+    </div>
+    <div class="card flat">
+      <label for="profDisplay" style="margin-top:0">Name partners see</label>
+      <div class="add-row">
+        <input id="profDisplay" maxlength="30" placeholder="e.g. Pearl">
+        <button type="button" class="btn primary" id="saveDisplay">Save</button>
       </div>
     </div>
-    <p class="hint" id="focusDone">Sessions finished today: 0</p>
-   </section>
+    <div class="card flat stack">
+      <h2>Theme</h2>
+      <div class="themes" id="themePicker"></div>
+    </div>
+    <div class="card flat stack">
+      <h2>Notifications</h2>
+      <p id="notifInfo">Get a pop-up when a partner messages you, starts studying or needs help.</p>
+      <button type="button" class="btn primary block" id="enableNotifs">Turn on notifications</button>
+    </div>
+    <div class="card flat stack">
+      <h2>Get the app</h2>
+      <p>Add Funi to your home screen so it opens like a normal app.</p>
+      <button type="button" class="btn ghost block" id="installBtn2">How to download Funi</button>
+    </div>
+    <button type="button" class="btn danger block" id="logoutBtn">Log out</button>
+  </section>
+</main>
 
-   <!-- What do I need? -->
-   <section id="tabMarks" hidden>
-    <h1>What do I need?</h1>
-    <p id="marksFor">Move the sliders. Funi works out the exam mark you need.</p>
-    <div class="card marks">
-      <label for="mClass">Class mark so far: <b id="mClassV">52%</b></label>
-      <input type="range" id="mClass" min="0" max="100" value="52">
-      <label for="mWeight">Exam counts for: <b id="mWeightV">60%</b></label>
-      <input type="range" id="mWeight" min="10" max="100" step="5" value="60">
-      <label for="mSub">Exam subminimum: <b id="mSubV">40%</b></label>
-      <input type="range" id="mSub" min="0" max="50" step="5" value="40">
-    </div>
-    <div class="hero">
-      <span class="eyebrow">TO PASS (50%) YOU NEED</span>
-      <div class="row"><span class="num" id="mPass">49%</span><div class="what">in the exam</div></div>
-      <span class="sub" id="mNote"></span>
-    </div>
-    <div class="two">
-      <div class="card"><small>For 60%</small><div class="stat" id="m60"></div></div>
-      <div class="card"><small>For 75% (distinction)</small><div class="stat" id="m75"></div></div>
-    </div>
-   </section>
-  </main>
+<button class="fab" id="fab" aria-label="Add a test, exam or task"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
 
-  <nav class="tabbar" aria-label="Main">
-    <button type="button" class="tab active" data-tab="tabHome">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Countdown</button>
-    <button type="button" class="tab" data-tab="tabPlan">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Plan</button>
-    <button type="button" class="tab-add" id="addBtn" aria-label="Add test or exam">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-    <button type="button" class="tab" data-tab="tabModules">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h16M4 18h7"/></svg>Modules</button>
-    <button type="button" class="tab" data-tab="tabCircle">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-4 2.8-6 7-6s7 2 7 6M15 15c3.8-.4 6.5 1.5 7 4"/></svg>
-      <span>Circle</span>
-    </button>
-    <button type="button" class="tab" data-tab="tabFocus">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg>Focus</button>
-  </nav>
+<div class="composer" id="composer" hidden>
+  <div class="composer-inner">
+    <div class="attach-preview" id="attachPreview" hidden>
+      <span id="attachName"></span>
+      <button type="button" class="x-btn" id="attachClear" aria-label="Remove attachment">×</button>
+    </div>
+    <form id="chatForm">
+      <button type="button" class="icon-btn" id="attachBtn" aria-label="Attach a photo or file"><svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l8.3-8.3"/></svg></button>
+      <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" hidden>
+      <button type="button" class="icon-btn help-toggle" id="helpToggle" aria-pressed="false" aria-label="Mark as a help request"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.3-2.4 3.8M12 17h.01"/></svg></button>
+      <label for="chatInput" class="sr-only">Message</label>
+      <textarea id="chatInput" rows="1" maxlength="4000" placeholder="Type a message…"></textarea>
+      <button type="submit" class="icon-btn send" id="sendBtn" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+    </form>
+  </div>
 </div>
 
-<!-- Add a test or exam -->
-<dialog id="addDlg">
-  <form id="addForm">
-    <h2>New test or exam</h2>
-    <label for="fModule">Module</label>
-    <input id="fModule" required maxlength="60" placeholder="e.g. COMS2015A" autocomplete="off">
-    <label for="fKind">Type</label>
-    <select id="fKind"><option>Exam</option><option>Test</option><option>Assignment</option><option>Quiz</option></select>
-    <div class="two">
-      <div><label for="fDate">Date</label><input id="fDate" type="date" required></div>
-      <div><label for="fTime">Time</label><input id="fTime" type="time" value="09:00"></div>
-    </div>
-    <label for="fVenue">Venue (optional)</label>
-    <input id="fVenue" maxlength="80" placeholder="e.g. Great Hall">
-    <p class="form-error" id="addError" hidden></p>
-    <div class="btns">
-      <button type="button" class="ghost" data-close="addDlg">Cancel</button>
-      <button type="submit" class="primary" id="addSave">Save</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Account -->
-<dialog id="accountDlg">
-  <h2>Your account</h2>
-  <p>You're logged in as <b id="accName"></b>. Use this username and your password to open Funi on any phone or laptop.</p>
-  <div class="btns">
-    <button type="button" class="ghost" id="logoutBtn">Log out</button>
-    <button type="button" class="primary" data-close="accountDlg">Done</button>
+<nav class="tabbar" aria-label="Main">
+  <div class="tabbar-inner">
+    <button type="button" class="tab" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button type="button" class="tab" data-tab="study"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>Study</button>
+    <button type="button" class="tab" data-tab="partners"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2a5.5 5.5 0 0 1 6 5.8"/></svg>Partners<span class="badge" id="partnersBadge" hidden></span></button>
+    <button type="button" class="tab" data-tab="messages"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Messages<span class="badge" id="msgBadge" hidden></span></button>
+    <button type="button" class="tab" data-tab="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profile</button>
   </div>
-</dialog>
+</nav>
+</div>
 
-<!-- Plan settings -->
-<dialog id="planDlg">
+<!-- ===================== Sheets ===================== -->
+<dialog id="addSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2>What do you want to add?</h2>
+  <div class="choice-grid">
+    <button type="button" class="choice" id="chooseExam"><i class="tile-i t-peach" style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Test or exam<small>Starts a countdown</small></button>
+    <button type="button" class="choice" id="chooseTask"><i class="tile-i t-pink" style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></i>Task or reminder<small>Tick it off when done</small></button>
+  </div>
+  <div class="btns"><button type="button" class="btn ghost" data-close="addSheet">Cancel</button></div>
+</div></dialog>
+
+<dialog id="examSheet"><form class="sheet" id="examForm">
+  <div class="sheet-grip"></div>
+  <h2>New test or exam</h2>
+  <label for="fModule">Module</label>
+  <input id="fModule" maxlength="60" placeholder="e.g. COMS2015A" autocomplete="off" list="moduleCodes">
+  <datalist id="moduleCodes"></datalist>
+  <label for="fKind">Type</label>
+  <select id="fKind"><option>Exam</option><option>Test</option><option>Assignment</option><option>Quiz</option></select>
+  <div class="two">
+    <div><label for="fDate">Date</label><input id="fDate" type="date"></div>
+    <div><label for="fTime">Time</label><input id="fTime" type="time" value="09:00"></div>
+  </div>
+  <label for="fVenue">Venue (optional)</label>
+  <input id="fVenue" maxlength="80" placeholder="e.g. Great Hall">
+  <p class="form-error" id="examError" hidden></p>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="examSheet">Cancel</button>
+    <button type="submit" class="btn primary" id="examSave">Save</button>
+  </div>
+</form></dialog>
+
+<dialog id="feelingSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <div class="profile-top"><span class="ava lg" id="feelPreview"></span><h2>How are you feeling today?</h2></div>
+  <div class="feelings" id="feelChoices"></div>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="feelingSheet">Cancel</button>
+    <button type="button" class="btn primary" id="saveFeeling">Save feeling</button>
+  </div>
+</div></dialog>
+
+<dialog id="notifSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <div class="sheet-head"><h2>Notifications</h2><button type="button" class="link" id="notifClear">Clear all</button></div>
+  <div class="stack" id="notifList"></div>
+  <div class="btns"><button type="button" class="btn ghost" data-close="notifSheet">Close</button></div>
+</div></dialog>
+
+<dialog id="lookSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <div class="profile-top"><span class="ava xl" id="lookPreview"></span><h2>Your cartoon</h2></div>
+  <span class="label">Skin</span><div class="look-row" id="lookSkin"></div>
+  <span class="label">Hair</span><div class="look-row" id="lookHair"></div>
+  <span class="label">Hair colour</span><div class="look-row" id="lookHairColor"></div>
+  <span class="label">Hoodie</span><div class="look-row" id="lookHoodie"></div>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="lookSheet">Cancel</button>
+    <button type="button" class="btn primary" id="saveLook">Save</button>
+  </div>
+</div></dialog>
+
+<dialog id="planSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
   <h2>Plan settings</h2>
   <div class="two">
     <div><label for="psHours">Study hours a day</label>
@@ -300,34 +450,55 @@
     <div><label for="psFrom">Study from</label><input id="psFrom" type="time" value="08:00"></div>
     <div><label for="psTo">Stop studying at</label><input id="psTo" type="time" value="22:00"></div>
   </div>
-  <h2 class="mt">Your classes</h2>
+  <h2 style="margin-top:14px">Your classes</h2>
   <p>Funi won't put study blocks on top of these.</p>
   <div id="classList"></div>
-  <div class="class-add">
-    <select id="cDay" aria-label="Day"><option value="1">Mon</option><option value="2">Tue</option><option value="3">Wed</option><option value="4">Thu</option><option value="5">Fri</option><option value="6">Sat</option><option value="0">Sun</option></select>
-    <input id="cStart" type="time" value="08:00" aria-label="Start">
-    <input id="cEnd" type="time" value="09:45" aria-label="End">
-    <input id="cLabel" maxlength="30" placeholder="e.g. COMS lecture" aria-label="Class name">
-    <button type="button" class="ghost" id="cAdd">Add class</button>
+  <div class="two">
+    <div><label for="cDay">Day</label><select id="cDay"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div>
+    <div><label for="cLabel">Class</label><input id="cLabel" maxlength="30" placeholder="COMS lecture"></div>
   </div>
-  <div class="btns"><button type="button" class="primary" id="psSave">Save and rebuild plan</button></div>
-</dialog>
+  <div class="two">
+    <div><label for="cStart">Starts</label><input id="cStart" type="time" value="08:00"></div>
+    <div><label for="cEnd">Ends</label><input id="cEnd" type="time" value="09:45"></div>
+  </div>
+  <button type="button" class="btn soft-btn block" id="cAdd" style="margin-top:10px">Add class</button>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="planSheet">Cancel</button>
+    <button type="button" class="btn primary" id="psSave">Save</button>
+  </div>
+</div></dialog>
 
-<!-- iPhone install steps -->
-<dialog id="iosDlg">
-  <h2>Get Funi on your iPhone</h2>
-  <ol class="steps">
-    <li>Open this page in <b>Safari</b></li>
-    <li>Tap the <b>Share</b> button (the square with an arrow)</li>
-    <li>Scroll down and tap <b>Add to Home Screen</b></li>
-    <li>Open Funi from your home screen, then tap the bell to turn on reminders</li>
+<dialog id="confirmSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="confirmTitle"></h2>
+  <p id="confirmText"></p>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="confirmSheet">Cancel</button>
+    <button type="button" class="btn primary" id="confirmOk">Yes</button>
+  </div>
+</div></dialog>
+
+<dialog id="imgSheet" class="img-view"><button type="button" class="btn ghost block" data-close="imgSheet">Close</button><img id="imgFull" alt="Shared photo"></dialog>
+
+<dialog id="iosSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2>Get Funi on your phone</h2>
+  <ol style="margin:4px 0 0;padding-left:22px;line-height:1.9">
+    <li>iPhone: open this page in <b>Safari</b>. Android: use <b>Chrome</b>.</li>
+    <li>Tap <b>Share</b> (square with an arrow), or the <b>⋮</b> menu on Android.</li>
+    <li>Tap <b>Add to Home Screen</b>.</li>
+    <li>Open Funi from your home screen, then turn on notifications in Profile.</li>
   </ol>
-  <div class="btns"><button type="button" class="primary" data-close="iosDlg">Got it</button></div>
-</dialog>
+  <div class="btns"><button type="button" class="btn primary" data-close="iosSheet">Got it</button></div>
+</div></dialog>
 
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="/app.js"></script>
+<script src="/js/art.js"></script>
+<script src="/js/core.js"></script>
+<script src="/js/study.js"></script>
+<script src="/js/social.js"></script>
+<script src="/js/boot.js"></script>
 </body>
 </html>
