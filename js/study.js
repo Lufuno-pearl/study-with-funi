@@ -406,7 +406,9 @@
     let sessionId = null;
     if (F.sb) {
       await F.sb.from("study_sessions").update({ is_active: false, ended_at: new Date().toISOString() }).eq("user_id", F.me.id).eq("is_active", true);
-      const { data, error } = await F.sb.from("study_sessions").insert({ user_id: F.me.id, module_code, feeling: sesFeeling, activity, share_with_partners: share, planned_minutes: focusMin }).select().single();
+      const row = { user_id: F.me.id, module_code, feeling: sesFeeling, activity, share_with_partners: share, planned_minutes: focusMin };
+      let { data, error } = await F.sb.from("study_sessions").insert(Object.assign({ break_minutes: breakMin, phase: "focus", phase_ends_at: new Date(Date.now() + focusMin * 60000).toISOString() }, row)).select().single();
+      if (error && /column/i.test(error.message)) ({ data, error } = await F.sb.from("study_sessions").insert(row).select().single());
       if (error) F.toast("Your timer started, but partners couldn't be told: " + error.message, { long: true });
       if (data) { sessionId = data.id; S.sessions.push(data); }
       if (F.setMyFeeling) F.setMyFeeling(sesFeeling, true);
@@ -438,24 +440,48 @@
     const row = S.sessions.find((s) => s.id === t.sessionId); if (row) row.focus_seconds = sec;
     await F.sb.from("study_sessions").update({ focus_seconds: sec }).eq("id", t.sessionId);
   }
+  const CHEERS = [
+    "You did great! Take a {b} minute break, you earned it.",
+    "Round done! That's {m} minutes of real work. Breathe, stretch, drink water.",
+    "Proud of you! {m} minutes closer to passing {mod}. Break time.",
+    "Yes! Another round finished. Small steps add up to big marks.",
+    "Well done! Rest for {b} minutes, then let's keep the streak going."
+  ];
+  const cheer = (t) => CHEERS[Math.floor(Math.random() * CHEERS.length)].replace("{b}", t.breakMin).replace("{m}", t.focusMin).replace("{mod}", t.module);
+  // tell the server when this phase ends, so it can buzz the phone even if Funi is closed
+  function syncPhase(t) {
+    if (!t || !t.sessionId || !F.sb) return;
+    const ends = t.pausedLeft != null ? null : new Date(t.endAt).toISOString();
+    F.sb.from("study_sessions").update({ phase: t.phase, phase_ends_at: ends }).eq("id", t.sessionId).then(() => {}, () => {});
+  }
+  F.syncPhase = syncPhase;
   function tick() {
     const t = F.timerState(); if (!t) return;
     const now = Date.now();
-    // count real focus time (also catches up after the phone was asleep)
+    // count real focus time (also catches up after the app was closed)
     if (t.pausedLeft == null && t.phase === "focus") t.focusSec += Math.max(0, (Math.min(now, t.endAt) - t.lastTick) / 1000);
     t.lastTick = now;
     let left = t.pausedLeft != null ? t.pausedLeft : Math.round((t.endAt - now) / 1000);
-    if (left <= 0 && t.pausedLeft == null) {
+    let changed = false;
+    while (left <= 0 && t.pausedLeft == null) {
+      const late = now - t.endAt > 15000; // it ended while Funi was closed: the phone was already buzzed
+      changed = true;
       if (t.phase === "focus") {
-        t.rounds++; t.phase = "break"; t.endAt = now + t.breakMin * 60000;
-        F.systemNotify("Focus session done", "Take a " + t.breakMin + " minute break. You earned it."); F.toast("Focus done! Break time.");
+        t.rounds++; t.phase = "break"; t.endAt = t.endAt + t.breakMin * 60000;
+        const msg = cheer(t);
+        if (!late) F.systemNotify("Focus session done", msg, "session"); 
+        F.toast(late ? "While you were away you finished a round. Well done!" : msg, { long: true });
         syncFocus(t, true);
+        left = Math.round((t.endAt - now) / 1000);
       } else {
-        t.phase = "focus"; t.endAt = now + t.focusMin * 60000;
-        F.systemNotify("Break's over", "Back to " + t.module + " for " + t.focusMin + " minutes."); F.toast("Break's over. Let's go!");
+        // break over: wait for them to tap play for the next round
+        t.phase = "focus"; t.pausedLeft = t.focusMin * 60; t.lastTick = now;
+        if (!late) F.systemNotify("Break's over", "Ready for round " + (t.rounds + 1) + "? Tap play when you are.", "session");
+        F.toast("Break's over. Tap play for the next round.");
+        left = t.pausedLeft;
       }
-      left = Math.round((t.endAt - now) / 1000);
     }
+    if (changed) syncPhase(t);
     F.store(timerKey(), t);
     left = Math.max(0, left);
     const m = Math.floor(left / 60), s = left % 60;
@@ -473,7 +499,7 @@
     const t2 = F.timerState();
     if (t2.pausedLeft != null) { t2.endAt = Date.now() + t2.pausedLeft * 1000; t2.pausedLeft = null; t2.lastTick = Date.now(); }
     else { t2.pausedLeft = Math.max(0, Math.round((t2.endAt - Date.now()) / 1000)); syncFocus(t2, true); }
-    F.store(timerKey(), t2); tick();
+    F.store(timerKey(), t2); tick(); syncPhase(t2);
   };
   $("sesBig").onclick = () => {
     const on = document.body.classList.toggle("bigclock-mode");
@@ -486,6 +512,7 @@
     tick();
     const t = F.timerState();
     if (t.sessionId && F.sb) {
+      F.sb.from("study_sessions").update({ phase_ends_at: null }).eq("id", t.sessionId).then(() => {}, () => {});
       await F.sb.from("study_sessions").update({ is_active: false, ended_at: new Date().toISOString(), focus_seconds: Math.round(t.focusSec) }).eq("id", t.sessionId);
       const row = S.sessions.find((s) => s.id === t.sessionId); if (row) row.focus_seconds = Math.round(t.focusSec);
     }
@@ -640,7 +667,11 @@
     F.fillModuleSelects(); scheduleReminders();
     F.emit("data");
     syncMatchModules();
-    if (F.timerState()) F.toast("Your study session is still running.", { onClick: () => F.go("study") });
+    if (F.timerState()) {
+      showSession(); // catch up on time that passed while Funi was closed
+      const t = F.timerState();
+      if (t) F.toast(t.pausedLeft != null ? "Your study session is paused." : "Your study session is still running.", { onClick: () => F.go("study") });
+    }
   };
-  F.on("resume", () => { F.loadStudy(); });
+  F.on("resume", () => { if (F.timerState()) tick(); F.loadStudy(); });
 })();

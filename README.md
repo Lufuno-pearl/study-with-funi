@@ -8,7 +8,8 @@ Live: https://study-with-funi.vercel.app
 1. Open Supabase › **SQL Editor** › **New query**.
 2. Paste everything from **`funi-v2-setup.sql`** and press **Run**. You should see "Success. No rows returned".
 3. New query again: paste **`funi-v3-setup.sql`** and **Run**. This adds task priority and "notify me before", focus time, photo avatars (public `avatars` storage) and the every-minute push timer (pg_cron + pg_net).
-4. Both are safe to run again any time. They keep existing data.
+4. New query again: paste **`funi-v4-setup.sql`** and **Run**. This lets Funi buzz your phone when a study timer ends while the app is closed.
+5. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
 

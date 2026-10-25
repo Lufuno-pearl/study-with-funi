@@ -136,6 +136,7 @@
     else if (h === "invites") F.go("partners:invites");
     else if (h === "reminders") F.go("reminders");
     else if (h === "partners") F.go("partners");
+    else if (h === "study") F.go("study");
     try { window.history.replaceState(null, "", "/"); } catch (e) {}
   };
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "open") F.openLink(e.data.url); });
