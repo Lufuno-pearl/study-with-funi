@@ -240,6 +240,25 @@
         <span><b>Sharing with your study partners</b><br>They'll be notified about your session and mood.</span>
       </div>
     </div>
+
+    <div class="stack" id="sessionDone" hidden>
+      <div class="done-card">
+        <div class="confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="scene" id="doneScene"></div>
+        <span class="pill lav" id="doneModule"></span>
+        <h1 id="doneTitle" aria-live="polite">Session complete!</h1>
+        <p id="doneMsg"></p>
+        <div class="done-stats">
+          <div><b id="doneMin">0</b><span id="doneMinLbl">minutes focused</span></div>
+          <div><b id="doneRounds">1</b><span id="doneRoundsLbl">round done</span></div>
+        </div>
+        <div class="done-btns">
+          <button type="button" class="btn primary" id="doneAgain">Another round</button>
+          <button type="button" class="btn ghost" id="doneBreak">Take a break</button>
+          <button type="button" class="btn ghost" id="doneFinish">Finish</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- ---------- STUDY PLAN (timetable) ---------- -->

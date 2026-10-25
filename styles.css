@@ -627,3 +627,33 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .send-row { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; text-align: left; }
 .send-row .ava { width: 42px; height: 42px; flex-shrink: 0; }
 @media (min-width: 1000px) { .mod-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* ---------- session finished: celebration ---------- */
+.done-card { position: relative; overflow: hidden; background: var(--accent-soft); border-radius: var(--r-lg); padding: 18px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.done-card .scene { width: min(240px, 100%); position: relative; z-index: 1; }
+.done-card h1 { font-size: 28px; color: var(--accent-soft-ink); position: relative; z-index: 1; }
+.done-card p { margin: 0; max-width: 32ch; font-weight: 700; color: var(--ink); position: relative; z-index: 1; }
+.done-card .pill { position: relative; z-index: 1; background: var(--card); }
+.done-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; margin-top: 6px; position: relative; z-index: 1; }
+.done-stats > div { background: var(--card); border-radius: 18px; padding: 12px 8px; display: flex; flex-direction: column; }
+.done-stats b { font-family: var(--display); font-size: 30px; font-weight: 600; color: var(--accent-soft-ink); line-height: 1.1; }
+.done-stats span { font-size: 13px; font-weight: 800; color: var(--muted); }
+.done-btns { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 6px; position: relative; z-index: 1; }
+.done-btns .btn { width: 100%; }
+.confetti { position: absolute; inset: 0; pointer-events: none; display: none; }
+.celebrate .confetti { display: block; }
+.celebrate .scene { animation: funi-pop .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+.confetti i { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 3px; opacity: 0; animation: funi-fall 2.6s ease-in forwards; }
+.confetti i:nth-child(4n+1) { background: var(--accent); }
+.confetti i:nth-child(4n+2) { background: var(--pink-ink); }
+.confetti i:nth-child(4n+3) { background: var(--butter-ink); border-radius: 50%; width: 10px; height: 10px; }
+.confetti i:nth-child(4n) { background: var(--mint-ink); }
+.confetti i:nth-child(1) { left: 6%; animation-delay: .05s; } .confetti i:nth-child(2) { left: 14%; animation-delay: .4s; }
+.confetti i:nth-child(3) { left: 23%; animation-delay: .15s; } .confetti i:nth-child(4) { left: 31%; animation-delay: .6s; }
+.confetti i:nth-child(5) { left: 40%; animation-delay: .25s; } .confetti i:nth-child(6) { left: 48%; animation-delay: .05s; }
+.confetti i:nth-child(7) { left: 57%; animation-delay: .5s; } .confetti i:nth-child(8) { left: 65%; animation-delay: .2s; }
+.confetti i:nth-child(9) { left: 73%; animation-delay: .35s; } .confetti i:nth-child(10) { left: 81%; animation-delay: .1s; }
+.confetti i:nth-child(11) { left: 88%; animation-delay: .55s; } .confetti i:nth-child(12) { left: 94%; animation-delay: .3s; }
+@keyframes funi-fall { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(480px) rotate(540deg); } }
+@keyframes funi-pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .confetti { display: none !important; } .celebrate .scene { animation: none; } }
