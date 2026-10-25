@@ -7,6 +7,8 @@
   const READY = ["", "Lost", "Shaky", "Okay", "Good", "Ready"];
   const grip = '<svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>';
   const bell = '<svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></svg>';
+  const upSvg = '<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>';
+  const downSvg = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
   const tickSvg = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const key = (k) => "funi." + k + "." + (F.me ? F.me.id : "x");
   const sameCode = (a, b) => String(a || "").trim().toUpperCase() === String(b || "").trim().toUpperCase();
@@ -123,10 +125,12 @@
     for (const r of data || []) if (!codes.includes(String(r.module_code).toUpperCase())) await F.sb.from("study_profile_modules").delete().eq("user_id", F.me.id).eq("module_code", r.module_code);
   }
 
+  function fileCount(code) { const n = (S.files || []).filter((f) => sameCode(f.module_code, code)).length; return n ? "Files (" + n + ")" : "Files"; }
   function renderPriorities() {
     const mode = prioMode();
     document.querySelectorAll("[data-prio]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.prio === mode)));
-    $("prioNote").textContent = mode === "manual" ? "Drag the handles to put your modules in your own order." : "Ordered by the marks you need, how soon the exam is and how ready you feel.";
+    $("modList").classList.toggle("manual", mode === "manual");
+    $("prioNote").textContent = mode === "manual" ? "Drag a module, or use the arrows, to put them in your own order." : "Ordered by the marks you need, how soon the exam is and how ready you feel.";
     const mods = F.orderedModules();
     $("modList").innerHTML = mods.length ? mods.map((m, i) => {
       const conf = m.confidence || 3, lvl = F.levelOf(m);
@@ -135,9 +139,11 @@
       return '<article class="mod" data-mid="' + esc(m.id) + '">' +
         '<div class="mod-head"><span class="mod-rank">' + (i + 1) + '</span><div class="txt"><b>' + esc(m.code) + (m.name ? " · " + esc(m.name) : "") + "</b><span>" + esc(whyOf(m)) + "</span></div>" +
         '<span class="pill ' + PILL[lvl] + '">' + lvl + "</span>" +
-        (mode === "manual" ? '<button type="button" class="handle" aria-label="Drag to reorder ' + esc(m.code) + '">' + grip + "</button>" : "") + "</div>" +
+        (mode === "manual" ? '<span class="order-btns"><button type="button" class="ord" data-move="-1" aria-label="Move ' + esc(m.code) + ' up"' + (i === 0 ? " disabled" : "") + '>' + upSvg + '</button><button type="button" class="ord" data-move="1" aria-label="Move ' + esc(m.code) + ' down"' + (i === mods.length - 1 ? " disabled" : "") + '>' + downSvg + '</button></span>' +
+          '<button type="button" class="handle" aria-label="Drag to reorder ' + esc(m.code) + '">' + grip + "</button>" : "") + "</div>" +
         '<div class="dots"><span class="lbl">How ready?</span>' + dots + "<em>" + READY[conf] + "</em></div>" +
         '<div class="mod-foot"><button type="button" class="link" data-marks="' + esc(m.id) + '">' + (m.class_mark == null ? "Add my marks" : "Marks: class " + m.class_mark + "%") + "</button>" +
+        '<button type="button" class="link" data-files="' + esc(m.code) + '">' + fileCount(m.code) + "</button>" +
         '<button type="button" class="x-btn" data-rm aria-label="Remove ' + esc(m.code) + '">×</button></div></article>';
     }).join("") : '<div class="empty"><b>No modules yet</b><span>Add your modules below. Funi also adds them from your tests.</span></div>';
   }
@@ -161,8 +167,21 @@
   $("modList").addEventListener("click", async (e) => {
     const card = e.target.closest(".mod"); if (!card) return;
     const m = S.modules.find((x) => x.id === card.dataset.mid);
+    const mv = e.target.closest("[data-move]");
+    if (mv) {
+      const list = F.orderedModules(), i = list.findIndex((x) => x.id === m.id), j = i + +mv.dataset.move;
+      if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      list.forEach((x, k) => { x.priority = k + 1; });
+      renderPriorities(); savePriorities(); F.emit("data");
+      const again = $("modList").querySelector('.mod[data-mid="' + m.id + '"] [data-move="' + mv.dataset.move + '"]');
+      if (again && !again.disabled) again.focus();
+      return;
+    }
     const conf = e.target.closest("[data-conf]");
     if (conf) { saveModule(m, { confidence: +conf.dataset.conf }); renderPriorities(); F.emit("data"); return; }
+    const fl = e.target.closest("[data-files]");
+    if (fl) { F.go("modfiles:" + fl.dataset.files); return; }
     const mk = e.target.closest("[data-marks]");
     if (mk) { F.marksModule = m.id; F.go("marks"); return; }
     if (e.target.closest("[data-rm]")) {
@@ -173,31 +192,42 @@
       renderPriorities(); syncMatchModules(); F.emit("data");
     }
   });
-  // drag to reorder (I'll choose)
+  // drag to reorder (I'll choose). Phone: hold the handle. Computer: drag the handle or the card itself.
   let drag = null;
   $("modList").addEventListener("pointerdown", (e) => {
-    const h = e.target.closest(".handle"); if (!h) return;
+    if (prioMode() !== "manual" || e.button > 0) return;
+    const h = e.target.closest(".handle");
+    const card = e.target.closest(".mod");
+    if (!card) return;
+    if (!h && (e.pointerType !== "mouse" || e.target.closest("button, a, input, select"))) return;
     e.preventDefault();
-    drag = { card: h.closest(".mod"), id: e.pointerId };
-    drag.card.classList.add("dragging");
-    h.setPointerCapture(e.pointerId);
+    drag = { card, id: e.pointerId, y: e.clientY, moved: false };
+    window.addEventListener("pointermove", onDragMove);
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
   });
-  $("modList").addEventListener("pointermove", (e) => {
+  function onDragMove(e) {
     if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved) { if (Math.abs(e.clientY - drag.y) < 4) return; drag.moved = true; drag.card.classList.add("dragging"); document.body.classList.add("is-dragging"); }
+    e.preventDefault();
     const list = $("modList");
     let before = null;
     for (const o of list.querySelectorAll(".mod:not(.dragging)")) { const r = o.getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { before = o; break; } }
-    if (before !== drag.card.nextElementSibling) list.insertBefore(drag.card, before);
+    if (before !== drag.card.nextElementSibling && before !== drag.card) list.insertBefore(drag.card, before);
     if (e.clientY < 90) window.scrollBy(0, -12); else if (e.clientY > window.innerHeight - 160) window.scrollBy(0, 12);
-  });
-  function endDrag() {
-    if (!drag) return;
-    drag.card.classList.remove("dragging");
-    [...$("modList").querySelectorAll(".mod")].forEach((c, i) => { const m = S.modules.find((x) => x.id === c.dataset.mid); if (m) m.priority = i + 1; });
-    drag = null; renderPriorities(); savePriorities(); F.emit("data");
   }
-  $("modList").addEventListener("pointerup", endDrag);
-  $("modList").addEventListener("pointercancel", endDrag);
+  function endDrag(e) {
+    if (!drag || (e && e.pointerId !== drag.id)) return;
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", endDrag);
+    window.removeEventListener("pointercancel", endDrag);
+    const moved = drag.moved;
+    drag.card.classList.remove("dragging"); document.body.classList.remove("is-dragging");
+    drag = null;
+    if (!moved) return;
+    [...$("modList").querySelectorAll(".mod")].forEach((c, i) => { const m = S.modules.find((x) => x.id === c.dataset.mid); if (m) m.priority = i + 1; });
+    renderPriorities(); savePriorities(); F.emit("data");
+  }
   async function savePriorities() {
     F.store(key("mods"), S.modules);
     await Promise.all(S.modules.map((m) => F.sb.from("modules").update({ priority: m.priority }).eq("id", m.id)));

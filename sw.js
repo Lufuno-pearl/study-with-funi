@@ -1,5 +1,5 @@
 // Service worker: keeps Funi opening offline and shows notifications (also when the app is closed).
-const CACHE = "funi-v10";
+const CACHE = "funi-v11";
 const SHELL = [
   "/", "/index.html", "/styles.css", "/manifest.json",
   "/js/art.js", "/js/core.js", "/js/study.js", "/js/social.js", "/js/files.js", "/js/dash.js", "/js/boot.js",
