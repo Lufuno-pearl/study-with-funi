@@ -155,7 +155,7 @@ small { color: var(--muted); font-weight: 700; }
 .badge { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 .badge.pinkb { background: var(--alert); color: var(--on-alert); }
 label, .label { font-size: 14px; font-weight: 800; color: var(--ink); display: block; margin: 12px 0 6px; }
-input[type=text], input[type=password], input[type=date], input[type=time], input[type=number], input[type=search], input:not([type]), select, textarea {
+input[type=text], input[type=password], input[type=date], input[type=time], input[type=number], input[type=search], input[type=url], input:not([type]), select, textarea {
   width: 100%; min-height: 48px; border: 1.5px solid var(--line); border-radius: var(--r-sm); padding: 0 14px; font-size: 16px; font-weight: 700; background: var(--card); color: var(--ink);
 }
 textarea { padding: 12px 14px; min-height: 90px; resize: vertical; }
@@ -589,3 +589,41 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
   .bubble.new { animation: pop 0.25s ease-out; }
   @keyframes pop { from { transform: scale(0.94); opacity: 0.4; } to { transform: none; opacity: 1; } }
 }
+
+/* ---------- My files (per module) ---------- */
+.space-card { display: flex; flex-direction: column; gap: 8px; }
+.space-used { font-size: 13px; font-weight: 800; color: var(--accent-soft-ink); }
+.space-bar { height: 10px; border-radius: 5px; background: var(--accent-soft); overflow: hidden; }
+.space-bar i { display: block; height: 100%; width: 0; border-radius: 5px; background: var(--accent); transition: width .4s; }
+.space-bar.full i { background: var(--alert); }
+.mod-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.mod-tile { min-height: 138px; border: 1px solid transparent; border-radius: 20px; padding: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; cursor: pointer; text-align: left; font: inherit; box-shadow: var(--shadow); }
+.mod-tile .fi { width: 40px; height: 40px; border-radius: 13px; background: var(--card); color: inherit; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.mod-tile svg, .add-kind svg, .file-ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mod-tile b { font-family: var(--display); font-weight: 600; font-size: 17px; }
+.mod-tile .nm { font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.mod-tile .ct { font-size: 12px; font-weight: 800; margin-top: auto; }
+.file-list { display: flex; flex-direction: column; gap: 8px; }
+.file-row { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 8px 8px 8px 10px; display: flex; align-items: center; gap: 10px; min-height: 56px; }
+.card .file-row { border: 0; padding: 4px 0; background: transparent; }
+.file-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; min-height: 44px; }
+.file-ic { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; border: 0; }
+.file-txt { min-width: 0; display: flex; flex-direction: column; }
+.file-txt b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-txt span { font-size: 12px; color: var(--muted); font-weight: 700; }
+.file-row .icon-btn { width: 40px; height: 40px; border-radius: 12px; color: var(--accent-soft-ink); }
+.file-row .icon-btn svg, .add-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.add-btn { background: var(--accent); color: var(--on-accent); border-color: var(--accent); border-radius: 22px; }
+.add-btn svg { width: 22px; height: 22px; stroke-width: 2.4; }
+.mf-hero { border-radius: 20px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid transparent; }
+.mf-hero b { display: block; font-family: var(--display); font-size: 18px; font-weight: 600; }
+.mf-hero span { font-size: 13px; font-weight: 700; }
+.mf-study { background: var(--card); color: inherit; border: 0; flex-shrink: 0; }
+.add-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+.add-kind { min-height: 84px; border-radius: 16px; border: 2px solid transparent; font: 800 13px var(--body, inherit); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.add-kind[aria-pressed="true"] { border-color: currentColor; }
+.picked { margin: 10px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-soft-ink); font-weight: 800; font-size: 14px; overflow-wrap: anywhere; }
+.send-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 50vh; overflow: auto; }
+.send-row { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; text-align: left; }
+.send-row .ava { width: 42px; height: 42px; flex-shrink: 0; }
+@media (min-width: 1000px) { .mod-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

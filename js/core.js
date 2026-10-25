@@ -97,9 +97,9 @@
   /* ---------- navigation ---------- */
   const VIEWS = { dash: "vDash", hub: "vHub", study: "vStudy", plan: "vPlan", priorities: "vPriorities", marks: "vMarks",
     reminders: "vReminders", exams: "vExams", partners: "vPartners", invite: "vInvite", feeling: "vFeeling",
-    messages: "vMessages", chat: "vChat", notifs: "vNotifs", profile: "vProfile" };
+    messages: "vMessages", chat: "vChat", notifs: "vNotifs", profile: "vProfile", files: "vFiles", modfiles: "vModFiles" };
   const TAB_OF = { dash: "dash", notifs: "dash", hub: "hub", plan: "hub", priorities: "hub", marks: "hub", reminders: "hub", exams: "hub",
-    profile: "hub", study: "study", partners: "partners", invite: "partners", feeling: "partners", messages: "messages", chat: "messages" };
+    profile: "hub", files: "hub", modfiles: "hub", study: "study", partners: "partners", invite: "partners", feeling: "partners", messages: "messages", chat: "messages" };
   const history = [];
   F.go = (target, opts) => {
     const [view, sub] = String(target).split(":");

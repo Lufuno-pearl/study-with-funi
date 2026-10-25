@@ -9,7 +9,8 @@ Live: https://study-with-funi.vercel.app
 2. Paste everything from **`funi-v2-setup.sql`** and press **Run**. You should see "Success. No rows returned".
 3. New query again: paste **`funi-v3-setup.sql`** and **Run**. This adds task priority and "notify me before", focus time, photo avatars (public `avatars` storage) and the every-minute push timer (pg_cron + pg_net).
 4. New query again: paste **`funi-v4-setup.sql`** and **Run**. This lets Funi buzz your phone when a study timer ends while the app is closed.
-5. All of them are safe to run again any time. They keep existing data.
+5. New query again: paste **`funi-v5-setup.sql`** and **Run**. This adds files for each module (private `module-files` storage, 10 MB a file, 50 MB per person).
+6. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
 
@@ -20,6 +21,7 @@ This creates: study partners, feelings, live chat with files (private `chat-file
 - `index.html` – all screens. `styles.css` – the look, with 4 themes (Lavender, Blush, Midnight, Night).
 - `js/art.js` – the cartoon avatars, feeling faces and scenes (drawn as SVG).
 - `js/core.js` – helpers, themes, navigation, log in, notifications, live updates.
+- `js/files.js` – My files: notes, past papers, photos and links under each module.
 - `js/dash.js` – the dashboard: stat tiles, study graph, calendar, reminders, exam bars.
 - `js/study.js` – tests, priorities, marks calculator, study plan, focus sessions, reminders.
 - `js/social.js` – profile, feelings, partners, invites, chat with files, notifications.

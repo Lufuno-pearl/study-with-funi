@@ -143,6 +143,7 @@
         <button class="tile" data-go="study"><i class="t-mint"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Focus timer</button>
         <button class="tile" data-go="reminders"><i class="t-pink"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></i>Reminders</button>
         <button class="tile" data-go="marks"><i class="t-butter"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></i>What do I need?</button>
+        <button class="tile" data-go="files"><i class="t-mint"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></i>My files</button>
         <button class="tile" data-go="exams"><i class="t-sky"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4M9 2h6"/></svg></i>Tests &amp; exams</button>
       </div>
     </div>
@@ -150,6 +151,39 @@
       <span class="art" id="hubBannerArt"></span>
       <span><b>Study together. Feel better. Achieve more.</b><span>Invite a friend to be your study partner</span></span>
     </button>
+  </section>
+
+
+  <!-- ---------- MY FILES (per module) ---------- -->
+  <section class="view" id="vFiles" hidden>
+    <header class="page-head">
+      <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1>My modules</h1><p class="hint">Your notes, past papers and photos in one place</p></div>
+    </header>
+    <div class="card space-card">
+      <div class="between"><b>My space</b><span class="space-used" id="spaceUsed">0 MB of 50 MB</span></div>
+      <div class="space-bar"><i id="spaceBar"></i></div>
+      <span class="hint">Free forever. Big files? Save a Google Drive link instead, it uses no space.</span>
+    </div>
+    <div class="mod-tiles" id="modTiles"></div>
+    <div class="card stack" id="recentCard" hidden>
+      <h2>Recently opened</h2>
+      <div class="file-list" id="recentList"></div>
+    </div>
+  </section>
+
+  <section class="view" id="vModFiles" hidden>
+    <header class="page-head">
+      <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1 id="mfTitle">Module</h1></div>
+      <button type="button" class="icon-btn add-btn" id="mfAdd" aria-label="Add a file"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </header>
+    <div class="mf-hero" id="mfHero">
+      <div><b id="mfName"></b><span id="mfMeta"></span></div>
+      <button type="button" class="btn small mf-study" id="mfStudy">Study this</button>
+    </div>
+    <div class="chips" id="mfChips" role="tablist" aria-label="Show"></div>
+    <div class="file-list" id="mfList"></div>
   </section>
 
   <!-- ---------- STUDY (session) ---------- -->
@@ -562,6 +596,43 @@
   </div>
 </div></dialog>
 
+<dialog id="fileSheet"><form class="sheet" id="fileForm" novalidate>
+  <div class="sheet-grip"></div>
+  <h2 id="fsTitle">Add a file</h2>
+  <div class="add-kinds">
+    <button type="button" class="add-kind c-lav" id="fsUpload" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>Upload file</button>
+    <button type="button" class="add-kind c-peach" id="fsPhoto" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</button>
+    <button type="button" class="add-kind c-sky" id="fsLink" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Save a link</button>
+  </div>
+  <input type="file" id="fsFileInput" hidden>
+  <input type="file" id="fsCamInput" accept="image/*" capture="environment" hidden>
+  <p class="picked" id="fsPicked" hidden></p>
+  <div id="fsLinkBox" hidden>
+    <label for="fsUrl">Google Drive, OneDrive or YouTube link</label>
+    <input id="fsUrl" type="url" inputmode="url" placeholder="https://drive.google.com/..." autocomplete="off">
+  </div>
+  <div id="fsNameBox" hidden>
+    <label for="fsName">Name</label>
+    <input id="fsName" maxlength="120" autocomplete="off" placeholder="e.g. Past paper 2023">
+  </div>
+  <span class="label">Put it in</span>
+  <div class="chips" id="fsFolders"></div>
+  <p class="hint">Up to 10 MB a file. Photos are shrunk automatically. Only you can see your files.</p>
+  <p class="form-error" id="fsError" hidden></p>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="fileSheet">Cancel</button>
+    <button type="submit" class="btn primary" id="fsSave">Save</button>
+  </div>
+</form></dialog>
+
+<dialog id="sendSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2>Send to a study partner</h2>
+  <p id="sendWhat"></p>
+  <div class="send-list" id="sendList"></div>
+  <div class="btns"><button type="button" class="btn ghost" data-close="sendSheet">Cancel</button></div>
+</div></dialog>
+
 <dialog id="confirmSheet"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2 id="confirmTitle"></h2>
@@ -593,6 +664,7 @@
 <script src="/js/core.js"></script>
 <script src="/js/study.js"></script>
 <script src="/js/social.js"></script>
+<script src="/js/files.js"></script>
 <script src="/js/dash.js"></script>
 <script src="/js/boot.js"></script>
 </body>

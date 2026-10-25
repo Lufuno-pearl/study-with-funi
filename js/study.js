@@ -314,6 +314,7 @@
     return { blocks };
   }
   const COLORS = ["c-peach", "c-lav", "c-mint", "c-butter", "c-pink", "c-sky"];
+  F.colorOf = (code) => colorOf(code);
   function colorOf(code) { const i = F.orderedModules().findIndex((m) => sameCode(m.code, code)); return COLORS[(i < 0 ? 5 : i) % COLORS.length]; }
   let planSel = 0;
   function renderPlan() {
