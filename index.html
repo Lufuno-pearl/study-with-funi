@@ -186,6 +186,7 @@
         <button class="tile" data-go="study"><i class="t-mint"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Focus timer</button>
         <button class="tile" data-go="reminders"><i class="t-pink"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></i>Reminders</button>
         <button class="tile" data-go="marks"><i class="t-butter"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></i>What do I need?</button>
+        <button class="tile" data-go="decks"><i class="t-pink"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="13" rx="3"/><path d="M7 4h11a3 3 0 0 1 3 3v10"/></svg></i>Flashcards</button>
         <button class="tile" data-go="files"><i class="t-mint"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></i>My files</button>
         <button class="tile" data-go="exams"><i class="t-sky"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4M9 2h6"/></svg></i>Tests &amp; exams</button>
       </div>
@@ -227,6 +228,156 @@
     </div>
     <div class="chips" id="mfChips" role="tablist" aria-label="Show"></div>
     <div class="file-list" id="mfList"></div>
+  </section>
+
+
+  <!-- ---------- STUDY ROOMS ---------- -->
+  <section class="view" id="vRooms" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1>Study rooms</h1><p class="hint">Study together with one shared timer</p></div>
+    </header>
+    <div class="stack" id="roomsList"></div>
+    <form class="card stack" id="roomForm" novalidate>
+      <h2>Open a room</h2>
+      <div><label for="roomName" style="margin-top:0">Room name</label><input id="roomName" maxlength="40" placeholder="e.g. APPM squad"></div>
+      <div><label for="roomModule">Module</label><select id="roomModule"></select></div>
+      <div class="two">
+        <div><label for="roomFocus">Focus (min)</label><input id="roomFocus" type="number" inputmode="numeric" min="1" max="240" value="25"></div>
+        <div><label for="roomBreak">Break (min)</label><input id="roomBreak" type="number" inputmode="numeric" min="1" max="60" value="5"></div>
+      </div>
+      <p class="hint">Your study partners get a notification to join.</p>
+      <p class="form-error" id="roomError" hidden></p>
+      <button type="submit" class="btn primary block" id="roomCreate">Open room</button>
+    </form>
+  </section>
+
+  <section class="view" id="vRoom" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1 id="rmTitle">Room</h1><p class="hint" id="rmSub"></p></div>
+      <span class="pill mint live-pill"><span class="dot-live"></span>Live</span>
+    </header>
+    <div class="room-timer" id="rmTimer">
+      <span class="rt-label" id="rmLabel">WAITING TO START</span>
+      <span class="rt-clock" id="rmClock" role="timer">25:00</span>
+      <span class="rt-note" id="rmNote">Start when everyone's ready</span>
+    </div>
+    <div class="btns-row" id="rmControls">
+      <button type="button" class="btn primary" id="rmStart">Start round 1</button>
+      <button type="button" class="btn ghost" id="rmBreak" hidden>Break together</button>
+    </div>
+    <div class="seats" id="rmSeats"></div>
+    <div><label for="rmTask" style="margin-top:0">What are you working on?</label>
+      <div class="add-row"><input id="rmTask" maxlength="60" placeholder="e.g. Tut 6: rigid bodies"><button type="button" class="btn ghost" id="rmTaskSave">Save</button></div></div>
+    <div><span class="label" style="margin-top:0">Send a cheer to the room</span><div class="chips" id="rmCheers"></div></div>
+    <div class="two">
+      <button type="button" class="btn ghost" id="rmLeave">Leave room</button>
+      <button type="button" class="btn soft-btn" id="rmInvite">Invite a friend</button>
+    </div>
+  </section>
+
+  <!-- ---------- LEADERBOARD ---------- -->
+  <section class="view" id="vBoard" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1>Leaderboard</h1><p class="hint">Your circle · resets every Monday</p></div>
+    </header>
+    <div class="seg two-seg" role="tablist" id="boardSeg">
+      <button type="button" role="tab" data-bseg="week" aria-selected="true">This week</button>
+      <button type="button" role="tab" data-bseg="streaks" aria-selected="false">Streaks</button>
+    </div>
+    <div class="stack" id="boardWeek"></div>
+    <div class="stack" id="boardStreaks" hidden></div>
+  </section>
+
+  <!-- ---------- STUDY GARDEN ---------- -->
+  <section class="view" id="vGarden" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1>Our study garden</h1><p class="hint">Every round of 10+ minutes grows a flower</p></div>
+    </header>
+    <div class="garden" id="gdScene"></div>
+    <div class="chips" id="gdLegend"></div>
+    <div class="two" id="gdStats"></div>
+    <button type="button" class="btn primary block" data-go="study">Start a round to grow a flower</button>
+    <p class="hint" style="text-align:center">A new garden grows every Monday.</p>
+  </section>
+
+  <!-- ---------- FLASHCARDS ---------- -->
+  <section class="view" id="vDecks" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1>Flashcards</h1><p class="hint">Make decks, swap them with friends</p></div>
+      <button type="button" class="icon-btn add-btn" id="deckNew" aria-label="New deck"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </header>
+    <div class="seg" role="tablist" id="deckSeg">
+      <button type="button" role="tab" data-dseg="mine" aria-selected="true">Mine</button>
+      <button type="button" role="tab" data-dseg="shared" aria-selected="false">Shared<span class="count" id="sharedCount" hidden></span></button>
+      <button type="button" role="tab" data-dseg="battles" aria-selected="false">Battles<span class="count" id="battleCount" hidden></span></button>
+    </div>
+    <div class="stack" id="deckList"></div>
+    <div class="note-card hint">Cards are just text, so 1,000 cards take less space than one photo.</div>
+  </section>
+
+  <section class="view" id="vDeck" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1 id="dkTitle">Deck</h1><p class="hint" id="dkSub"></p></div>
+    </header>
+    <div class="deck-actions" id="dkActions">
+      <button type="button" class="btn primary" id="dkStudy">Study</button>
+      <button type="button" class="btn soft-btn" id="dkBattle">Quiz battle</button>
+      <button type="button" class="btn ghost" id="dkShare">Share</button>
+    </div>
+    <form class="card stack" id="cardForm" novalidate>
+      <h2>Add a card</h2>
+      <div><label for="cfFront" style="margin-top:0">Question (front)</label><textarea id="cfFront" rows="2" maxlength="300" placeholder="e.g. Moment of inertia of a rod about its centre?"></textarea></div>
+      <div><label for="cfBack">Answer (back)</label><textarea id="cfBack" rows="2" maxlength="300" placeholder="e.g. I = (1/12) m L²"></textarea></div>
+      <p class="form-error" id="cfError" hidden></p>
+      <button type="submit" class="btn primary block">Add card</button>
+    </form>
+    <div class="stack" id="dkCards"></div>
+    <button type="button" class="link block-link danger-link" id="dkDelete">Delete deck</button>
+  </section>
+
+  <section class="view" id="vFlash" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1 id="flTitle">Study</h1><p class="hint" id="flSub"></p></div>
+    </header>
+    <div class="progress"><i id="flBar"></i></div>
+    <div class="stack" id="flPlay">
+      <button type="button" class="flashcard" id="flCard" aria-label="Flip the card">
+        <span class="fc-tag" id="flSide">QUESTION</span>
+        <span class="fc-text" id="flText"></span>
+        <span class="fc-hint" id="flHint">Tap to flip</span>
+      </button>
+      <div class="two" id="flRate" hidden>
+        <button type="button" class="btn rate-no" id="flNo">Still learning</button>
+        <button type="button" class="btn rate-yes" id="flYes">Got it!</button>
+      </div>
+      <p class="hint" id="flThink" style="text-align:center">Think of the answer, then tap the card</p>
+    </div>
+    <div class="done-card celebrate" id="flDone" hidden>
+      <div class="confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <h1 id="flDoneTitle">Deck done!</h1>
+      <p id="flDoneMsg"></p>
+      <div class="done-btns"><button type="button" class="btn primary" id="flAgain">Study again</button><button type="button" class="btn ghost" data-back>Back to the deck</button></div>
+    </div>
+  </section>
+
+  <!-- ---------- QUIZ BATTLE ---------- -->
+  <section class="view" id="vBattle" hidden>
+    <header class="page-head"><button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1>Quiz battle</h1><p class="hint" id="btSub"></p></div>
+    </header>
+    <div class="vs card flat" id="btVs"></div>
+    <div class="stack" id="btPlay">
+      <div class="progress"><i id="btTime"></i></div>
+      <div class="bt-question"><span id="btBy"></span><b id="btQ"></b></div>
+      <div class="stack" id="btOptions"></div>
+      <div class="between" id="btAfter" hidden><span class="bt-result" id="btResult"></span><button type="button" class="btn primary small" id="btNext">Next</button></div>
+    </div>
+    <div class="done-card" id="btDone" hidden>
+      <div class="confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <h1 id="btDoneTitle"></h1>
+      <p id="btDoneMsg"></p>
+      <div class="done-btns"><button type="button" class="btn primary" id="btRematch">Rematch</button><button type="button" class="btn ghost" data-go="decks:battles">All battles</button></div>
+    </div>
   </section>
 
   <!-- ---------- STUDY (session) ---------- -->
@@ -411,6 +562,20 @@
     </div>
     <div class="stack" id="psCircle"></div>
     <div class="stack" id="psInvites" hidden></div>
+    <div class="stack" id="openRoomsBox" hidden>
+      <h2>Rooms open now</h2>
+      <div class="stack" id="openRooms"></div>
+    </div>
+    <div class="stack">
+      <h2>Fun with friends</h2>
+      <div class="tiles fun-tiles">
+        <button class="tile" data-go="rooms"><i class="t-lav"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 20a5 5 0 0 1 10 0M11 20a5 5 0 0 1 10 0"/></svg></i>Study rooms</button>
+        <button class="tile" data-go="board"><i class="t-butter"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg></i>Leaderboard</button>
+        <button class="tile" data-go="garden"><i class="t-mint"><svg viewBox="0 0 24 24"><path d="M12 21v-8"/><circle cx="12" cy="8" r="3"/><path d="M12 5V3M15 8h2M7 8h2M12 13c-3 0-5-2-5-4M12 16c3 0 5-2 5-4"/></svg></i>Study garden</button>
+        <button class="tile" data-go="decks"><i class="t-peach"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="13" rx="3"/><path d="M7 4h11a3 3 0 0 1 3 3v10"/></svg></i>Flashcards</button>
+        <button class="tile" data-go="decks:battles"><i class="t-pink"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></i>Quiz battles</button>
+      </div>
+    </div>
     <button type="button" class="btn ghost block" data-go="feeling">How am I feeling? Change my feeling</button>
     <button class="banner" data-go="invite">
       <span class="art" id="partnersBannerArt"></span>
@@ -546,8 +711,16 @@
     <form id="chatForm">
       <label for="chatInput" class="sr-only">Message</label>
       <textarea id="chatInput" rows="1" maxlength="4000" placeholder="Type a message…"></textarea>
+      <button type="button" class="icon-btn mic" id="micBtn" aria-label="Record a voice note"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
       <button type="submit" class="icon-btn send" id="sendBtn" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
     </form>
+    <div class="recorder" id="recorder" hidden>
+      <span class="rec-dot" aria-hidden="true"></span>
+      <span class="rec-time" id="recTime" aria-live="polite">0:00</span>
+      <span class="grow rec-hint" id="recHint">Recording… up to 1 minute</span>
+      <button type="button" class="btn ghost small" id="recCancel">Cancel</button>
+      <button type="button" class="btn primary small" id="recSend">Send</button>
+    </div>
     <div class="two">
       <button type="button" class="btn ghost small" id="attachBtn"><svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l8.3-8.3"/></svg>Attach question</button>
       <button type="button" class="btn small help-toggle" id="helpToggle" aria-pressed="false">Ask for help</button>
@@ -573,6 +746,10 @@
     <button type="button" data-go="reminders">Tasks &amp; reminders</button>
     <button type="button" data-go="priorities">Modules &amp; marks</button>
     <button type="button" data-go="files">My files</button>
+    <button type="button" data-go="decks">Flashcards</button>
+    <button type="button" data-go="rooms">Study rooms</button>
+    <button type="button" data-go="board">Leaderboard</button>
+    <button type="button" data-go="garden">Study garden</button>
     <button type="button" data-go="exams">Tests &amp; exams</button>
   </div>
 </nav>
@@ -704,6 +881,28 @@
   <div class="btns"><button type="button" class="btn ghost" data-close="sendSheet">Cancel</button></div>
 </div></dialog>
 
+<dialog id="deckSheet"><form class="sheet" id="deckForm" novalidate>
+  <div class="sheet-grip"></div>
+  <h2>New flashcard deck</h2>
+  <label for="dfTitle">Deck name</label>
+  <input id="dfTitle" maxlength="60" placeholder="e.g. Rigid body formulas" autocomplete="off">
+  <label for="dfModule">Module</label>
+  <select id="dfModule"></select>
+  <p class="form-error" id="dfError" hidden></p>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="deckSheet">Cancel</button>
+    <button type="submit" class="btn primary">Create deck</button>
+  </div>
+</form></dialog>
+
+<dialog id="pickSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="pickTitle">Choose a study partner</h2>
+  <p id="pickText" class="hint"></p>
+  <div class="send-list" id="pickList"></div>
+  <div class="btns"><button type="button" class="btn ghost" data-close="pickSheet">Cancel</button><button type="button" class="btn primary" id="pickOk" hidden>Share</button></div>
+</div></dialog>
+
 <dialog id="confirmSheet"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2 id="confirmTitle"></h2>
@@ -736,6 +935,8 @@
 <script src="/js/study.js"></script>
 <script src="/js/social.js"></script>
 <script src="/js/files.js"></script>
+<script src="/js/fun.js"></script>
+<script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
 <script src="/js/boot.js"></script>
 </body>

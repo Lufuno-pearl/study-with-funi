@@ -278,10 +278,11 @@
     if (m.is_help) inner += '<span class="help-tag">Help request</span><br>';
     if (m.file_path) {
       const url = signed[m.file_path];
-      if (m.file_type && m.file_type.startsWith("image/")) inner += url ? '<img src="' + esc(url) + '" alt="' + esc(m.file_name || "Photo") + '" data-full="' + esc(url) + '" loading="lazy">' : '<span class="file-chip">Loading photo…</span>';
+      if (m.file_type && m.file_type.startsWith("audio/")) inner += url ? '<span class="voice"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><audio controls preload="metadata" src="' + esc(url) + '" aria-label="' + esc(m.file_name || "Voice note") + '"></audio></span>' : '<span class="file-chip">Loading voice note…</span>';
+      else if (m.file_type && m.file_type.startsWith("image/")) inner += url ? '<img src="' + esc(url) + '" alt="' + esc(m.file_name || "Photo") + '" data-full="' + esc(url) + '" loading="lazy">' : '<span class="file-chip">Loading photo…</span>';
       else inner += '<a class="file-chip" href="' + esc(url || "#") + '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>' + esc(m.file_name || "File") + "</a>";
     }
-    if (m.body) inner += esc(m.body);
+    if (m.body) inner += esc(m.body).replace(/https?:\/\/[^\s<]+/g, (u) => '<a href="' + u + '"' + (u.indexOf(location.origin) === 0 ? "" : ' target="_blank" rel="noopener"') + ">" + u + "</a>");
     return '<div class="bubble' + (mine ? " me" : "") + (m.is_help ? " help" : "") + (isNew ? " new" : "") + '">' + inner + "<time>" + F.clockOf(m.created_at) + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
   }
   async function drawMsgs(newId) {
@@ -343,6 +344,63 @@
     await drawMsgs(data.id);
   });
 
+  /* ---------- voice notes: up to 1 minute, small files, deleted after 30 days ---------- */
+  let rec = null, recChunks = [], recStart = 0, recTimer = null, recStream = null, recMime = "", recBlob = null;
+  const VOICE_MAX = 60;
+  const mmss = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  function pickMime() {
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+    return ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"].find((m) => MediaRecorder.isTypeSupported(m)) || "";
+  }
+  function stopStream() { if (recStream) recStream.getTracks().forEach((t) => t.stop()); recStream = null; }
+  function showRecorder(on) { $("recorder").hidden = !on; $("chatForm").hidden = on; }
+  function stopRec() {
+    return new Promise((resolve) => {
+      clearInterval(recTimer);
+      if (!rec || rec.state === "inactive") { stopStream(); return resolve(recBlob); }
+      rec.onstop = () => { recBlob = new Blob(recChunks, { type: (recMime || rec.mimeType || "audio/webm").split(";")[0] }); stopStream(); resolve(recBlob); };
+      rec.stop();
+    });
+  }
+  $("micBtn").onclick = async () => {
+    if (!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return F.toast("Voice notes don't work in this browser. Try updating your phone.", { long: true });
+    try { recStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch (e) { return F.toast("Funi needs your microphone for voice notes. Allow it in your phone's settings.", { long: true }); }
+    recMime = pickMime(); recChunks = []; recBlob = null;
+    try { rec = new MediaRecorder(recStream, Object.assign({ audioBitsPerSecond: 24000 }, recMime ? { mimeType: recMime } : {})); }
+    catch (e) { rec = new MediaRecorder(recStream); }
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
+    rec.start(1000); recStart = Date.now();
+    $("recTime").textContent = "0:00"; $("recHint").textContent = "Recording… up to 1 minute"; $("recorder").classList.add("on");
+    showRecorder(true);
+    recTimer = setInterval(async () => {
+      const sec = Math.floor((Date.now() - recStart) / 1000);
+      $("recTime").textContent = mmss(Math.min(sec, VOICE_MAX));
+      if (sec >= VOICE_MAX) { await stopRec(); $("recorder").classList.remove("on"); $("recHint").textContent = "That's the 1 minute limit. Send it?"; }
+    }, 250);
+  };
+  $("recCancel").onclick = async () => { await stopRec(); recBlob = null; recChunks = []; $("recorder").classList.remove("on"); showRecorder(false); };
+  $("recSend").onclick = async () => {
+    const to = S.chatWith; if (!to) return;
+    const secs = Math.min(VOICE_MAX, Math.max(1, Math.round((Date.now() - recStart) / 1000)));
+    const blob = await stopRec(); $("recorder").classList.remove("on");
+    if (!blob || blob.size < 800) { showRecorder(false); return F.toast("That was too short. Hold on a bit longer next time."); }
+    $("recSend").disabled = true; $("recHint").textContent = "Sending…";
+    const ext = /mp4|aac|m4a/.test(blob.type) ? "m4a" : /ogg/.test(blob.type) ? "ogg" : "webm";
+    const path = F.me.id + "/" + to + "/" + Date.now() + "-voice." + ext;
+    const up = await F.sb.storage.from("chat-files").upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
+    if (up.error) { $("recSend").disabled = false; showRecorder(false); return F.toast("Couldn't send the voice note: " + up.error.message, { long: true }); }
+    const row = { sender_id: F.me.id, recipient_id: to, body: "", is_help: helpOn, file_path: path, file_name: "Voice note (" + mmss(secs) + ")", file_type: blob.type || "audio/webm", file_size: blob.size };
+    const { data, error } = await F.sb.from("study_messages").insert(row).select().single();
+    $("recSend").disabled = false; showRecorder(false); recBlob = null;
+    if (error) return F.toast("Voice note wasn't sent: " + error.message, { long: true });
+    setHelp(false);
+    chatMsgs.push(data);
+    (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
+    await drawMsgs(data.id);
+  };
+  F.on("view:messages", () => { if (rec && rec.state === "recording") $("recCancel").click(); });
+
   /* =====================================================================
      NOTIFICATIONS PAGE
      ===================================================================== */
@@ -351,7 +409,10 @@
     accepted: ["t-mint", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 11l2 2 4-4"/>'],
     message: ["t-pink", '<path d="M12 21s-7.5-4.6-9.5-9.2C1 8.2 3.4 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.6 0 6 3.7 4.5 7.3C19.5 16.4 12 21 12 21z"/>'],
     help: ["t-peach", '<path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v3M12 13.5h.01"/>'],
-    studying: ["t-lav", '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/>']
+    studying: ["t-lav", '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/>'],
+    room: ["t-mint", '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 20a5 5 0 0 1 10 0M11 20a5 5 0 0 1 10 0"/>'],
+    deck: ["t-peach", '<rect x="3" y="7" width="14" height="13" rx="3"/><path d="M7 4h11a3 3 0 0 1 3 3v10"/>'],
+    battle: ["t-pink", '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>']
   };
   async function loadNotifs() {
     const { data, error } = await F.sb.from("notifications").select("*").order("created_at", { ascending: false }).limit(50);
@@ -403,6 +464,9 @@
   function openNotif(n) {
     if ((n.kind === "message" || n.kind === "help" || n.kind === "accepted") && n.actor_id) return openChat(n.actor_id);
     if (n.kind === "invite") return F.go("partners:invites");
+    if (n.kind === "room" && n.ref_id) return F.go("room:" + n.ref_id);
+    if (n.kind === "deck" && n.ref_id) return F.go("deck:" + n.ref_id);
+    if (n.kind === "battle" && n.ref_id) return F.go("battle:" + n.ref_id);
     F.go("partners:circle");
   }
   $("notifList").addEventListener("click", (e) => { const b = e.target.closest("[data-notif]"); if (!b) return; const n = S.notifs.find((x) => x.id === b.dataset.notif); if (n) openNotif(n); });

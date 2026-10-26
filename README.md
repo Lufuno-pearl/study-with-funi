@@ -11,7 +11,8 @@ Live: https://study-with-funi.vercel.app
 4. New query again: paste **`funi-v4-setup.sql`** and **Run**. This lets Funi buzz your phone when a study timer ends while the app is closed.
 5. New query again: paste **`funi-v5-setup.sql`** and **Run**. This adds files for each module (private `module-files` storage, 10 MB a file, 50 MB per person).
 6. New query again: paste **`funi-v6-setup.sql`** and **Run**. Accounts now need a verified email (one account per email), log in with username or email, and Funi is limited to 200 accounts (change the number in `funi_max_accounts()`).
-7. All of them are safe to run again any time. They keep existing data.
+7. New query again: paste **`funi-v7-setup.sql`** and **Run**. This adds study rooms, leaderboard + streaks, the study garden, flashcards, quiz battles and voice-note notifications.
+8. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
 
@@ -23,6 +24,8 @@ This creates: study partners, feelings, live chat with files (private `chat-file
 - `js/art.js` – the cartoon avatars, feeling faces and scenes (drawn as SVG).
 - `js/core.js` – helpers, themes, navigation, log in, notifications, live updates.
 - `js/files.js` – My files: notes, past papers, photos and links under each module.
+- `js/fun.js` – study rooms (shared timer + cheers), leaderboard + streaks, study garden.
+- `js/cards.js` – flashcard decks (share, flip to study) and quiz battles.
 - `js/dash.js` – the dashboard: stat tiles, study graph, calendar, reminders, exam bars.
 - `js/study.js` – tests, priorities, marks calculator, study plan, focus sessions, reminders.
 - `js/social.js` – profile, feelings, partners, invites, chat with files, notifications.
@@ -59,4 +62,5 @@ where id = (select id from public.study_profiles where username = 'USERNAME');
 ## Notifications
 - While Funi is open, everything pops up instantly.
 - When Funi is closed, phone pop-ups come through Web Push: Supabase calls `/api/push` every minute, which sends due reminders ("30 min before" etc.) and new messages/invites. The push keys are made automatically and kept in the `funi_settings` table.
+- Voice notes in chat are up to 1 minute (about 180 KB) and are deleted automatically after 30 days by `/api/push`.
 - On iPhone, push only works from the home-screen app (Add to Home Screen), then Notifications › turn the switch on.

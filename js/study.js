@@ -431,16 +431,23 @@
     if (F.sb) {
       await F.sb.from("study_sessions").update({ is_active: false, ended_at: new Date().toISOString(), phase_ends_at: null }).eq("user_id", F.me.id).eq("is_active", true).then(() => {}, () => {});
       const row = { user_id: F.me.id, module_code: o.module, feeling: o.feeling, activity: o.activity, share_with_partners: o.share, planned_minutes: o.focusMin };
-      let { data, error } = await F.sb.from("study_sessions").insert(Object.assign({ break_minutes: o.breakMin, phase: "focus", phase_ends_at: new Date(Date.now() + o.focusMin * 60000).toISOString() }, row)).select().single();
+      const endIso = new Date(o.endAt || Date.now() + o.focusMin * 60000).toISOString();
+      const extra = { break_minutes: o.breakMin, phase: "focus", phase_ends_at: endIso };
+      if (o.roomId) extra.room_id = o.roomId;
+      let { data, error } = await F.sb.from("study_sessions").insert(Object.assign(extra, row)).select().single();
       if (error && /column/i.test(error.message)) ({ data, error } = await F.sb.from("study_sessions").insert(row).select().single());
       if (error) F.toast("Your timer started, but partners couldn't be told: " + error.message, { long: true });
       if (data) { sessionId = data.id; S.sessions.push(data); }
     }
     const now = Date.now();
     F.store(timerKey(), { sessionId, module: o.module, activity: o.activity, feeling: o.feeling, share: o.share, focusMin: o.focusMin, breakMin: o.breakMin,
-      phase: "focus", endAt: now + o.focusMin * 60000, pausedLeft: null, rounds: o.rounds || 0, totalSec: o.totalSec || 0, startedAt: now, lastTick: now, focusSec: 0 });
+      phase: "focus", endAt: o.endAt || now + o.focusMin * 60000, pausedLeft: null, rounds: o.rounds || 0, totalSec: o.totalSec || 0, startedAt: now, lastTick: now, focusSec: 0,
+      roomId: o.roomId || null, roomRound: o.roomRound || 0 });
     showSession(); F.emit("data");
   }
+  F.startRound = startRound;
+  // used by study rooms: stop my part of the shared round
+  F.endMySession = (how) => { const t = F.timerState(); if (live(t)) { tick(); const t2 = F.timerState(); if (live(t2)) { clearInterval(tickTimer); return complete(t2, how || "ended"); } } };
   $("sessionForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const focusMin = Math.round(+$("sesMinutes").value), breakMin = Math.round(+$("sesBreak").value);
@@ -467,6 +474,7 @@
     $("sesScene").innerHTML = window.FuniArt.studyScene(F.isPhoto(p.avatar) ? null : p.avatar, t.feeling, p.id);
     $("sesShareNote").hidden = !t.share;
     $("sesEnd").textContent = t.phase === "break" ? "Skip break" : "End session";
+    $("sesPause").hidden = !!t.roomId;
     tick(); tickTimer = setInterval(tick, 1000);
   }
   F.showSession = showSession;
@@ -531,8 +539,8 @@
     $("doneMin").textContent = mins; $("doneMinLbl").textContent = "minute" + (mins === 1 ? "" : "s") + " focused";
     $("doneRounds").textContent = t.rounds; $("doneRoundsLbl").textContent = "round" + (t.rounds === 1 ? "" : "s") + " done";
     $("doneModule").textContent = t.module;
-    $("doneBreak").hidden = ready; $("doneBreak").textContent = "Take a " + t.breakMin + " min break";
-    $("doneAgain").textContent = ready ? "Start round " + (t.rounds + 1) : "Another round";
+    $("doneBreak").hidden = ready || !!t.roomId; $("doneBreak").textContent = "Take a " + t.breakMin + " min break";
+    $("doneAgain").textContent = t.roomId ? "Back to the room" : ready ? "Start round " + (t.rounds + 1) : "Another round";
   }
   $("doneBreak").onclick = () => {
     const t = F.timerState(); if (!t) return;
@@ -542,6 +550,7 @@
   };
   $("doneAgain").onclick = () => {
     const t = F.timerState(); if (!t) return;
+    if (t.roomId) { F.go("room:" + t.roomId); return; }
     startRound({ module: t.module, activity: t.activity, feeling: t.feeling, share: t.share, focusMin: t.focusMin, breakMin: t.breakMin, rounds: t.rounds, totalSec: t.totalSec });
   };
   $("doneFinish").onclick = () => {
