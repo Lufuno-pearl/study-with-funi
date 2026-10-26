@@ -770,13 +770,16 @@
   <label for="taskTitle">What do you need to remember?</label>
   <input id="taskTitle" maxlength="120" placeholder="e.g. Submit COMS assignment" autocomplete="off">
   <div class="two">
-    <div><label for="taskDate">Date</label><input id="taskDate" type="date"></div>
+    <div><label for="taskDate" id="taskDateLbl">Date</label><input id="taskDate" type="date"></div>
     <div><label for="taskTime">Time</label><input id="taskTime" type="time"></div>
   </div>
   <div class="two">
     <div><label for="taskModule">Module (optional)</label><select id="taskModule"></select></div>
     <div><label for="taskPriority">Priority</label><select id="taskPriority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
   </div>
+  <span class="label">Repeat</span>
+  <div class="chips" id="repeatChips"></div>
+  <div class="chips day-chips" id="repeatDays" hidden></div>
   <span class="label">Notify me</span>
   <div class="chips" id="notifyChips"></div>
   <p class="hint" id="notifyPreview"></p>

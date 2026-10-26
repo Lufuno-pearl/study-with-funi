@@ -1,10 +1,17 @@
 // Called every minute by Supabase (pg_cron). Sends phone notifications that are due:
-//  - reminders whose "notify me" time has come
+//  - reminders whose "notify me" time has come (repeating ones roll on to their next day)
 //  - new notifications (messages, invites, help requests, partners studying)
 //  - study sessions whose time ran out while Funi was closed (with a cheer)
 //  - once an hour, voice notes older than 7 days are deleted
 // Each one is marked as sent first, so nothing is sent twice.
 const { webpush, db, vapidKeys, SERVICE_KEY, SUPABASE_URL } = require("./_shared");
+
+// first date on or after fromIso that falls on one of the repeat weekdays (0 = Sunday)
+function nextRepeat(fromIso, days) {
+  const d = new Date(fromIso + "T12:00:00Z");
+  for (let i = 0; i < 8; i++) { if (days.includes(d.getUTCDay())) return d.toISOString().slice(0, 10); d.setUTCDate(d.getUTCDate() + 1); }
+  return fromIso;
+}
 
 // Deletes voice notes older than 7 days through the Storage API (so the space really frees up),
 // then marks the messages as expired. Returns how many were removed.
@@ -30,6 +37,16 @@ module.exports = async (req, res) => {
     webpush.setVapidDetails("https://study-with-funi.vercel.app", keys.publicKey, keys.privateKey);
     const now = new Date(), nowIso = now.toISOString();
     const twoHoursAgo = new Date(now - 2 * 3600e3).toISOString(), tenMinAgo = new Date(now - 10 * 60e3).toISOString();
+
+    // 0. repeating reminders whose day has passed move on to their next day (South Africa time)
+    const todaySA = new Date(now.getTime() + 2 * 3600e3).toISOString().slice(0, 10);
+    let reps = [];
+    try { reps = await db("tasks?select=id,due_date,due_time,remind_offset,repeat_days&repeat_days=not.is.null&due_date=lt." + todaySA + "&limit=500"); } catch (e) { reps = []; } // funi-v9-setup.sql not run yet
+    for (const t of reps) {
+      const next = nextRepeat(todaySA, t.repeat_days || []);
+      const remind = t.due_time && t.remind_offset != null ? new Date(new Date(next + "T" + String(t.due_time).slice(0, 5) + ":00+02:00").getTime() - t.remind_offset * 60000).toISOString() : null;
+      await db("tasks?id=eq." + t.id, { method: "PATCH", body: { due_date: next, done: false, reminded_at: null, remind_at: remind }, prefer: "return=minimal" });
+    }
 
     // 1. due reminders (mark first so a slow run can't send them twice)
     const dueTasks = await db("tasks?select=id,user_id,title,module,due_time,remind_offset&done=eq.false&reminded_at=is.null&and=(remind_at.lte." + nowIso + ",remind_at.gte." + twoHoursAgo + ")&limit=200");

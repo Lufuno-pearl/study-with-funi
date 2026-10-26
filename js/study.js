@@ -645,7 +645,53 @@
      ===================================================================== */
   const OFFSETS = [[null, "No alert"], [0, "At the time"], [10, "10 min before"], [30, "30 min before"], [60, "1 hour before"], [1440, "1 day before"]];
   F.offsetLabel = (o) => { const f = OFFSETS.find((x) => x[0] === o); return f ? f[1] : "No alert"; };
-  let taskSel = 0, notifyPick = 30;
+  let taskSel = 0, notifyPick = 30, repeatPick = "none", repeatDaysPick = [];
+  const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], DAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const REPEATS = [["none", "Never"], ["daily", "Every day"], ["weekdays", "Weekdays"], ["weekly", "Every week"], ["days", "Pick days"]];
+  const isoDow = (iso) => new Date(iso + "T12:00:00").getDay();
+  function repeatDaysFor(kind, startIso) {
+    if (kind === "daily") return [0, 1, 2, 3, 4, 5, 6];
+    if (kind === "weekdays") return [1, 2, 3, 4, 5];
+    if (kind === "weekly") return [isoDow(startIso)];
+    if (kind === "days") return repeatDaysPick.slice().sort();
+    return null;
+  }
+  // first date on or after fromIso that is one of the repeat days
+  function nextRepeat(fromIso, days) {
+    const d = new Date(fromIso + "T12:00:00");
+    for (let i = 0; i < 8; i++) { if (days.includes(d.getDay())) return F.isoOf(d); d.setDate(d.getDate() + 1); }
+    return fromIso;
+  }
+  function repeatPhrase(days) {
+    const l = F.repeatLabel(days);
+    if (l === "Every day") return "every day";
+    if (l === "Weekdays") return "every weekday";
+    if (l === "Weekends") return "every weekend";
+    if (/^Every /.test(l)) return "every " + l.slice(6);
+    return "on " + l;
+  }
+  F.repeatLabel = (days) => {
+    if (!days || !days.length) return "";
+    const k = days.slice().sort().join();
+    if (k === "0,1,2,3,4,5,6") return "Every day";
+    if (k === "1,2,3,4,5") return "Weekdays";
+    if (k === "0,6") return "Weekends";
+    if (days.length === 1) return "Every " + DAYS_LONG[days[0]];
+    return days.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((x) => DAYS_SHORT[x]).join(", ");
+  };
+  // repeating reminders move on to their next day once their day has passed
+  async function rollRepeats() {
+    const today = F.todayISO(), moved = [];
+    S.tasks.forEach((t) => {
+      if (!t.repeat_days || !t.repeat_days.length || t.due_date >= today) return;
+      t.due_date = nextRepeat(today, t.repeat_days); t.done = false; t.reminded_at = null;
+      const at = remindAt(t.due_date, t.due_time, t.remind_offset); t.remind_at = at ? at.toISOString() : null;
+      moved.push(t);
+    });
+    if (!moved.length) return;
+    F.store(key("tasks"), S.tasks);
+    await Promise.all(moved.map((t) => F.sb.from("tasks").update({ due_date: t.due_date, done: false, reminded_at: null, remind_at: t.remind_at }).eq("id", t.id)));
+  }
   const reminderTimers = [];
   async function loadTasks() {
     S.tasks = F.read(key("tasks"), []);
@@ -653,20 +699,25 @@
     const { data, error } = await F.sb.from("tasks").select("*").or("due_date.gte." + F.isoOf(first) + ",done.eq.false").order("due_date").order("due_time", { nullsFirst: false });
     if (error) { S.tasksMissing = /tasks/.test(error.message); return; }
     S.tasks = data || []; F.store(key("tasks"), S.tasks);
+    await rollRepeats();
   }
   const taskDate = (i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); return d; };
   F.tasksOn = (iso) => {
-    const today = F.todayISO();
-    return S.tasks.filter((t) => t.due_date === iso || (iso === today && t.due_date < today && !t.done))
+    const today = F.todayISO(), dow = isoDow(iso);
+    const ghosts = iso > today ? S.tasks.filter((t) => t.repeat_days && t.repeat_days.length && t.due_date < iso && t.repeat_days.includes(dow))
+      .map((t) => Object.assign({}, t, { due_date: iso, done: false, ghost: true })) : [];
+    return S.tasks.filter((t) => t.due_date === iso || (iso === today && t.due_date < today && !t.done)).concat(ghosts)
       .sort((a, b) => (a.done - b.done) || String(a.due_time || "99").localeCompare(String(b.due_time || "99")));
   };
   const BARS = { High: "bar-high", Medium: "bar-med", Low: "bar-low" };
   function taskRow(t) {
     const overdue = t.due_date < F.todayISO() && !t.done;
-    const alert = overdue ? "Overdue from " + F.niceDate(t.due_date) : t.due_time && t.remind_offset != null ? F.offsetLabel(t.remind_offset) : t.module || (t.priority || "Medium") + " priority";
+    const rep = F.repeatLabel(t.repeat_days);
+    let alert = overdue ? "Overdue from " + F.niceDate(t.due_date) : t.due_time && t.remind_offset != null ? F.offsetLabel(t.remind_offset) : t.module || (t.priority || "Medium") + " priority";
+    if (rep) alert = "Repeats: " + rep + " · " + alert;
     return '<div class="tl-row"><span class="tl-time">' + (t.due_time ? F.niceTime(t.due_time) : "Any") + "</span>" +
       '<div class="task ' + BARS[t.priority || "Medium"] + (t.done ? " done" : "") + '"><div class="txt"><b>' + esc(t.title) + '</b><span class="alert">' + (t.remind_offset != null && t.due_time && !overdue ? bell : "") + esc(alert) + (t.module && alert !== t.module ? " · " + esc(t.module) : "") + "</span></div>" +
-      '<button type="button" class="check' + (t.done ? " on" : "") + '" data-tick="' + esc(t.id) + '" aria-pressed="' + !!t.done + '" aria-label="' + (t.done ? "Mark not done" : "Mark done") + ": " + esc(t.title) + '">' + tickSvg + "</button>" +
+      (t.ghost ? '<span class="check ghost" aria-hidden="true"></span>' : '<button type="button" class="check' + (t.done ? " on" : "") + '" data-tick="' + esc(t.id) + '" aria-pressed="' + !!t.done + '" aria-label="' + (t.done ? "Mark not done" : "Mark done") + ": " + esc(t.title) + '">' + tickSvg + "</button>") +
       '<button type="button" class="x-btn" data-del-task="' + esc(t.id) + '" aria-label="Delete ' + esc(t.title) + '">×</button></div></div>';
   }
   F.taskRow = taskRow;
@@ -687,11 +738,35 @@
   F.renderTasks = renderTasks;
   $("taskDays").addEventListener("click", (e) => { const b = e.target.closest("[data-ti]"); if (!b) return; taskSel = +b.dataset.ti; renderTasks(); });
 
+  function drawRepeat() {
+    $("repeatChips").innerHTML = REPEATS.map((r) => '<button type="button" class="chip' + (r[0] === repeatPick ? " on" : "") + '" data-rep="' + r[0] + '" aria-pressed="' + (r[0] === repeatPick) + '">' + r[1] + "</button>").join("");
+    $("repeatDays").hidden = repeatPick !== "days";
+    $("repeatDays").innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => '<button type="button" class="chip day-chip' + (repeatDaysPick.includes(d) ? " on" : "") + '" data-rday="' + d + '" aria-pressed="' + repeatDaysPick.includes(d) + '" aria-label="' + DAYS_LONG[d] + '">' + DAYS_SHORT[d].slice(0, 2) + "</button>").join("");
+    $("taskDateLbl").textContent = repeatPick === "none" ? "Date" : "Starting";
+    if (repeatPick !== "none" && notifyPick === 1440) notifyPick = 30;
+  }
+  $("repeatChips").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rep]"); if (!b) return; repeatPick = b.dataset.rep;
+    if (repeatPick === "days" && !repeatDaysPick.length) repeatDaysPick = [isoDow($("taskDate").value || F.todayISO())];
+    drawRepeat(); drawNotify();
+  });
+  $("repeatDays").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rday]"); if (!b) return; const d = +b.dataset.rday;
+    repeatDaysPick = repeatDaysPick.includes(d) ? repeatDaysPick.filter((x) => x !== d) : repeatDaysPick.concat(d);
+    drawRepeat(); drawNotify();
+  });
   function drawNotify() {
-    const hasTime = !!$("taskTime").value;
-    $("notifyChips").innerHTML = OFFSETS.map((o) => '<button type="button" class="chip' + (o[0] === notifyPick ? " on" : "") + '" data-off="' + (o[0] == null ? "" : o[0]) + '"' + (!hasTime && o[0] != null ? " disabled" : "") + ">" + o[1] + "</button>").join("");
-    if (!hasTime) { $("notifyPreview").textContent = "Add a time to get an alert."; return; }
-    if (notifyPick == null) { $("notifyPreview").textContent = "No alert for this one."; return; }
+    const hasTime = !!$("taskTime").value, rep = repeatPick !== "none";
+    $("notifyChips").innerHTML = OFFSETS.filter((o) => !(rep && o[0] === 1440)).map((o) => '<button type="button" class="chip' + (o[0] === notifyPick ? " on" : "") + '" data-off="' + (o[0] == null ? "" : o[0]) + '"' + (!hasTime && o[0] != null ? " disabled" : "") + ">" + o[1] + "</button>").join("");
+    const days = rep ? repeatDaysFor(repeatPick, $("taskDate").value || F.todayISO()) : null;
+    if (rep && (!days || !days.length)) { $("notifyPreview").textContent = "Pick at least one day."; return; }
+    if (!hasTime) { $("notifyPreview").textContent = rep ? "Repeats " + repeatPhrase(days) + ". Add a time to get an alert." : "Add a time to get an alert."; return; }
+    if (notifyPick == null) { $("notifyPreview").textContent = rep ? "Repeats: " + F.repeatLabel(days) + ". No alert." : "No alert for this one."; return; }
+    if (rep) {
+      const at = remindAt("2000-01-01", $("taskTime").value, notifyPick);
+      $("notifyPreview").textContent = "Funi will buzz your phone " + repeatPhrase(days) + " at " + at.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }) + ".";
+      return;
+    }
     const at = remindAt($("taskDate").value, $("taskTime").value, notifyPick);
     $("notifyPreview").textContent = "Funi will buzz your phone " + (at ? at.toLocaleString("en-ZA", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "") + ".";
   }
@@ -702,8 +777,8 @@
   F.openReminderSheet = (dateISO) => {
     $("taskForm").reset();
     $("taskDate").value = dateISO || F.isoOf(taskDate(taskSel)); $("taskDate").min = F.todayISO();
-    $("taskPriority").value = "Medium"; notifyPick = 30;
-    F.fillModuleSelects(); F.showError("taskError", ""); drawNotify(); $("remSheet").showModal();
+    $("taskPriority").value = "Medium"; notifyPick = 30; repeatPick = "none"; repeatDaysPick = [];
+    F.fillModuleSelects(); F.showError("taskError", ""); drawRepeat(); drawNotify(); $("remSheet").showModal();
   };
   $("remAddBtn").onclick = () => F.openReminderSheet();
   $("taskTime").addEventListener("input", drawNotify);
@@ -715,10 +790,19 @@
     if (!title) return F.showError("taskError", "Write what you need to remember.");
     if (!$("taskDate").value) return F.showError("taskError", "Choose a date.");
     F.showError("taskError", "");
-    const time = $("taskTime").value || null, off = time ? notifyPick : null, at = remindAt($("taskDate").value, time, off);
-    const row = { title, due_date: $("taskDate").value, due_time: time, module: $("taskModule").value || null, priority: $("taskPriority").value,
+    const days = repeatDaysFor(repeatPick, $("taskDate").value);
+    if (repeatPick !== "none" && (!days || !days.length)) return F.showError("taskError", "Pick at least one day for it to repeat.");
+    let due = days ? nextRepeat($("taskDate").value, days) : $("taskDate").value;
+    const time = $("taskTime").value || null, off = time ? notifyPick : null;
+    if (days && time && due === F.todayISO() && new Date(due + "T" + time.slice(0, 5) + ":00") < new Date()) {
+      const tm = new Date(due + "T12:00:00"); tm.setDate(tm.getDate() + 1); due = nextRepeat(F.isoOf(tm), days); // today's time has passed: start next time
+    }
+    const at = remindAt(due, time, off);
+    const row = { title, due_date: due, due_time: time, module: $("taskModule").value || null, priority: $("taskPriority").value,
       remind_offset: off, remind_at: at ? at.toISOString() : null };
+    if (days) row.repeat_days = days;
     let { data, error } = await F.sb.from("tasks").insert(row).select().single();
+    if (error && /repeat_days/.test(error.message)) return F.showError("taskError", "Repeating reminders need one setup step: run funi-v9-setup.sql in Supabase.");
     if (error && /priority|remind/.test(error.message)) { // v3 setup not run yet: save without the new fields
       ({ data, error } = await F.sb.from("tasks").insert({ title: row.title, due_date: row.due_date, due_time: row.due_time, module: row.module }).select().single());
       if (!error) F.toast("Saved. Run funi-v3-setup.sql in Supabase to get alerts before reminders.", { long: true });
@@ -726,7 +810,8 @@
     if (error) return F.showError("taskError", /tasks/.test(error.message) ? "Run funi-v2-setup.sql in Supabase first." : "Couldn't save: " + error.message);
     S.tasks.push(data); F.store(key("tasks"), S.tasks);
     $("remSheet").close(); renderTasks(); scheduleReminders(); F.emit("data");
-    if (at) F.toast("Saved. Funi will buzz you " + F.offsetLabel(off).toLowerCase() + (F.pushOn ? "." : ", while Funi is open. Turn on notifications to get it when Funi is closed."), { long: true });
+    if (at && days) F.toast("Saved. It repeats: " + F.repeatLabel(days) + ".", { long: true });
+    else if (at) F.toast("Saved. Funi will buzz you " + F.offsetLabel(off).toLowerCase() + (F.pushOn ? "." : ", while Funi is open. Turn on notifications to get it when Funi is closed."), { long: true });
     else F.toast("Saved.");
   });
   async function toggleTask(id) {
@@ -737,6 +822,8 @@
     if (error) F.toast("Couldn't save: " + error.message);
   }
   async function deleteTask(id) {
+    const t = S.tasks.find((x) => x.id === id);
+    if (t && t.repeat_days && t.repeat_days.length && !(await F.confirm("Delete \"" + t.title + "\"?", "It repeats (" + F.repeatLabel(t.repeat_days) + "). Deleting stops it on all days.", "Delete"))) return;
     const { error } = await F.sb.from("tasks").delete().eq("id", id);
     if (error) return F.toast("Couldn't delete: " + error.message);
     S.tasks = S.tasks.filter((x) => x.id !== id); F.store(key("tasks"), S.tasks); renderTasks(); scheduleReminders(); F.emit("data");
