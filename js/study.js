@@ -756,9 +756,19 @@
     syncMatchModules();
     if (F.timerState()) {
       showSession(); // catch up on time that passed while Funi was closed
-      const t = F.timerState();
-      if (t && t.phase === "done") F.go("study");
-      else if (t && live(t)) F.toast(t.pausedLeft != null ? "Your study session is paused." : "Your study session is still running.", { onClick: () => F.go("study") });
+      let t = F.timerState();
+      const idle = t ? Date.now() - (t.lastTick || t.startedAt || 0) : 0;
+      // a session left paused (or finished and never closed) for over 12 hours is saved and tidied away quietly
+      if (t && idle > 12 * 3600e3 && (t.pausedLeft != null || !live(t))) {
+        if (live(t) && t.sessionId && F.sb) await F.sb.from("study_sessions").update({ is_active: false, ended_at: new Date(t.lastTick || Date.now()).toISOString(), focus_seconds: Math.round(t.focusSec || 0), phase_ends_at: null }).eq("id", t.sessionId).then(() => {}, () => {});
+        F.store(timerKey(), null); showSession(); t = null;
+      }
+      // remind once per visit, and only when a timer is actually running
+      let shown = false; try { shown = !!sessionStorage.getItem("funi.sessNote"); sessionStorage.setItem("funi.sessNote", "1"); } catch (e) {}
+      if (t && !shown) {
+        if (t.phase === "done" && idle < 3600e3) F.go("study");
+        else if (live(t) && t.pausedLeft == null) F.toast("Your study session is still running.", { onClick: () => F.go("study") });
+      }
     }
   };
   F.on("resume", () => { if (F.timerState()) tick(); F.loadStudy(); });
