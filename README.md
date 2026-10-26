@@ -62,5 +62,5 @@ where id = (select id from public.study_profiles where username = 'USERNAME');
 ## Notifications
 - While Funi is open, everything pops up instantly.
 - When Funi is closed, phone pop-ups come through Web Push: Supabase calls `/api/push` every minute, which sends due reminders ("30 min before" etc.) and new messages/invites. The push keys are made automatically and kept in the `funi_settings` table.
-- Voice notes in chat are up to 1 minute (about 180 KB) and are deleted automatically after 30 days by `/api/push`.
+- Voice notes in chat are up to 3 minutes (about 180 KB a minute) and are deleted automatically after 7 days by `/api/push`.
 - On iPhone, push only works from the home-screen app (Add to Home Screen), then Notifications › turn the switch on.

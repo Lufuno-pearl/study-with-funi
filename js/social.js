@@ -272,13 +272,17 @@
     signed[path] = data ? data.signedUrl : null;
     return signed[path];
   }
+  function voiceLeft(at) {
+    const days = 7 - Math.floor((Date.now() - new Date(at).getTime()) / 864e5);
+    return days <= 1 ? "Disappears within a day" : "Disappears in " + days + " days";
+  }
   function bubbleHtml(m, isNew) {
     const mine = m.sender_id === F.me.id;
     let inner = "";
     if (m.is_help) inner += '<span class="help-tag">Help request</span><br>';
     if (m.file_path) {
       const url = signed[m.file_path];
-      if (m.file_type && m.file_type.startsWith("audio/")) inner += url ? '<span class="voice"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><audio controls preload="metadata" src="' + esc(url) + '" aria-label="' + esc(m.file_name || "Voice note") + '"></audio></span>' : '<span class="file-chip">Loading voice note…</span>';
+      if (m.file_type && m.file_type.startsWith("audio/")) inner += url ? '<span class="voice"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><audio controls preload="metadata" src="' + esc(url) + '" aria-label="' + esc(m.file_name || "Voice note") + '"></audio></span><span class="voice-left">' + voiceLeft(m.created_at) + "</span>" : '<span class="file-chip">Loading voice note…</span>';
       else if (m.file_type && m.file_type.startsWith("image/")) inner += url ? '<img src="' + esc(url) + '" alt="' + esc(m.file_name || "Photo") + '" data-full="' + esc(url) + '" loading="lazy">' : '<span class="file-chip">Loading photo…</span>';
       else inner += '<a class="file-chip" href="' + esc(url || "#") + '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>' + esc(m.file_name || "File") + "</a>";
     }
@@ -344,9 +348,9 @@
     await drawMsgs(data.id);
   });
 
-  /* ---------- voice notes: up to 1 minute, small files, deleted after 30 days ---------- */
+  /* ---------- voice notes: up to 3 minutes, small files, deleted after 7 days ---------- */
   let rec = null, recChunks = [], recStart = 0, recTimer = null, recStream = null, recMime = "", recBlob = null;
-  const VOICE_MAX = 60;
+  const VOICE_MAX = 180;
   const mmss = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
   function pickMime() {
     if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
@@ -371,12 +375,12 @@
     catch (e) { rec = new MediaRecorder(recStream); }
     rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
     rec.start(1000); recStart = Date.now();
-    $("recTime").textContent = "0:00"; $("recHint").textContent = "Recording… up to 1 minute"; $("recorder").classList.add("on");
+    $("recTime").textContent = "0:00"; $("recHint").textContent = "Recording… up to 3 minutes"; $("recorder").classList.add("on");
     showRecorder(true);
     recTimer = setInterval(async () => {
       const sec = Math.floor((Date.now() - recStart) / 1000);
       $("recTime").textContent = mmss(Math.min(sec, VOICE_MAX));
-      if (sec >= VOICE_MAX) { await stopRec(); $("recorder").classList.remove("on"); $("recHint").textContent = "That's the 1 minute limit. Send it?"; }
+      if (sec >= VOICE_MAX) { await stopRec(); $("recorder").classList.remove("on"); $("recHint").textContent = "That's the 3 minute limit. Send it?"; }
     }, 250);
   };
   $("recCancel").onclick = async () => { await stopRec(); recBlob = null; recChunks = []; $("recorder").classList.remove("on"); showRecorder(false); };

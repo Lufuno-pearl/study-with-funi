@@ -2,14 +2,14 @@
 //  - reminders whose "notify me" time has come
 //  - new notifications (messages, invites, help requests, partners studying)
 //  - study sessions whose time ran out while Funi was closed (with a cheer)
-//  - once an hour, voice notes older than 30 days are deleted
+//  - once an hour, voice notes older than 7 days are deleted
 // Each one is marked as sent first, so nothing is sent twice.
 const { webpush, db, vapidKeys, SERVICE_KEY, SUPABASE_URL } = require("./_shared");
 
-// Deletes voice notes older than 30 days through the Storage API (so the space really frees up),
+// Deletes voice notes older than 7 days through the Storage API (so the space really frees up),
 // then marks the messages as expired. Returns how many were removed.
 async function cleanVoiceNotes(now) {
-  const before = new Date(now - 30 * 864e5).toISOString();
+  const before = new Date(now - 7 * 864e5).toISOString();
   const old = await db("study_messages?select=id,file_path&file_type=like.audio%2F*&file_path=not.is.null&created_at=lt." + before + "&limit=200");
   if (!old.length) return 0;
   const r = await fetch(SUPABASE_URL + "/storage/v1/object/chat-files", {
@@ -18,7 +18,7 @@ async function cleanVoiceNotes(now) {
     body: JSON.stringify({ prefixes: old.map((m) => m.file_path) })
   });
   if (!r.ok) throw new Error("storage " + r.status + " " + (await r.text()).slice(0, 200));
-  await db("study_messages?id=in.(" + old.map((m) => m.id).join(",") + ")", { method: "PATCH", body: { file_path: null, file_size: null, body: "Voice note (deleted after 30 days)" }, prefer: "return=minimal" });
+  await db("study_messages?id=in.(" + old.map((m) => m.id).join(",") + ")", { method: "PATCH", body: { file_path: null, file_size: null, body: "Voice note (deleted after 7 days)" }, prefer: "return=minimal" });
   return old.length;
 }
 
@@ -77,7 +77,7 @@ module.exports = async (req, res) => {
       messages.push({ user: n.user_id, payload: { title: n.title, body: n.body || "", url, tag: n.kind + "-" + (n.actor_id || n.id) } });
     });
 
-    // 4. once an hour: voice notes older than 30 days are deleted to free up space
+    // 4. once an hour: voice notes older than 7 days are deleted to free up space
     let cleaned = 0;
     if (now.getUTCMinutes() === 7) { try { cleaned = await cleanVoiceNotes(now); } catch (e) { console.error("voice cleanup", e.message); } }
 
