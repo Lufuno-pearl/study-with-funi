@@ -2,8 +2,25 @@
 //  - reminders whose "notify me" time has come
 //  - new notifications (messages, invites, help requests, partners studying)
 //  - study sessions whose time ran out while Funi was closed (with a cheer)
+//  - once an hour, voice notes older than 30 days are deleted
 // Each one is marked as sent first, so nothing is sent twice.
-const { webpush, db, vapidKeys, SERVICE_KEY } = require("./_shared");
+const { webpush, db, vapidKeys, SERVICE_KEY, SUPABASE_URL } = require("./_shared");
+
+// Deletes voice notes older than 30 days through the Storage API (so the space really frees up),
+// then marks the messages as expired. Returns how many were removed.
+async function cleanVoiceNotes(now) {
+  const before = new Date(now - 30 * 864e5).toISOString();
+  const old = await db("study_messages?select=id,file_path&file_type=like.audio%2F*&file_path=not.is.null&created_at=lt." + before + "&limit=200");
+  if (!old.length) return 0;
+  const r = await fetch(SUPABASE_URL + "/storage/v1/object/chat-files", {
+    method: "DELETE",
+    headers: { apikey: SERVICE_KEY, Authorization: "Bearer " + SERVICE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ prefixes: old.map((m) => m.file_path) })
+  });
+  if (!r.ok) throw new Error("storage " + r.status + " " + (await r.text()).slice(0, 200));
+  await db("study_messages?id=in.(" + old.map((m) => m.id).join(",") + ")", { method: "PATCH", body: { file_path: null, file_size: null, body: "Voice note (deleted after 30 days)" }, prefer: "return=minimal" });
+  return old.length;
+}
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -19,7 +36,7 @@ module.exports = async (req, res) => {
     if (dueTasks.length) await db("tasks?id=in.(" + dueTasks.map((t) => t.id).join(",") + ")", { method: "PATCH", body: { reminded_at: nowIso }, prefer: "return=minimal" });
 
     // 2. new notifications
-    const notes = await db("notifications?select=id,user_id,kind,title,body,actor_id&pushed_at=is.null&created_at=gte." + tenMinAgo + "&limit=300");
+    const notes = await db("notifications?select=id,user_id,kind,title,body,actor_id,ref_id&pushed_at=is.null&created_at=gte." + tenMinAgo + "&limit=300");
     if (notes.length) await db("notifications?id=in.(" + notes.map((n) => n.id).join(",") + ")", { method: "PATCH", body: { pushed_at: nowIso }, prefer: "return=minimal" });
 
     // 3. study timers whose focus or break ended (Funi may be closed)
@@ -49,7 +66,22 @@ module.exports = async (req, res) => {
       const body = CHEERS[Math.floor(Math.random() * CHEERS.length)].replace("{m}", s.planned_minutes || "").replace("{mod}", s.module_code);
       messages.push({ user: s.user_id, payload: { title: TITLES[Math.floor(Math.random() * TITLES.length)], body, url: "/#study", tag: "session" } });
     });
-    if (!messages.length) return res.status(200).json({ ok: true, sent: 0 });
+    dueTasks.forEach((t) => {
+      const when = t.remind_offset ? (t.remind_offset >= 1440 ? "Tomorrow" : "In " + (t.remind_offset >= 60 ? t.remind_offset / 60 + " hour" + (t.remind_offset >= 120 ? "s" : "") : t.remind_offset + " min")) : "Now";
+      messages.push({ user: t.user_id, payload: { title: "Reminder: " + t.title, body: when + (t.due_time ? " · " + String(t.due_time).slice(0, 5) : "") + (t.module ? " · " + t.module : ""), url: "/#reminders", tag: "task-" + t.id } });
+    });
+    notes.forEach((n) => {
+      const url = n.kind === "message" || n.kind === "help" ? "/#chat-" + n.actor_id : n.kind === "invite" ? "/#invites"
+        : n.kind === "room" && n.ref_id ? "/#room-" + n.ref_id : n.kind === "battle" && n.ref_id ? "/#battle-" + n.ref_id
+        : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id : "/#partners";
+      messages.push({ user: n.user_id, payload: { title: n.title, body: n.body || "", url, tag: n.kind + "-" + (n.actor_id || n.id) } });
+    });
+
+    // 4. once an hour: voice notes older than 30 days are deleted to free up space
+    let cleaned = 0;
+    if (now.getUTCMinutes() === 7) { try { cleaned = await cleanVoiceNotes(now); } catch (e) { console.error("voice cleanup", e.message); } }
+
+    if (!messages.length) return res.status(200).json({ ok: true, sent: 0, cleaned });
 
     const users = [...new Set(messages.map((m) => m.user))];
     const subs = await db("push_subscriptions?select=id,user_id,endpoint,p256dh,auth&user_id=in.(" + users.join(",") + ")");
@@ -63,7 +95,7 @@ module.exports = async (req, res) => {
       }
     })));
     if (dead.length) await db("push_subscriptions?id=in.(" + [...new Set(dead)].join(",") + ")", { method: "DELETE", prefer: "return=minimal" });
-    res.status(200).json({ ok: true, sent, removed: dead.length });
+    res.status(200).json({ ok: true, sent, removed: dead.length, cleaned });
   } catch (e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });
