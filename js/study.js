@@ -263,14 +263,21 @@
   }
   function loadMarksFrom(id) {
     const m = S.modules.find((x) => x.id === id);
-    $("mClass").value = m && m.class_mark != null ? m.class_mark : 50;
-    $("mWeight").value = m && m.exam_weight != null ? m.exam_weight : 60;
-    $("mSub").value = m && m.subminimum != null ? m.subminimum : 40;
+    setMark("mClass", m && m.class_mark != null ? +m.class_mark : 50);
+    setMark("mWeight", m && m.exam_weight != null ? +m.exam_weight : 60);
+    setMark("mSub", m && m.subminimum != null ? +m.subminimum : 40);
     $("mSave").textContent = m ? "Save and update my priorities" : "Add a module to save marks";
     $("mSave").disabled = !m;
     calcMarks();
   }
   const r1 = (n) => String(Math.round(n * 10) / 10);
+  // each mark has a slider (moves in 1s) and a box you can type an exact number into (e.g. 22 or 66.5)
+  const MARK_LIMITS = { mClass: [0, 100], mWeight: [1, 100], mSub: [0, 100] };
+  function setMark(id, v) { $(id + "N").value = r1(v); $(id).value = Math.round(v); }
+  function markVal(id) {
+    const [lo, hi] = MARK_LIMITS[id], raw = parseFloat($(id + "N").value);
+    return isNaN(raw) ? +$(id).value : Math.min(hi, Math.max(lo, raw));
+  }
   // marks you need from the exam: first out of the exam's share (e.g. "10.4 out of 40"), then as a % of the exam paper
   function examNeed(m, target) {
     const w = Math.max(5, m.exam_weight), have = m.class_mark * (100 - w) / 100;
@@ -280,17 +287,16 @@
       minPts: Math.max(pts, subPts), minPct: Math.ceil(Math.max(pct, subPct) - 1e-9) };
   }
   function calcMarks() {
-    const m = { class_mark: +$("mClass").value, exam_weight: +$("mWeight").value, subminimum: +$("mSub").value };
-    $("mClassV").textContent = m.class_mark + "%"; $("mWeightV").textContent = m.exam_weight + "% of my final mark"; $("mSubV").textContent = m.subminimum + "%";
-    $("mClassW").textContent = "So class work counts " + (100 - m.exam_weight) + "%.";
+    const m = { class_mark: markVal("mClass"), exam_weight: markVal("mWeight"), subminimum: markVal("mSub") };
+    $("mClassW").textContent = "So class work counts " + r1(100 - m.exam_weight) + "%.";
     const p = examNeed(m, 50);
     $("mHave").innerHTML = "<span>Your class mark already gives you</span><b>" + r1(p.have) + " out of " + (100 - p.w) + "</b><span>The exam is worth the other " + p.w + ".</span>";
     if (!p.reach) {
       $("mPass").textContent = "Out of reach"; $("mPct").textContent = "";
       $("mNote").textContent = "Even " + p.w + " out of " + p.w + " won't get you to 50. Ask your lecturer about a supp.";
     } else {
-      $("mPass").textContent = r1(p.pts) + " out of " + p.w;
-      $("mPct").textContent = "That's " + p.pct + "% in the exam paper.";
+      $("mPass").textContent = p.pts <= 0 ? "Already there!" : r1(p.pts) + " out of " + p.w;
+      $("mPct").textContent = p.pts <= 0 ? "Your class mark alone gives you 50 or more." : "That's " + p.pct + "% in the exam paper.";
       $("mNote").textContent = p.bySub ? "But the exam subminimum is " + p.subPct + "%, so you must still get at least " + r1(p.subPts) + " out of " + p.w + " to pass." : p.pct <= m.class_mark ? "Below your class mark. You've got this!" : "That's " + (p.pct - m.class_mark) + " points above your class mark.";
     }
     [[60, "m60"], [75, "m75"]].forEach(([t, id]) => {
@@ -299,11 +305,15 @@
       $(id + "p").textContent = q.reach ? q.minPct + "% in the exam" + (q.bySub ? " (subminimum)" : "") : "";
     });
   }
-  ["mClass", "mWeight", "mSub"].forEach((id) => $(id).addEventListener("input", calcMarks));
+  ["mClass", "mWeight", "mSub"].forEach((id) => {
+    $(id).addEventListener("input", () => { $(id + "N").value = $(id).value; calcMarks(); });
+    $(id + "N").addEventListener("input", () => { const v = parseFloat($(id + "N").value); if (!isNaN(v)) $(id).value = Math.round(Math.min(MARK_LIMITS[id][1], Math.max(MARK_LIMITS[id][0], v))); calcMarks(); });
+    $(id + "N").addEventListener("change", () => setMark(id, markVal(id)));
+  });
   $("mModule").addEventListener("change", () => { F.marksModule = $("mModule").value; loadMarksFrom($("mModule").value); });
   $("mSave").onclick = () => {
     const m = S.modules.find((x) => x.id === $("mModule").value); if (!m) return;
-    saveModule(m, { class_mark: +$("mClass").value, exam_weight: +$("mWeight").value, subminimum: +$("mSub").value });
+    saveModule(m, { class_mark: markVal("mClass"), exam_weight: markVal("mWeight"), subminimum: markVal("mSub") });
     F.toast("Saved. " + m.code + " is updated in your priorities."); F.emit("data"); F.go("priorities");
   };
 

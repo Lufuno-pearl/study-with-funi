@@ -830,3 +830,7 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .hv-bar b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-weight: 600; font-size: 17px; color: var(--ink); }
 #hvFrame { flex: 1; width: 100%; border: 0; background: #FFFFFF; }
 .file-chip { font: inherit; border: 0; cursor: pointer; text-align: left; width: 100%; }
+.num-box { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.num-box input[type=number] { width: 74px; min-height: 40px; padding: 6px 8px; border-radius: 12px; text-align: center; font-family: var(--display); font-weight: 600; font-size: 17px; color: var(--ink); -moz-appearance: textfield; }
+.num-box input[type=number]::-webkit-outer-spin-button, .num-box input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.lbl-sub { display: block; font-size: 12px; font-weight: 700; color: var(--muted); }

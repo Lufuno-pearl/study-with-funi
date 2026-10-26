@@ -507,17 +507,17 @@
       <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <div class="grow"><h1>What do I need?</h1></div>
     </header>
-    <p>Check your course outline for how much the exam is worth, then drag the sliders.</p>
+    <p>Check your course outline for how much the exam is worth. Drag the sliders or type the exact numbers.</p>
     <label for="mModule">Module</label>
     <select id="mModule"></select>
     <div class="card flat stack">
-      <div class="slider-row"><label class="lbl" for="mClass">My class mark so far</label><output id="mClassV">50%</output></div>
-      <input type="range" id="mClass" min="0" max="100" value="50">
-      <div class="slider-row"><label class="lbl" for="mWeight">The exam is worth</label><output id="mWeightV">60%</output></div>
-      <input type="range" id="mWeight" min="10" max="100" step="5" value="60">
+      <div class="slider-row"><label class="lbl" for="mClassN">My class mark so far</label><span class="num-box"><input type="number" id="mClassN" min="0" max="100" step="any" inputmode="decimal" value="50"><span>%</span></span></div>
+      <input type="range" id="mClass" min="0" max="100" step="1" value="50" aria-label="My class mark so far">
+      <div class="slider-row"><label class="lbl" for="mWeightN">The exam is worth<small class="lbl-sub">of my final mark</small></label><span class="num-box"><input type="number" id="mWeightN" min="1" max="100" step="any" inputmode="decimal" value="60"><span>%</span></span></div>
+      <input type="range" id="mWeight" min="1" max="100" step="1" value="60" aria-label="The exam is worth">
       <span class="hint" id="mClassW">So class work counts 40%.</span>
-      <div class="slider-row"><label class="lbl" for="mSub">Exam subminimum</label><output id="mSubV">40%</output></div>
-      <input type="range" id="mSub" min="0" max="60" step="5" value="40">
+      <div class="slider-row"><label class="lbl" for="mSubN">Exam subminimum</label><span class="num-box"><input type="number" id="mSubN" min="0" max="100" step="any" inputmode="decimal" value="40"><span>%</span></span></div>
+      <input type="range" id="mSub" min="0" max="100" step="1" value="40" aria-label="Exam subminimum">
     </div>
     <div class="card flat have-row" id="mHave"></div>
     <section class="need-hero">
