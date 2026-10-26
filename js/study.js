@@ -76,6 +76,68 @@
     F.toast(d === 0 ? "Saved. It's today, you've got this!" : "Saved. " + d + (d === 1 ? " day" : " days") + " to go.");
   });
 
+  /* ---------- share my exam timetable + modules with partners (never marks) ---------- */
+  $("shareExamsBtn").onclick = () => {
+    const exams = F.upcoming().map((x) => ({ module: x.module, kind: x.kind, due_date: x.due_date, start_time: x.start_time || null, venue: x.venue || null })).slice(0, 60);
+    const modules = F.orderedModules().map((m) => ({ code: m.code, name: m.name || null })).slice(0, 30);
+    if (!exams.length && !modules.length) return F.toast("Add your tests, exams or modules first, then share them.");
+    F.pickPartner({ title: "Share my exam timetable", text: exams.length + " test" + (exams.length === 1 ? "" : "s") + " & exams and " + modules.length + " module" + (modules.length === 1 ? "" : "s") + ". They choose what to add. Your marks stay private." }, async (ids) => {
+      const { error } = await F.sb.from("exam_shares").insert(ids.map((to) => ({ from_id: F.me.id, to_id: to, exams, modules })));
+      if (error) return F.toast(/exam_shares/.test(error.message) ? "Sharing needs one setup step: run funi-v10-setup.sql in Supabase." : "Couldn't share: " + error.message, { long: true });
+      F.toast("Shared! They'll get a notification to add them.");
+    }, { multi: true, ok: "Share" });
+  };
+  let share = null;
+  const examKey = (x) => [String(x.module).trim().toUpperCase(), x.kind, x.due_date].join("|");
+  async function openShare(id) {
+    $("shBody").innerHTML = '<p class="hint">Loading…</p>'; $("shBtns").hidden = true;
+    const { data, error } = await F.sb.from("exam_shares").select("*").eq("id", id).maybeSingle();
+    if (error || !data) { $("shBody").innerHTML = '<div class="empty"><b>This share isn\'t available</b><span>It may have been removed.</span></div>'; return; }
+    share = data;
+    const who = (F.profiles && F.profiles[data.from_id]) ? F.nameOf(F.profiles[data.from_id]) : "Your study partner";
+    $("shTitle").textContent = who + "'s timetable";
+    $("shSub").textContent = data.imported_at ? "You added from this before. You can add more." : "Tick what you want. Nothing is added until you tap Add.";
+    const today = F.todayISO(), mine = new Set(S.items.map(examKey)), haveMods = S.modules.length > 0;
+    const exams = (data.exams || []).filter((x) => x.due_date >= today);
+    const mods = data.modules || [];
+    const examHtml = exams.length ? exams.map((x, i) => {
+      const dup = mine.has(examKey(x)), doing = S.modules.some((m) => sameCode(m.code, x.module));
+      const on = !dup && (!haveMods || doing);
+      return '<label class="pick-row' + (dup ? " dup" : "") + '"><input type="checkbox" data-sx="' + i + '"' + (on ? " checked" : "") + (dup ? " disabled" : "") + '><span class="grow"><b>' + esc(x.module) + " · " + esc(x.kind) + "</b><span>" +
+        F.niceDate(x.due_date) + (x.start_time ? " · " + F.niceTime(x.start_time) : "") + (x.venue ? " · " + esc(x.venue) : "") + (dup ? " · already in your exams" : "") + '</span></span><span class="chip-d ' + chipClass(F.daysLeft(x.due_date)) + '">' + F.daysLeft(x.due_date) + " d</span></label>";
+    }).join("") : '<p class="hint">No upcoming tests or exams in this share.</p>';
+    const modHtml = mods.length ? mods.map((m, i) => {
+      const have = S.modules.some((x) => sameCode(x.code, m.code));
+      return '<label class="pick-row' + (have ? " dup" : "") + '"><input type="checkbox" data-sm="' + i + '"' + (!have && !haveMods ? " checked" : "") + (have ? " disabled" : "") + '><span class="grow"><b>' + esc(m.code) + "</b><span>" + esc(m.name || "Module") + (have ? " · already yours" : "") + "</span></span></label>";
+    }).join("") : "";
+    $("shBody").innerHTML = '<div class="between"><h2>Tests &amp; exams</h2><button type="button" class="link" data-sh-all="sx">Select all</button></div>' + examHtml +
+      (mods.length ? '<div class="between" style="margin-top:8px"><h2>Modules</h2><button type="button" class="link" data-sh-all="sm">Select all</button></div>' + modHtml : "") +
+      '<p class="hint">' + esc(who) + "'s marks are private and never shared.</p>";
+    $("shBtns").hidden = false; countShare();
+  }
+  function countShare() { const n = $("shBody").querySelectorAll("input:checked:not(:disabled)").length; $("shAdd").textContent = n ? "Add " + n + " selected" : "Add selected"; $("shAdd").disabled = !n; }
+  $("shBody").addEventListener("change", countShare);
+  $("shBody").addEventListener("click", (e) => { const b = e.target.closest("[data-sh-all]"); if (!b) return; $("shBody").querySelectorAll("input[data-" + b.dataset.shAll + "]:not(:disabled)").forEach((c) => { c.checked = true; }); countShare(); });
+  $("shAdd").onclick = async () => {
+    if (!share) return;
+    const exams = [...$("shBody").querySelectorAll("input[data-sx]:checked:not(:disabled)")].map((c) => share.exams.filter((x) => x.due_date >= F.todayISO())[+c.dataset.sx]);
+    const mods = [...$("shBody").querySelectorAll("input[data-sm]:checked:not(:disabled)")].map((c) => share.modules[+c.dataset.sm]);
+    $("shAdd").disabled = true;
+    if (exams.length) {
+      const rows = exams.map((x) => ({ module: String(x.module).trim().toUpperCase(), kind: x.kind, due_date: x.due_date, start_time: x.start_time || null, venue: x.venue || null }));
+      const { data, error } = await F.sb.from("assessments").insert(rows).select();
+      if (error) { $("shAdd").disabled = false; return F.toast("Couldn't add: " + error.message, { long: true }); }
+      S.items.push(...(data || [])); F.store(key("items"), S.items);
+    }
+    for (const m of mods) if (!S.modules.some((x) => sameCode(x.code, m.code))) await addModule(m.code, m.name || "", true);
+    await addMissingModules();
+    F.sb.from("exam_shares").update({ imported_at: new Date().toISOString() }).eq("id", share.id).then(() => {}, () => {});
+    F.emit("data");
+    F.toast("Added " + (exams.length ? exams.length + " test" + (exams.length === 1 ? "" : "s") + "/exam" + (exams.length === 1 ? "" : "s") : "") + (exams.length && mods.length ? " and " : "") + (mods.length ? mods.length + " module" + (mods.length === 1 ? "" : "s") : "") + ". Funi is counting down!", { long: true });
+    F.go("exams");
+  };
+  F.on("view:share", (id) => { if (id) openShare(id); });
+
   /* =====================================================================
      MODULES & PRIORITIES
      ===================================================================== */

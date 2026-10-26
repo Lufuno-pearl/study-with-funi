@@ -14,7 +14,8 @@ Live: https://study-with-funi.vercel.app
 7. New query again: paste **`funi-v7-setup.sql`** and **Run**. This adds study rooms, leaderboard + streaks, the study garden, flashcards, quiz battles and voice-note notifications.
 8. New query again: paste **`funi-v8-setup.sql`** and **Run**. Cross night rooms then send "… is cross-nighting tonight 🌙".
 9. New query again: paste **`funi-v9-setup.sql`** and **Run**. This adds repeating reminders.
-10. All of them are safe to run again any time. They keep existing data.
+10. New query again: paste **`funi-v10-setup.sql`** and **Run**. Partners can share their exam timetable and modules (never marks).
+11. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
 

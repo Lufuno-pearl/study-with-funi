@@ -836,3 +836,10 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .lbl-sub { display: block; font-size: 12px; font-weight: 700; color: var(--muted); }
 .save-file { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 6px; padding: 6px 10px; border-radius: 999px; border: 0; cursor: pointer; font: 800 12px var(--body); background: rgba(127,127,127,0.16); color: inherit; }
 .save-file svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* shared exam timetable */
+.pick-row { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; min-height: 56px; cursor: pointer; margin: 0; font-weight: 400; }
+.pick-row input { width: 22px; height: 22px; accent-color: var(--accent); flex-shrink: 0; }
+.pick-row .grow { display: flex; flex-direction: column; min-width: 0; }
+.pick-row b { font-size: 14px; color: var(--ink); }
+.pick-row .grow span { font-size: 12px; font-weight: 700; color: var(--muted); }
+.pick-row.dup { opacity: .6; cursor: default; }

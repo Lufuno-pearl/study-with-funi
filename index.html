@@ -554,8 +554,24 @@
       <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <div class="grow"><h1>Tests &amp; exams</h1></div>
     </header>
-    <button type="button" class="btn primary block" id="addExamBtn">Add a test or exam</button>
+    <div class="two">
+      <button type="button" class="btn primary" id="addExamBtn">Add a test or exam</button>
+      <button type="button" class="btn soft-btn" id="shareExamsBtn">Share with partners</button>
+    </div>
     <div id="examList"></div>
+  </section>
+
+  <!-- ---------- A FRIEND SHARED THEIR EXAMS ---------- -->
+  <section class="view" id="vShare" hidden>
+    <header class="page-head">
+      <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1 id="shTitle">Shared with you</h1><p class="hint" id="shSub"></p></div>
+    </header>
+    <div class="stack" id="shBody"></div>
+    <div class="two" id="shBtns">
+      <button type="button" class="btn ghost" data-back>Not now</button>
+      <button type="button" class="btn primary" id="shAdd">Add selected</button>
+    </div>
   </section>
 
   <!-- ---------- PARTNERS ---------- -->

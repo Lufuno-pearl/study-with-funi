@@ -420,7 +420,8 @@
     studying: ["t-lav", '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/>'],
     room: ["t-mint", '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 20a5 5 0 0 1 10 0M11 20a5 5 0 0 1 10 0"/>'],
     deck: ["t-peach", '<rect x="3" y="7" width="14" height="13" rx="3"/><path d="M7 4h11a3 3 0 0 1 3 3v10"/>'],
-    battle: ["t-pink", '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>']
+    battle: ["t-pink", '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>'],
+    share: ["t-sky", '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>']
   };
   async function loadNotifs() {
     const { data, error } = await F.sb.from("notifications").select("*").order("created_at", { ascending: false }).limit(50);
@@ -475,6 +476,7 @@
     if (n.kind === "room" && n.ref_id) return F.go("room:" + n.ref_id);
     if (n.kind === "deck" && n.ref_id) return F.go("deck:" + n.ref_id);
     if (n.kind === "battle" && n.ref_id) return F.go("battle:" + n.ref_id);
+    if (n.kind === "share" && n.ref_id) return F.go("share:" + n.ref_id);
     F.go("partners:circle");
   }
   $("notifList").addEventListener("click", (e) => { const b = e.target.closest("[data-notif]"); if (!b) return; const n = S.notifs.find((x) => x.id === b.dataset.notif); if (n) openNotif(n); });
