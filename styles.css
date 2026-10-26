@@ -819,3 +819,7 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .room-card.night { background: linear-gradient(150deg, #1E1A45, #2C2266); border-color: #2C2266; color: #F3EEFF; }
 .room-card.night b { color: #FFFFFF; }
 .room-card.night .grow span { color: #DCD3FF; }
+.have-row { display: flex; flex-direction: column; gap: 2px; }
+.have-row span { font-size: 13px; font-weight: 700; color: var(--muted); }
+.have-row b { font-family: var(--display); font-size: 24px; font-weight: 600; color: var(--accent-soft-ink); }
+.need-hero .need-pct { font-size: 16px !important; font-weight: 800 !important; color: var(--on-hero) !important; }

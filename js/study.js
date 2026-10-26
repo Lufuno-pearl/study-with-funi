@@ -270,14 +270,34 @@
     $("mSave").disabled = !m;
     calcMarks();
   }
+  const r1 = (n) => String(Math.round(n * 10) / 10);
+  // marks you need from the exam: first out of the exam's share (e.g. "10.4 out of 40"), then as a % of the exam paper
+  function examNeed(m, target) {
+    const w = Math.max(5, m.exam_weight), have = m.class_mark * (100 - w) / 100;
+    let pts = Math.max(0, target - have), pct = (pts / w) * 100;
+    const subPct = m.subminimum, bySub = pct < subPct, subPts = (subPct / 100) * w;
+    return { w, have, pts, pct: Math.ceil(pct - 1e-9), bySub, subPts, subPct, reach: pct <= 100,
+      minPts: Math.max(pts, subPts), minPct: Math.ceil(Math.max(pct, subPct) - 1e-9) };
+  }
   function calcMarks() {
     const m = { class_mark: +$("mClass").value, exam_weight: +$("mWeight").value, subminimum: +$("mSub").value };
     $("mClassV").textContent = m.class_mark + "%"; $("mWeightV").textContent = m.exam_weight + "% of my final mark"; $("mSubV").textContent = m.subminimum + "%";
     $("mClassW").textContent = "So class work counts " + (100 - m.exam_weight) + "%.";
-    const p = needFor(m, 50), fmt = (n) => (n > 100 ? "Out of reach" : n + "%");
-    $("mPass").textContent = p > 100 ? "Out of reach" : p + "% in the exam";
-    $("mNote").textContent = p > 100 ? "This exam alone can't get you there. Ask your lecturer about a supp." : p <= m.subminimum ? "Your class mark carries you. Just clear the subminimum." : "That's " + Math.max(0, p - m.class_mark) + " points above your class mark.";
-    $("m60").textContent = fmt(needFor(m, 60)); $("m75").textContent = fmt(needFor(m, 75));
+    const p = examNeed(m, 50);
+    $("mHave").innerHTML = "<span>Your class mark already gives you</span><b>" + r1(p.have) + " out of " + (100 - p.w) + "</b><span>The exam is worth the other " + p.w + ".</span>";
+    if (!p.reach) {
+      $("mPass").textContent = "Out of reach"; $("mPct").textContent = "";
+      $("mNote").textContent = "Even " + p.w + " out of " + p.w + " won't get you to 50. Ask your lecturer about a supp.";
+    } else {
+      $("mPass").textContent = r1(p.pts) + " out of " + p.w;
+      $("mPct").textContent = "That's " + p.pct + "% in the exam paper.";
+      $("mNote").textContent = p.bySub ? "But the exam subminimum is " + p.subPct + "%, so you must still get at least " + r1(p.subPts) + " out of " + p.w + " to pass." : p.pct <= m.class_mark ? "Below your class mark. You've got this!" : "That's " + (p.pct - m.class_mark) + " points above your class mark.";
+    }
+    [[60, "m60"], [75, "m75"]].forEach(([t, id]) => {
+      const q = examNeed(m, t);
+      $(id).textContent = q.reach ? r1(q.minPts) + " / " + q.w : "Out of reach";
+      $(id + "p").textContent = q.reach ? q.minPct + "% in the exam" + (q.bySub ? " (subminimum)" : "") : "";
+    });
   }
   ["mClass", "mWeight", "mSub"].forEach((id) => $(id).addEventListener("input", calcMarks));
   $("mModule").addEventListener("change", () => { F.marksModule = $("mModule").value; loadMarksFrom($("mModule").value); });

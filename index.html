@@ -519,14 +519,16 @@
       <div class="slider-row"><label class="lbl" for="mSub">Exam subminimum</label><output id="mSubV">40%</output></div>
       <input type="range" id="mSub" min="0" max="60" step="5" value="40">
     </div>
+    <div class="card flat have-row" id="mHave"></div>
     <section class="need-hero">
       <span class="eyebrow">TO PASS WITH 50% YOU NEED</span>
       <b id="mPass">–</b>
+      <span class="need-pct" id="mPct"></span>
       <span id="mNote"></span>
     </section>
     <div class="two">
-      <div class="card flat"><small>For 60%</small><div class="stat-big" id="m60"></div></div>
-      <div class="card flat"><small>For a distinction (75%)</small><div class="stat-big" id="m75"></div></div>
+      <div class="card flat"><small>For 60%</small><div class="stat-big" id="m60"></div><small class="hint" id="m60p"></small></div>
+      <div class="card flat"><small>For a distinction (75%)</small><div class="stat-big" id="m75"></div><small class="hint" id="m75p"></small></div>
     </div>
     <button type="button" class="btn soft-btn block" id="mSave">Save and update my priorities</button>
   </section>
