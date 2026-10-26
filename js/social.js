@@ -284,6 +284,7 @@
       const url = signed[m.file_path];
       if (m.file_type && m.file_type.startsWith("audio/")) inner += url ? '<span class="voice"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><audio controls preload="metadata" src="' + esc(url) + '" aria-label="' + esc(m.file_name || "Voice note") + '"></audio></span><span class="voice-left">' + voiceLeft(m.created_at) + "</span>" : '<span class="file-chip">Loading voice note…</span>';
       else if (m.file_type && m.file_type.startsWith("image/")) inner += url ? '<img src="' + esc(url) + '" alt="' + esc(m.file_name || "Photo") + '" data-full="' + esc(url) + '" loading="lazy">' : '<span class="file-chip">Loading photo…</span>';
+      else if (F.isHtmlName && F.isHtmlName(m.file_name, m.file_type)) inner += '<button type="button" class="file-chip" data-chat-html="' + esc(m.file_path) + '" data-title="' + esc(m.file_name || "Page") + '"><svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12"/></svg>' + esc(m.file_name || "Page") + "</button>";
       else inner += '<a class="file-chip" href="' + esc(url || "#") + '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>' + esc(m.file_name || "File") + "</a>";
     }
     if (m.body) inner += esc(m.body).replace(/https?:\/\/[^\s<]+/g, (u) => '<a href="' + u + '"' + (u.indexOf(location.origin) === 0 ? "" : ' target="_blank" rel="noopener"') + ">" + u + "</a>");
@@ -311,6 +312,7 @@
     const ids = S.notifs.filter((n) => !n.read_at && n.actor_id === id && (n.kind === "message" || n.kind === "help")).map((n) => n.id);
     if (ids.length) { S.notifs.forEach((n) => { if (ids.includes(n.id)) n.read_at = now; }); renderBell(); await F.sb.from("notifications").update({ read_at: now }).in("id", ids); }
   }
+  $("msgs").addEventListener("click", (e) => { const hc = e.target.closest("[data-chat-html]"); if (hc) { F.openHtml({ bucket: "chat-files", path: hc.dataset.chatHtml, title: hc.dataset.title }); return; } });
   $("msgs").addEventListener("click", (e) => { const img = e.target.closest("img[data-full]"); if (img) { $("imgFull").src = img.dataset.full; $("imgSheet").showModal(); } });
   $("chatBack").onclick = () => F.go("messages");
   function setHelp(on) { helpOn = on; $("helpToggle").setAttribute("aria-pressed", String(on)); $("helpToggle").textContent = on ? "Help request on" : "Ask for help"; $("chatInput").placeholder = on ? "What do you need help with?" : "Type a message…"; }

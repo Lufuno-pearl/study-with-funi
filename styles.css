@@ -823,3 +823,10 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .have-row span { font-size: 13px; font-weight: 700; color: var(--muted); }
 .have-row b { font-family: var(--display); font-size: 24px; font-weight: 600; color: var(--accent-soft-ink); }
 .need-hero .need-pct { font-size: 16px !important; font-weight: 800 !important; color: var(--on-hero) !important; }
+/* HTML files open as real pages inside Funi */
+.html-view { padding: 0; width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; background: var(--bg); display: none; flex-direction: column; }
+.html-view[open] { display: flex; }
+.hv-bar { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px; background: var(--card); border-bottom: 1px solid var(--line); }
+.hv-bar b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-weight: 600; font-size: 17px; color: var(--ink); }
+#hvFrame { flex: 1; width: 100%; border: 0; background: #FFFFFF; }
+.file-chip { font: inherit; border: 0; cursor: pointer; text-align: left; width: 100%; }

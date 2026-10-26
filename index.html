@@ -733,7 +733,7 @@
       <button type="button" class="btn ghost small" id="attachBtn"><svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l8.3-8.3"/></svg>Attach question</button>
       <button type="button" class="btn small help-toggle" id="helpToggle" aria-pressed="false">Ask for help</button>
     </div>
-    <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt" hidden>
+    <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.html,.htm" hidden>
   </div>
 </div>
 
@@ -924,6 +924,13 @@
   </div>
 </div></dialog>
 
+<dialog id="htmlSheet" class="html-view" aria-labelledby="hvTitle">
+  <div class="hv-bar">
+    <b id="hvTitle">Page</b>
+    <button type="button" class="btn primary small" data-close="htmlSheet">Close</button>
+  </div>
+  <iframe id="hvFrame" title="Your HTML file" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
+</dialog>
 <dialog id="imgSheet" class="img-view"><button type="button" class="btn ghost block" data-close="imgSheet">Close</button><img id="imgFull" alt="Shared photo"></dialog>
 
 <dialog id="iosSheet"><div class="sheet">

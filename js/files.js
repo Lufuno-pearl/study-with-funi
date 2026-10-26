@@ -23,6 +23,7 @@
   function kindOf(f) {
     if (f.kind === "link") return ["LINK", "c-sky"];
     const m = (f.mime || "") + " " + (f.name || "") + " " + (f.path || "");
+    if (/text\/html|\.html?\b/i.test(m)) return ["HTML", "c-sky"];
     if (/image\//.test(m) || /\.(jpe?g|png|gif|webp|heic)\b/i.test(m)) return ["IMG", "c-mint"];
     if (/pdf/i.test(m)) return ["PDF", "c-peach"];
     if (/word|\.docx?\b/i.test(m)) return ["DOC", "c-lav"];
@@ -68,7 +69,9 @@
     const [k, cls] = kindOf(f), href = hrefOf(f);
     const meta = opts && opts.recent ? f.module_code + " · opened " + when(f.opened_at) : f.folder + " · " + (f.kind === "link" ? "Link" : sizeTxt(+f.size || 0)) + " · " + when(f.created_at);
     const inner = '<span class="file-ic ' + cls + '">' + k + '</span><span class="file-txt"><b>' + esc(f.name) + "</b><span>" + esc(meta) + "</span></span>";
-    const open = k === "IMG" && href
+    const open = k === "HTML" && f.kind === "file"
+      ? '<button type="button" class="file-open" data-html="' + esc(f.id) + '">' + inner + "</button>"
+      : k === "IMG" && href
       ? '<button type="button" class="file-open" data-img="' + esc(f.id) + '">' + inner + "</button>"
       : href ? '<a class="file-open" href="' + esc(href) + '" target="_blank" rel="noopener" data-open="' + esc(f.id) + '">' + inner + "</a>"
         : '<span class="file-open">' + inner + "</span>";
@@ -130,6 +133,8 @@
   }
   document.addEventListener("click", async (e) => {
     const t = e.target;
+    const hb = t.closest("[data-html]");
+    if (hb) { const f = byId(hb.dataset.html); if (!f) return; markOpened(f); F.openHtml({ bucket: BUCKET, path: f.path, title: f.name }); return; }
     const img = t.closest("[data-img]");
     if (img) { const f = byId(img.dataset.img); if (!f) return; $("imgFull").src = hrefOf(f); $("imgSheet").showModal(); markOpened(f); return; }
     const op = t.closest("[data-open]");
@@ -276,6 +281,27 @@
       $("sendList").querySelectorAll("button").forEach((x) => (x.disabled = false));
     }
   });
+
+  /* ---------- HTML files open as real pages (Supabase shows them as plain text for safety) ---------- */
+  F.isHtmlName = (name, mime) => /text\/html/i.test(mime || "") || /\.html?$/i.test(name || "");
+  F.openHtml = async ({ bucket, path, title }) => {
+    $("hvTitle").textContent = title || "Page";
+    const frame = $("hvFrame");
+    frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#555">Opening…</p>';
+    $("htmlSheet").showModal();
+    const { data, error } = await F.sb.storage.from(bucket).download(path);
+    if (error || !data) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">Couldn\'t open this file. Check your internet and try again.</p>'; return; }
+    let html = await data.text();
+    // the page runs in a locked box: it can't see your Funi account or files
+    // pages that save progress in localStorage still work (kept while the page is open)
+    const shim = "<script>(function(){function M(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}}" +
+      "['localStorage','sessionStorage'].forEach(function(n){try{window[n].length}catch(e){try{Object.defineProperty(window,n,{value:M(),configurable:true})}catch(e2){}}})})();<\/script>";
+    html = shim + html;
+    if (!/<meta[^>]+charset/i.test(html)) html = '<meta charset="utf-8">' + html;
+    if (!/<meta[^>]+viewport/i.test(html)) html = '<meta name="viewport" content="width=device-width, initial-scale=1">' + html;
+    frame.srcdoc = html;
+  };
+  $("htmlSheet").addEventListener("close", () => { $("hvFrame").srcdoc = ""; });
 
   /* ---------- hooks ---------- */
   F.on("view:files", renderFiles);
