@@ -12,7 +12,8 @@ Live: https://study-with-funi.vercel.app
 5. New query again: paste **`funi-v5-setup.sql`** and **Run**. This adds files for each module (private `module-files` storage, 10 MB a file, 50 MB per person).
 6. New query again: paste **`funi-v6-setup.sql`** and **Run**. Accounts now need a verified email (one account per email), log in with username or email, and Funi is limited to 200 accounts (change the number in `funi_max_accounts()`).
 7. New query again: paste **`funi-v7-setup.sql`** and **Run**. This adds study rooms, leaderboard + streaks, the study garden, flashcards, quiz battles and voice-note notifications.
-8. All of them are safe to run again any time. They keep existing data.
+8. New query again: paste **`funi-v8-setup.sql`** and **Run**. Cross night rooms then send "… is cross-nighting tonight 🌙".
+9. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
 

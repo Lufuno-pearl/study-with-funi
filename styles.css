@@ -807,3 +807,15 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 @media (min-width: 1000px) { .fun-tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); } .seats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .spam-note { margin: 10px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--butter); color: var(--butter-ink); font-size: 13px; font-weight: 700; text-align: left; line-height: 1.45; }
 .voice-left { display: block; font-size: 11px; font-weight: 700; opacity: .8; margin: -2px 0 4px 26px; }
+
+/* cross night */
+.cross-night { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; border: 0; border-radius: 22px; padding: 14px; font: inherit; color: #F3EEFF; background: radial-gradient(circle at 85% 20%, #3B2F7A 0, transparent 45%), linear-gradient(150deg, #1E1A45, #2C2266); box-shadow: var(--shadow); }
+.cross-night .cn-moon { width: 46px; height: 46px; flex-shrink: 0; }
+.cross-night .grow { display: flex; flex-direction: column; gap: 2px; }
+.cross-night b { font-family: var(--display); font-size: 19px; font-weight: 600; color: #FFFFFF; }
+.cross-night .grow span { font-size: 12.5px; font-weight: 700; color: #DCD3FF; }
+.cn-go { background: #FDD167; color: #3A2A00; font-weight: 800; font-size: 13px; border-radius: 999px; padding: 8px 14px; flex-shrink: 0; }
+.room-timer.night { background: radial-gradient(circle at 85% 15%, #3B2F7A 0, transparent 40%), linear-gradient(150deg, #1E1A45, #2C2266); color: #F3EEFF; }
+.room-card.night { background: linear-gradient(150deg, #1E1A45, #2C2266); border-color: #2C2266; color: #F3EEFF; }
+.room-card.night b { color: #FFFFFF; }
+.room-card.night .grow span { color: #DCD3FF; }

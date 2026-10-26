@@ -44,7 +44,7 @@
     return r.round ? "Between rounds" : "Waiting to start";
   }
   function roomCard(r) {
-    return '<div class="room-card"><span class="ava sm">' + F.avatar(profiles()[r.host_id] || { id: r.host_id }) + '</span><span class="grow"><b>' + esc(r.name) + "</b><span>" +
+    return '<div class="room-card' + (isNight(r) ? " night" : "") + '"><span class="ava sm">' + F.avatar(profiles()[r.host_id] || { id: r.host_id }) + '</span><span class="grow"><b>' + esc(r.name) + "</b><span>" +
       esc(nameOf(r.host_id)) + (r.module_code ? " · " + esc(r.module_code) : "") + " · " + r.inside + " inside · " + esc(roomState(r)) + "</span></span>" +
       '<button type="button" class="btn primary small" data-join="' + esc(r.id) + '">' + (r.mine ? "Open" : "Join") + "</button></div>";
   }
@@ -78,6 +78,15 @@
     F.go("room:" + data.id);
   });
 
+  const isNight = (r) => /^cross night/i.test((r && r.name) || "");
+  $("crossNightBtn").onclick = async () => {
+    $("crossNightBtn").disabled = true;
+    const mod = $("roomModule").value;
+    const { data, error } = await F.sb.from("study_rooms").insert({ host_id: F.me.id, name: "Cross night 🌙", module_code: mod || null, focus_minutes: 50, break_minutes: 10 }).select().single();
+    $("crossNightBtn").disabled = false;
+    if (error) return F.toast("Couldn't start cross night: " + error.message, { long: true });
+    F.go("room:" + data.id);
+  };
   async function enterRoom(id) {
     if (!F.sb || !F.me) return;
     if (!room || room.id !== id) { stopRoom(); members = []; }
@@ -147,6 +156,8 @@
     const i = timerInfo();
     $("rmLabel").textContent = i.label; $("rmClock").textContent = i.clock; $("rmNote").textContent = i.note;
     $("rmTimer").classList.toggle("is-break", !!i.brk);
+    $("rmTimer").classList.toggle("night", isNight(room) && !i.brk);
+    if (isNight(room) && !i.run) $("rmNote").textContent = room.round ? "Drink water, stretch, then the next round 🌙" : "Cross night! Start when the squad is here 🌙";
     if (justEnded && room.phase === "focus") {
       $("rmTimer").classList.remove("celebrate"); void $("rmTimer").offsetWidth; $("rmTimer").classList.add("celebrate");
       if (!$("rmTimer").querySelector(".confetti")) $("rmTimer").insertAdjacentHTML("afterbegin", '<div class="confetti" aria-hidden="true">' + "<i></i>".repeat(12) + "</div>");
