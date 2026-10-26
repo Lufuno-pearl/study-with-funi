@@ -884,6 +884,24 @@
   </div>
 </form></dialog>
 
+<dialog id="saveSheet"><form class="sheet" id="saveForm" novalidate>
+  <div class="sheet-grip"></div>
+  <h2>Save to my files</h2>
+  <p class="picked" id="svWhat"></p>
+  <label for="svModule">Which module?</label>
+  <select id="svModule"></select>
+  <label for="svName">Name</label>
+  <input id="svName" maxlength="120" autocomplete="off">
+  <span class="label">Put it in</span>
+  <div class="chips" id="svFolders"></div>
+  <p class="hint">It uses your 50 MB of space. Only you can see your files.</p>
+  <p class="form-error" id="svError" hidden></p>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="saveSheet">Cancel</button>
+    <button type="submit" class="btn primary" id="svSave">Save</button>
+  </div>
+</form></dialog>
+
 <dialog id="sendSheet"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2>Send to a study partner</h2>

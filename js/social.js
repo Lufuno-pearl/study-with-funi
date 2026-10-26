@@ -287,6 +287,7 @@
       else if (F.isHtmlName && F.isHtmlName(m.file_name, m.file_type)) inner += '<button type="button" class="file-chip" data-chat-html="' + esc(m.file_path) + '" data-title="' + esc(m.file_name || "Page") + '"><svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12"/></svg>' + esc(m.file_name || "Page") + "</button>";
       else inner += '<a class="file-chip" href="' + esc(url || "#") + '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>' + esc(m.file_name || "File") + "</a>";
     }
+    if (m.file_path && !(m.file_type || "").startsWith("audio/")) inner += '<button type="button" class="save-file" data-save-msg="' + esc(m.id) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Save to my files</button>';
     if (m.body) inner += esc(m.body).replace(/https?:\/\/[^\s<]+/g, (u) => '<a href="' + u + '"' + (u.indexOf(location.origin) === 0 ? "" : ' target="_blank" rel="noopener"') + ">" + u + "</a>");
     return '<div class="bubble' + (mine ? " me" : "") + (m.is_help ? " help" : "") + (isNew ? " new" : "") + '">' + inner + "<time>" + F.clockOf(m.created_at) + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
   }
@@ -312,6 +313,7 @@
     const ids = S.notifs.filter((n) => !n.read_at && n.actor_id === id && (n.kind === "message" || n.kind === "help")).map((n) => n.id);
     if (ids.length) { S.notifs.forEach((n) => { if (ids.includes(n.id)) n.read_at = now; }); renderBell(); await F.sb.from("notifications").update({ read_at: now }).in("id", ids); }
   }
+  $("msgs").addEventListener("click", (e) => { const sv = e.target.closest("[data-save-msg]"); if (sv) { const m = chatMsgs.find((x) => x.id === sv.dataset.saveMsg); if (m && F.saveChatFile) F.saveChatFile(m); } });
   $("msgs").addEventListener("click", (e) => { const hc = e.target.closest("[data-chat-html]"); if (hc) { F.openHtml({ bucket: "chat-files", path: hc.dataset.chatHtml, title: hc.dataset.title }); return; } });
   $("msgs").addEventListener("click", (e) => { const img = e.target.closest("img[data-full]"); if (img) { $("imgFull").src = img.dataset.full; $("imgSheet").showModal(); } });
   $("chatBack").onclick = () => F.go("messages");

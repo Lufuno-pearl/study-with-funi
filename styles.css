@@ -834,3 +834,5 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .num-box input[type=number] { width: 74px; min-height: 40px; padding: 6px 8px; border-radius: 12px; text-align: center; font-family: var(--display); font-weight: 600; font-size: 17px; color: var(--ink); -moz-appearance: textfield; }
 .num-box input[type=number]::-webkit-outer-spin-button, .num-box input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .lbl-sub { display: block; font-size: 12px; font-weight: 700; color: var(--muted); }
+.save-file { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 6px; padding: 6px 10px; border-radius: 999px; border: 0; cursor: pointer; font: 800 12px var(--body); background: rgba(127,127,127,0.16); color: inherit; }
+.save-file svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }

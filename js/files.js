@@ -282,6 +282,50 @@
     }
   });
 
+  /* ---------- "Save to my files" for files friends send in chat ---------- */
+  let saving = null, svFolder = "Notes";
+  function drawSvFolders() {
+    $("svFolders").innerHTML = FOLDERS.map((c) => '<button type="button" class="chip' + (svFolder === c ? " on" : "") + '" aria-pressed="' + (svFolder === c) + '" data-svf="' + esc(c) + '">' + esc(c) + "</button>").join("");
+  }
+  $("svFolders").addEventListener("click", (e) => { const b = e.target.closest("[data-svf]"); if (!b) return; svFolder = b.dataset.svf; drawSvFolders(); });
+  F.saveChatFile = (msg) => {
+    if (missing) return F.toast("Run funi-v5-setup.sql in Supabase first, then you can save files.", { long: true });
+    saving = msg;
+    const codes = moduleCodes();
+    $("svModule").innerHTML = codes.map((c) => '<option value="' + esc(c) + '">' + esc(c + (modName(c) ? " · " + modName(c) : "")) + "</option>").join("") + '<option value="GENERAL">General</option>';
+    $("svName").value = String(msg.file_name || "File").replace(/\.[^.]+$/, "").slice(0, 120);
+    const isImg = /^image\//.test(msg.file_type || ""), isAudio = /^audio\//.test(msg.file_type || "");
+    svFolder = isImg ? "Photos" : "Notes";
+    $("svWhat").textContent = (msg.file_name || "File") + (msg.file_size ? " · " + sizeTxt(+msg.file_size) : "");
+    F.showError("svError", ""); drawSvFolders();
+    $("saveSheet").showModal();
+  };
+  $("saveForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!saving) return;
+    const code = $("svModule").value || "GENERAL", name = $("svName").value.trim() || "File";
+    const size = +saving.file_size || 0;
+    if (size > MAX_FILE) return F.showError("svError", "That file is bigger than 10 MB, so it can't go in My files.");
+    if (used() + size > MAX_SPACE) return F.showError("svError", "Your 50 MB is full. Delete some files first.");
+    $("svSave").disabled = true; F.showError("svError", "");
+    try {
+      const dl = await F.sb.storage.from("chat-files").download(saving.file_path);
+      if (dl.error || !dl.data) throw new Error(dl.error ? dl.error.message : "download failed");
+      const extM = String(saving.file_name || saving.file_path).match(/\.(\w+)$/), ext = extM ? "." + extM[1].toLowerCase() : "";
+      const path = F.me.id + "/" + code.replace(/[^\w\-]+/g, "_") + "/" + Date.now() + "-" + (name.replace(/[^\w.\-]+/g, "_").slice(0, 60) || "file") + ext;
+      const type = saving.file_type || dl.data.type || "application/octet-stream";
+      const up = await F.sb.storage.from(BUCKET).upload(path, dl.data, { contentType: type, upsert: false });
+      if (up.error) throw new Error(up.error.message);
+      const { data, error } = await F.sb.from("module_files").insert({ user_id: F.me.id, module_code: code, folder: svFolder, name, kind: "file", path, mime: type, size: dl.data.size }).select().single();
+      if (error) { await F.sb.storage.from(BUCKET).remove([path]); throw new Error(error.message); }
+      S.files.unshift(data);
+      $("saveSheet").close();
+      F.toast("Saved to " + code + " › " + svFolder + ".", { onClick: () => F.go("modfiles:" + code) });
+    } catch (err) {
+      F.showError("svError", "Couldn't save: " + (err.message || err));
+    } finally { $("svSave").disabled = false; }
+  });
+
   /* ---------- HTML files open as real pages (Supabase shows them as plain text for safety) ---------- */
   F.isHtmlName = (name, mime) => /text\/html/i.test(mime || "") || /\.html?$/i.test(name || "");
   F.openHtml = async ({ bucket, path, title }) => {
