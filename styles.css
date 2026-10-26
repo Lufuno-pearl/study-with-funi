@@ -843,3 +843,22 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .pick-row b { font-size: 14px; color: var(--ink); }
 .pick-row .grow span { font-size: 12px; font-weight: 700; color: var(--muted); }
 .pick-row.dup { opacity: .6; cursor: default; }
+/* deleting chat messages */
+.bubble { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: transform .15s; }
+@media (pointer: fine) { .bubble { -webkit-user-select: text; user-select: text; } }
+.bubble.pressed { transform: scale(.97); }
+.bubble.deleted { background: transparent !important; border: 1.5px dashed var(--line) !important; color: var(--muted) !important; box-shadow: none !important; }
+.del-txt { display: inline-flex; align-items: center; gap: 6px; font-style: italic; font-weight: 700; font-size: 14px; }
+.del-txt svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.msg-quote { margin: 4px 0 12px; padding: 10px 12px; border-radius: 14px; background: var(--card-2); color: var(--ink); font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+.msg-actions { gap: 8px; }
+/* replying */
+.reply-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 12px; border-radius: 14px; background: var(--accent-soft); border-left: 4px solid var(--accent); }
+.reply-bar .grow { display: flex; flex-direction: column; min-width: 0; }
+.reply-bar b { font-size: 12px; color: var(--accent-soft-ink); }
+.reply-bar .grow span { font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quote { display: flex; flex-direction: column; width: 100%; text-align: left; margin: 0 0 6px; padding: 6px 10px; border: 0; border-left: 3px solid currentColor; border-radius: 10px; background: rgba(127,127,127,0.18); color: inherit; font: inherit; cursor: pointer; }
+.quote b { font-size: 12px; }
+.quote span { font-size: 13px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bubble.flash { animation: funi-flash 1.2s ease; }
+@keyframes funi-flash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 4px var(--accent); } }

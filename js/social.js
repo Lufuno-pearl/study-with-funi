@@ -214,16 +214,17 @@
   async function loadConvos() {
     S.convos = {};
     if (!S.partners.length) return;
-    const { data } = await F.sb.from("study_messages").select("id,sender_id,recipient_id,body,file_name,is_help,created_at,read_at")
+    const { data } = await F.sb.from("study_messages").select("*")
       .or("sender_id.eq." + F.me.id + ",recipient_id.eq." + F.me.id).order("created_at", { ascending: false }).limit(300);
-    (data || []).forEach((m) => {
+    (data || []).filter((m) => !hiddenForMe(m)).forEach((m) => {
       const other = m.sender_id === F.me.id ? m.recipient_id : m.sender_id;
       const c = S.convos[other] || (S.convos[other] = { last: null, unread: 0 });
       if (!c.last) c.last = m;
       if (m.recipient_id === F.me.id && !m.read_at) c.unread++;
     });
   }
-  const previewOf = (m) => !m ? "Say hi and plan your first study session" : (m.sender_id === F.me.id ? "You: " : "") + (m.is_help ? "Needs help · " : "") + (m.body || (m.file_name ? "Sent " + m.file_name : "Sent a file"));
+  const hiddenForMe = (m) => (m.hidden_for || []).includes(F.me.id);
+  const previewOf = (m) => !m ? "Say hi and plan your first study session" : m.deleted_at ? (m.sender_id === F.me.id ? "You deleted this message" : "This message was deleted") : (m.sender_id === F.me.id ? "You: " : "") + (m.is_help ? "Needs help · " : "") + (m.body || (m.file_name ? "Sent " + m.file_name : "Sent a file"));
   function renderConvos() {
     const unreadTotal = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
     $("msgBadge").hidden = !unreadTotal; $("msgBadge").textContent = unreadTotal;
@@ -248,7 +249,7 @@
     $("chatAva").innerHTML = F.avatar(p); $("chatName").textContent = F.nameOf(p);
     drawChatStatus();
     $("msgs").innerHTML = '<p class="status-line">Loading messages…</p>';
-    clearAttach(); setHelp(false);
+    clearAttach(); setHelp(false); setReply(null);
     const { data, error } = await F.sb.from("study_messages").select("*")
       .or("and(sender_id.eq." + F.me.id + ",recipient_id.eq." + id + "),and(sender_id.eq." + id + ",recipient_id.eq." + F.me.id + ")")
       .order("created_at", { ascending: false }).limit(200);
@@ -278,7 +279,14 @@
   }
   function bubbleHtml(m, isNew) {
     const mine = m.sender_id === F.me.id;
+    if (m.deleted_at) return '<div class="bubble deleted' + (mine ? " me" : "") + '" data-mid="' + esc(m.id) + '"><span class="del-txt"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>' + (mine ? "You deleted this message" : "This message was deleted") + "</span><time>" + F.clockOf(m.created_at) + "</time></div>";
     let inner = "";
+    if (m.reply_to) {
+      const q = chatMsgs.find((x) => x.id === m.reply_to);
+      const qWho = q ? (q.sender_id === F.me.id ? "You" : F.nameOf(profiles[q.sender_id] || {})) : "";
+      const qTxt = !q ? "Original message isn't loaded" : q.deleted_at ? "This message was deleted" : (q.body || (q.file_type && q.file_type.startsWith("audio/") ? "Voice note" : q.file_name || "File"));
+      inner += '<button type="button" class="quote" data-jump="' + esc(m.reply_to) + '"><b>' + esc(qWho) + "</b><span>" + esc(String(qTxt).slice(0, 120)) + "</span></button>";
+    }
     if (m.is_help) inner += '<span class="help-tag">Help request</span><br>';
     if (m.file_path) {
       const url = signed[m.file_path];
@@ -289,13 +297,13 @@
     }
     if (m.file_path && !(m.file_type || "").startsWith("audio/")) inner += '<button type="button" class="save-file" data-save-msg="' + esc(m.id) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Save to my files</button>';
     if (m.body) inner += esc(m.body).replace(/https?:\/\/[^\s<]+/g, (u) => '<a href="' + u + '"' + (u.indexOf(location.origin) === 0 ? "" : ' target="_blank" rel="noopener"') + ">" + u + "</a>");
-    return '<div class="bubble' + (mine ? " me" : "") + (m.is_help ? " help" : "") + (isNew ? " new" : "") + '">' + inner + "<time>" + F.clockOf(m.created_at) + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
+    return '<div class="bubble' + (mine ? " me" : "") + (m.is_help ? " help" : "") + (isNew ? " new" : "") + '" data-mid="' + esc(m.id) + '">' + inner + "<time>" + F.clockOf(m.created_at) + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
   }
   async function drawMsgs(newId) {
     await Promise.all(chatMsgs.filter((m) => m.file_path && !signed[m.file_path]).map((m) => signUrl(m.file_path)));
     if (!chatMsgs.length) { $("msgs").innerHTML = '<div class="empty"><b>Say hi to ' + esc(F.nameOf(profiles[S.chatWith])) + '</b><span>Send a photo of a question, a PDF, or ask for help.</span></div>'; return; }
     let html = "", lastDay = "";
-    chatMsgs.forEach((m) => {
+    chatMsgs.filter((m) => !hiddenForMe(m)).forEach((m) => {
       const d = new Date(m.created_at).toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" });
       if (d !== lastDay) { html += '<span class="day-sep">' + (F.isoOf(new Date(m.created_at)) === F.todayISO() ? "Today" : d) + "</span>"; lastDay = d; }
       html += bubbleHtml(m, m.id === newId);
@@ -335,6 +343,7 @@
     if (!to || (!body && !attachFile)) return;
     $("sendBtn").disabled = true;
     const row = { sender_id: F.me.id, recipient_id: to, body, is_help: helpOn };
+    if (replyTo) row.reply_to = replyTo.id;
     if (attachFile) {
       const safe = attachFile.name.replace(/[^\w.\-]+/g, "_").slice(-60);
       const path = F.me.id + "/" + to + "/" + Date.now() + "-" + safe;
@@ -345,8 +354,9 @@
     }
     const { data, error } = await F.sb.from("study_messages").insert(row).select().single();
     $("sendBtn").disabled = false;
+    if (error && /reply_to/.test(error.message)) return F.toast("Replies need one setup step: run funi-v11-setup.sql in Supabase.", { long: true });
     if (error) return F.toast("Message wasn't sent: " + error.message, { long: true });
-    $("chatInput").value = ""; $("chatInput").style.height = "auto"; clearAttach(); setHelp(false);
+    $("chatInput").value = ""; $("chatInput").style.height = "auto"; clearAttach(); setHelp(false); setReply(null);
     chatMsgs.push(data);
     (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
     await drawMsgs(data.id);
@@ -399,10 +409,11 @@
     const up = await F.sb.storage.from("chat-files").upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
     if (up.error) { $("recSend").disabled = false; showRecorder(false); return F.toast("Couldn't send the voice note: " + up.error.message, { long: true }); }
     const row = { sender_id: F.me.id, recipient_id: to, body: "", is_help: helpOn, file_path: path, file_name: "Voice note (" + mmss(secs) + ")", file_type: blob.type || "audio/webm", file_size: blob.size };
+    if (replyTo) row.reply_to = replyTo.id;
     const { data, error } = await F.sb.from("study_messages").insert(row).select().single();
     $("recSend").disabled = false; showRecorder(false); recBlob = null;
     if (error) return F.toast("Voice note wasn't sent: " + error.message, { long: true });
-    setHelp(false);
+    setHelp(false); setReply(null);
     chatMsgs.push(data);
     (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
     await drawMsgs(data.id);
@@ -496,7 +507,73 @@
     if (S.view === "chat" && S.chatWith === m.sender_id && document.visibilityState === "visible") { chatMsgs.push(m); await drawMsgs(m.id); markRead(m.sender_id); }
     else { c.unread++; renderConvos(); }
   });
-  F.on("rt:messageRead", (m) => { const local = chatMsgs.find((x) => x.id === m.id); if (local && !local.read_at) { local.read_at = m.read_at; if (S.view === "chat") drawMsgs(); } });
+  function applyMsgUpdate(m) {
+    const local = chatMsgs.find((x) => x.id === m.id);
+    if (local) { const changed = local.read_at !== m.read_at || local.deleted_at !== m.deleted_at || (local.hidden_for || []).length !== (m.hidden_for || []).length; Object.assign(local, m); if (changed && S.view === "chat") drawMsgs(); }
+    const other = m.sender_id === F.me.id ? m.recipient_id : m.sender_id, c = S.convos[other];
+    if (c && c.last && c.last.id === m.id) { Object.assign(c.last, m); renderConvos(); }
+  }
+  F.on("rt:messageRead", applyMsgUpdate);
+  F.on("rt:messageUpdate", applyMsgUpdate);
+
+  /* ---------- long-press (or right-click) a message: copy / delete ---------- */
+  let pressT = null, pressAt = null, msgSel = null;
+  function openMsgSheet(id) {
+    const m = chatMsgs.find((x) => x.id === id); if (!m) return;
+    msgSel = m;
+    const mine = m.sender_id === F.me.id;
+    $("msqText").textContent = m.deleted_at ? (mine ? "You deleted this message" : "This message was deleted") : (m.body || m.file_name || "File").slice(0, 140);
+    $("msqCopy").hidden = !m.body || !!m.deleted_at;
+    $("msqReply").hidden = !!m.deleted_at;
+    $("msqAll").hidden = !mine || !!m.deleted_at;
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
+    $("msgSheet").showModal();
+  }
+  $("msgs").addEventListener("pointerdown", (e) => {
+    const b = e.target.closest(".bubble[data-mid]"); if (!b || e.button > 0 || e.target.closest("audio, button, a, img")) return;
+    pressAt = [e.clientX, e.clientY]; clearTimeout(pressT);
+    pressT = setTimeout(() => { pressT = null; b.classList.add("pressed"); setTimeout(() => b.classList.remove("pressed"), 300); openMsgSheet(b.dataset.mid); }, 500);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => $("msgs").addEventListener(ev, () => { clearTimeout(pressT); pressT = null; }));
+  $("msgs").addEventListener("pointermove", (e) => { if (pressT && pressAt && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 10) { clearTimeout(pressT); pressT = null; } });
+  $("msgs").addEventListener("contextmenu", (e) => { const b = e.target.closest(".bubble[data-mid]"); if (!b) return; e.preventDefault(); openMsgSheet(b.dataset.mid); });
+  let replyTo = null;
+  function setReply(m) {
+    replyTo = m;
+    $("replyBar").hidden = !m;
+    if (!m) return;
+    $("replyWho").textContent = m.sender_id === F.me.id ? "Replying to yourself" : "Replying to " + F.nameOf(profiles[m.sender_id] || {});
+    $("replyTxt").textContent = (m.body || (m.file_type && m.file_type.startsWith("audio/") ? "Voice note" : m.file_name || "File")).slice(0, 100);
+  }
+  F.clearReply = () => setReply(null);
+  $("replyClear").onclick = () => setReply(null);
+  $("msqReply").onclick = () => { $("msgSheet").close(); setReply(msgSel); $("chatInput").focus(); };
+  $("msgs").addEventListener("click", (e) => {
+    const j = e.target.closest("[data-jump]"); if (!j) return;
+    const el = $("msgs").querySelector('.bubble[data-mid="' + j.dataset.jump + '"]');
+    if (!el) return F.toast("That message is further back in the chat.");
+    el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1200);
+  });
+  $("msqCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(msgSel.body); F.toast("Copied."); } catch (e) { F.toast("Couldn't copy on this phone."); }
+    $("msgSheet").close();
+  };
+  async function deleteMsg(forAll) {
+    const m = msgSel; if (!m) return;
+    $("msgSheet").close();
+    const path = m.file_path;
+    const { error } = await F.sb.rpc("funi_delete_message", { p_id: m.id, p_for_all: forAll });
+    if (error) return F.toast(/funi_delete_message|function/.test(error.message) ? "Deleting messages needs one setup step: run funi-v11-setup.sql in Supabase." : error.message, { long: true });
+    if (forAll) {
+      if (path) F.sb.storage.from("chat-files").remove([path]).then(() => {}, () => {});
+      Object.assign(m, { deleted_at: new Date().toISOString(), body: "This message was deleted", file_path: null, file_name: null, file_type: null, file_size: null, is_help: false });
+    } else m.hidden_for = (m.hidden_for || []).concat(F.me.id);
+    const c = S.convos[S.chatWith];
+    if (c && c.last && c.last.id === m.id) { const vis = chatMsgs.filter((x) => !hiddenForMe(x)); c.last = vis[vis.length - 1] || null; renderConvos(); }
+    await drawMsgs(); F.toast(forAll ? "Deleted for everyone." : "Deleted for you.");
+  }
+  $("msqMe").onclick = () => deleteMsg(false);
+  $("msqAll").onclick = () => deleteMsg(true);
   F.on("rt:notification", async (n) => {
     if (n.actor_id) await ensureProfile(n.actor_id);
     const inThatChat = (n.kind === "message" || n.kind === "help") && S.view === "chat" && S.chatWith === n.actor_id && document.visibilityState === "visible";

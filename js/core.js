@@ -397,6 +397,7 @@
     liveChannel = F.sb.channel("funi-live-" + me)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "study_messages", filter: "recipient_id=eq." + me }, (p) => F.emit("rt:message", p.new))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "study_messages", filter: "sender_id=eq." + me }, (p) => F.emit("rt:messageRead", p.new))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "study_messages", filter: "recipient_id=eq." + me }, (p) => F.emit("rt:messageUpdate", p.new))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: "user_id=eq." + me }, (p) => F.emit("rt:notification", p.new))
       .on("postgres_changes", { event: "*", schema: "public", table: "study_partners" }, (p) => F.emit("rt:partners", p))
       .on("postgres_changes", { event: "*", schema: "public", table: "study_sessions" }, (p) => F.emit("rt:session", p.new || p.old))

@@ -728,6 +728,10 @@
 
 <div class="composer" id="composer" hidden>
   <div class="composer-inner">
+    <div class="reply-bar" id="replyBar" hidden>
+      <span class="grow"><b id="replyWho"></b><span id="replyTxt"></span></span>
+      <button type="button" class="x-btn" id="replyClear" aria-label="Cancel reply">×</button>
+    </div>
     <div class="attach-preview" id="attachPreview" hidden>
       <span id="attachName"></span>
       <button type="button" class="x-btn" id="attachClear" aria-label="Remove attachment">×</button>
@@ -946,6 +950,18 @@
   <p id="pickText" class="hint"></p>
   <div class="send-list" id="pickList"></div>
   <div class="btns"><button type="button" class="btn ghost" data-close="pickSheet">Cancel</button><button type="button" class="btn primary" id="pickOk" hidden>Share</button></div>
+</div></dialog>
+
+<dialog id="msgSheet"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <p class="msg-quote" id="msqText"></p>
+  <div class="stack msg-actions">
+    <button type="button" class="btn primary block" id="msqReply">Reply</button>
+    <button type="button" class="btn ghost block" id="msqCopy">Copy text</button>
+    <button type="button" class="btn ghost block" id="msqMe">Delete for me</button>
+    <button type="button" class="btn danger block" id="msqAll">Delete for everyone</button>
+    <button type="button" class="btn ghost block" data-close="msgSheet">Cancel</button>
+  </div>
 </div></dialog>
 
 <dialog id="confirmSheet"><div class="sheet">
