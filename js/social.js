@@ -341,7 +341,7 @@
       F.toast("Sending " + attachFile.name + "…");
       const up = await F.sb.storage.from("chat-files").upload(path, attachFile, { contentType: attachFile.type || "application/octet-stream", upsert: false });
       if (up.error) { $("sendBtn").disabled = false; return F.toast("Couldn't send the file: " + up.error.message, { long: true }); }
-      Object.assign(row, { file_path: path, file_name: attachFile.name, file_type: attachFile.type || null, file_size: attachFile.size });
+      Object.assign(row, { file_path: path, file_name: attachFile.name, file_type: attachFile.type || (/\.html?$/i.test(attachFile.name) ? "text/html" : null), file_size: attachFile.size });
     }
     const { data, error } = await F.sb.from("study_messages").insert(row).select().single();
     $("sendBtn").disabled = false;

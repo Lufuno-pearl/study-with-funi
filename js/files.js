@@ -269,7 +269,7 @@
         const cpath = F.me.id + "/" + to + "/" + Date.now() + "-" + fname.replace(/[^\w.\-]+/g, "_").slice(-60);
         const up = await F.sb.storage.from("chat-files").upload(cpath, dl.data, { contentType: f.mime || "application/octet-stream", upsert: false });
         if (up.error) throw up.error;
-        Object.assign(row, { file_path: cpath, file_name: fname, file_type: f.mime || null, file_size: f.size });
+        Object.assign(row, { file_path: cpath, file_name: fname, file_type: f.mime || (/\.html?$/i.test(fname) ? "text/html" : null), file_size: f.size });
       }
       const { error } = await F.sb.from("study_messages").insert(row);
       if (error) throw error;
