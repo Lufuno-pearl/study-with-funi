@@ -374,4 +374,11 @@
       '<div class="card flat gd-stat"><b class="warn-num">' + wilting.length + "</b><span>" + (wilting.length ? "wilting: " + esc(wilting.slice(0, 2).join(", ")) + (wilting.length > 2 ? "…" : "") + ", come back!" : "wilting. Everyone's blooming!") + "</span></div>";
   }
   F.on("view:garden", renderGarden);
+  // live: when anyone in the circle starts or finishes studying, the open leaderboard / garden updates by itself
+  let liveT = null;
+  F.on("rt:session", () => {
+    if (S.view !== "board" && S.view !== "garden") return;
+    clearTimeout(liveT);
+    liveT = setTimeout(() => { statsAt = 0; if (S.view === "board") renderBoard(); else if (S.view === "garden") renderGarden(); }, 2500);
+  });
 })();
