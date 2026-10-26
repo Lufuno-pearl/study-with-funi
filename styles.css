@@ -805,3 +805,4 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .voice audio { height: 40px; max-width: 230px; }
 @media (prefers-reduced-motion: reduce) { .flashcard.back, .seat-cheer { animation: none; } }
 @media (min-width: 1000px) { .fun-tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); } .seats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.spam-note { margin: 10px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--butter); color: var(--butter-ink); font-size: 13px; font-weight: 700; text-align: left; line-height: 1.45; }

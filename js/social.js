@@ -557,7 +557,7 @@
     if (error) return F.toast(/already|registered|exists/i.test(error.message) ? "That email already has a Funi account." : "Couldn't save: " + error.message, { long: true });
     if (data && data.user) F.me = data.user;
     renderEmail();
-    F.toast("Check " + email + " for a link to confirm it.", { long: true });
+    F.toast("Check " + email + " for a link to confirm it. Look in Spam too, and tap \"Not spam\" if it's there.", { long: true });
   };
   F.on("view:profile", () => { draftAvatar = null; renderProfile(); });
   document.querySelectorAll("#avaTabs [data-avtab]").forEach((b) => b.addEventListener("click", () => { avTab = b.dataset.avtab; renderProfile(); }));
