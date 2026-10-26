@@ -10,7 +10,8 @@ Live: https://study-with-funi.vercel.app
 3. New query again: paste **`funi-v3-setup.sql`** and **Run**. This adds task priority and "notify me before", focus time, photo avatars (public `avatars` storage) and the every-minute push timer (pg_cron + pg_net).
 4. New query again: paste **`funi-v4-setup.sql`** and **Run**. This lets Funi buzz your phone when a study timer ends while the app is closed.
 5. New query again: paste **`funi-v5-setup.sql`** and **Run**. This adds files for each module (private `module-files` storage, 10 MB a file, 50 MB per person).
-6. All of them are safe to run again any time. They keep existing data.
+6. New query again: paste **`funi-v6-setup.sql`** and **Run**. Accounts now need a verified email (one account per email), log in with username or email, and Funi is limited to 200 accounts (change the number in `funi_max_accounts()`).
+7. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
 
@@ -30,20 +31,28 @@ This creates: study partners, feelings, live chat with files (private `chat-file
 - `api/push.js` – called every minute by Supabase; sends phone pop-ups for due reminders and new notifications.
 - `sw.js` – offline support and notifications. `manifest.json` – makes it installable.
 
-## Accounts (no email)
-- Create account = username + password + confirm password. Stored in Supabase as `username@users.studywithfuni.app`. Nothing is ever emailed and there are no OTPs.
+## Accounts (username + verified email)
+- Create account = username + email + password + confirm password. Supabase emails a confirmation link; one account per email.
+- Log in with your username **or** your email. 8 wrong passwords locks a username for 15 minutes.
+- Forgot password: Log in › Forgot your password? sends a reset link.
+- At most 200 accounts (verified ones, plus sign-ups from the last day still waiting to confirm).
+- Older accounts (made before emails) keep working and can add an email in Profile.
 
-### Resetting a forgotten password
+### Emails are sent through Gmail (free, about 500 a day)
+Supabase › Authentication › Emails › SMTP Settings: host `smtp.gmail.com`, port `465`, username = the Gmail address, password = a Google **app password** (needs 2-Step Verification). Never paste the app password anywhere except Supabase.
+
+### Resetting a password by hand (still works)
 In Supabase › SQL Editor, replace `USERNAME` and `NEW_PASSWORD`, then Run:
 
 ```sql
 update auth.users
 set encrypted_password = extensions.crypt('NEW_PASSWORD', extensions.gen_salt('bf'))
-where email = 'USERNAME@users.studywithfuni.app';
+where id = (select id from public.study_profiles where username = 'USERNAME');
 ```
 
 ## Settings that must stay on
-- Supabase › Authentication › Email › **Confirm email: OFF**
+- Supabase › Authentication › Sign In / Providers › Email: **Confirm email: ON**, **Secure email change: OFF**
+- Supabase › Authentication › URL Configuration: Site URL `https://study-with-funi.vercel.app`, Redirect URLs `https://study-with-funi.vercel.app/**`
 - Vercel › Settings › Environment Variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
   - The service role key is secret. Paste it straight from Supabase › Project Settings › API keys into Vercel. Never share it anywhere else.
 

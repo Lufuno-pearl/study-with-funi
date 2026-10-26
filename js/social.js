@@ -472,8 +472,29 @@
       return '<button type="button" class="ava-pick" data-preset="' + o.i + '" aria-pressed="' + on + '" aria-label="Avatar ' + (o.i + 1) + '">' + A.avatarSVG(o.x.look, "Happy", "preset" + o.i) + "</button>";
     }).join("");
     if (document.activeElement !== $("profDisplay")) $("profDisplay").value = p.display_name || "";
+    renderEmail();
     renderThemes();
   }
+  function renderEmail() {
+    const u = F.me || {}, real = F.hasRealEmail(u);
+    if (document.activeElement !== $("profEmail")) $("profEmail").value = real ? u.email : "";
+    $("emailNote").textContent = u.new_email
+      ? "Waiting for you to confirm " + u.new_email + ". Tap the link we emailed you."
+      : real ? "Used to reset your password. Only you can see it." : "Add your email so you can reset your password yourself. Only you can see it.";
+    $("saveEmail").textContent = real ? "Change" : "Add";
+  }
+  $("saveEmail").onclick = async () => {
+    const email = $("profEmail").value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return F.toast("Type your full email, like you@gmail.com.");
+    if (F.me && email === F.me.email) return F.toast("That's already your email.");
+    $("saveEmail").disabled = true;
+    const { data, error } = await F.sb.auth.updateUser({ email }, { emailRedirectTo: location.origin + "/" });
+    $("saveEmail").disabled = false;
+    if (error) return F.toast(/already|registered|exists/i.test(error.message) ? "That email already has a Funi account." : "Couldn't save: " + error.message, { long: true });
+    if (data && data.user) F.me = data.user;
+    renderEmail();
+    F.toast("Check " + email + " for a link to confirm it.", { long: true });
+  };
   F.on("view:profile", () => { draftAvatar = null; renderProfile(); });
   document.querySelectorAll("#avaTabs [data-avtab]").forEach((b) => b.addEventListener("click", () => { avTab = b.dataset.avtab; renderProfile(); }));
   $("avaGrid").addEventListener("click", (e) => { const b = e.target.closest("[data-preset]"); if (!b) return; draftAvatar = JSON.stringify(A.PRESETS[+b.dataset.preset].look); renderProfile(); });

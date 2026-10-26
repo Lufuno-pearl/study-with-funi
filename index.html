@@ -40,6 +40,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
         <input id="suUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" placeholder="e.g. lufuno_p">
       </div>
+      <label for="suEmail">Email</label>
+      <div class="field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>
+        <input id="suEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="120" placeholder="you@gmail.com">
+      </div>
       <label for="suPass">Password</label>
       <div class="field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
@@ -54,13 +59,13 @@
       </div>
       <p class="form-error" id="signupError" hidden></p>
       <button type="submit" class="btn primary block" id="signupBtn" style="margin-top:16px">Create account</button>
-      <p class="hint" style="text-align:center;margin-top:10px">No email needed. If you forget your password, message Funi support to reset it.</p>
+      <p class="hint" style="text-align:center;margin-top:10px" id="spotsLine">We'll email you a link to confirm it's you. One account per email.</p>
     </form>
     <form id="loginForm" novalidate hidden>
-      <label for="liUser">Username</label>
+      <label for="liUser">Username or email</label>
       <div class="field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-        <input id="liUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20">
+        <input id="liUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="120">
       </div>
       <label for="liPass">Password</label>
       <div class="field">
@@ -70,6 +75,44 @@
       </div>
       <p class="form-error" id="loginError" hidden></p>
       <button type="submit" class="btn primary block" id="loginBtn" style="margin-top:16px">Log in</button>
+      <button type="button" class="link block-link" id="forgotBtn">Forgot your password?</button>
+    </form>
+    <form id="forgotForm" novalidate hidden>
+      <h2>Reset your password</h2>
+      <p class="hint">Type the email on your Funi account. We'll send you a link to choose a new password.</p>
+      <label for="fgEmail">Email</label>
+      <div class="field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>
+        <input id="fgEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="120">
+      </div>
+      <p class="form-error" id="forgotError" hidden></p>
+      <button type="submit" class="btn primary block" id="forgotSend" style="margin-top:16px">Send reset link</button>
+      <button type="button" class="link block-link" id="forgotBack">Back to log in</button>
+    </form>
+    <div id="checkEmail" class="check-email" hidden>
+      <div class="mail-art" aria-hidden="true"><svg viewBox="0 0 64 64"><rect x="6" y="14" width="52" height="38" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"/><path d="M8 18l24 18 24-18" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="16" r="9" fill="var(--pink-mid)"/><path d="M46 16l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <h2 id="ceTitle">Check your email</h2>
+      <p id="ceText"></p>
+      <p class="hint">Can't find it? Look in Spam or Promotions. The link works once.</p>
+      <p class="form-error" id="ceError" hidden></p>
+      <button type="button" class="btn ghost block" id="ceResend">Send the email again</button>
+      <button type="button" class="link block-link" id="ceBack">I've confirmed, log me in</button>
+    </div>
+    <form id="newPassForm" novalidate hidden>
+      <h2>Choose a new password</h2>
+      <label for="npPass">New password</label>
+      <div class="field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <input id="npPass" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+        <button type="button" class="eye" data-eye="npPass" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <label for="npPass2">Confirm new password</label>
+      <div class="field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <input id="npPass2" type="password" autocomplete="new-password">
+      </div>
+      <p class="form-error" id="npError" hidden></p>
+      <button type="submit" class="btn primary block" id="npSave" style="margin-top:16px">Save new password</button>
     </form>
   </div>
   <p class="status-line" id="authStatus" hidden></p>
@@ -471,6 +514,14 @@
       <div class="add-row">
         <input id="profDisplay" maxlength="30" placeholder="e.g. Pearl">
         <button type="button" class="btn primary" id="saveDisplay">Save</button>
+      </div>
+    </div>
+    <div class="card flat" id="emailCard">
+      <label for="profEmail" style="margin-top:0">Your email</label>
+      <p class="hint" id="emailNote" style="margin:0 0 8px">Used to reset your password. Only you can see it.</p>
+      <div class="add-row">
+        <input id="profEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="120" placeholder="you@gmail.com">
+        <button type="button" class="btn primary" id="saveEmail">Save</button>
       </div>
     </div>
     <div class="card flat stack">

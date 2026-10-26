@@ -155,7 +155,7 @@ small { color: var(--muted); font-weight: 700; }
 .badge { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 .badge.pinkb { background: var(--alert); color: var(--on-alert); }
 label, .label { font-size: 14px; font-weight: 800; color: var(--ink); display: block; margin: 12px 0 6px; }
-input[type=text], input[type=password], input[type=date], input[type=time], input[type=number], input[type=search], input[type=url], input:not([type]), select, textarea {
+input[type=text], input[type=password], input[type=date], input[type=time], input[type=number], input[type=search], input[type=url], input[type=email], input:not([type]), select, textarea {
   width: 100%; min-height: 48px; border: 1.5px solid var(--line); border-radius: var(--r-sm); padding: 0 14px; font-size: 16px; font-weight: 700; background: var(--card); color: var(--ink);
 }
 textarea { padding: 12px 14px; min-height: 90px; resize: vertical; }
@@ -667,3 +667,14 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 @media (pointer: fine) { #modList.manual .mod { cursor: grab; } }
 .is-dragging, .is-dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 .mod-foot { justify-content: flex-start; gap: 18px; } .mod-foot .x-btn { margin-left: auto; }
+
+/* ---------- email sign-up extras ---------- */
+.block-link { display: block; margin: 10px auto 0; min-height: 40px; }
+.check-email, #forgotForm, #newPassForm { text-align: left; }
+.check-email { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.check-email p { margin: 0; }
+.check-email .btn { margin-top: 8px; }
+.mail-art svg { width: 84px; height: 84px; }
+#forgotForm h2, #newPassForm h2 { margin-bottom: 4px; }
+.email-nudge { display: flex; align-items: center; gap: 12px; }
+.email-nudge svg { width: 30px; height: 30px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

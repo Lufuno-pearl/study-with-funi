@@ -33,7 +33,14 @@
   };
   F.store = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} };
   F.read = (key, fallback) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } };
-  F.usernameOf = (user) => (user && user.email ? user.email.split("@")[0] : "");
+  F.usernameOf = (user) => {
+    if (!user) return "";
+    const m = user.user_metadata || {};
+    if (m.username) return String(m.username).toLowerCase();
+    return user.email ? user.email.split("@")[0] : "";
+  };
+  // old accounts were made before emails, with a made-up address
+  F.hasRealEmail = (user) => !!(user && user.email && !user.email.endsWith("@" + "users.studywithfuni.app"));
   F.nameOf = (p) => (p ? (p.display_name && p.display_name.trim()) || p.username || "Study partner" : "Study partner");
   F.showError = (id, msg) => { const el = $(id); if (!el) return; el.textContent = msg || ""; el.hidden = !msg; };
   F.status = (id, msg) => F.showError(id, msg);
@@ -141,27 +148,58 @@
   };
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "open") F.openLink(e.data.url); });
 
-  /* ---------- accounts (username + password, no email) ---------- */
-  function setAuthTab(which) {
-    const signup = which === "signup";
-    $("tabSignup").setAttribute("aria-selected", String(signup));
-    $("tabLogin").setAttribute("aria-selected", String(!signup));
-    $("signupForm").hidden = !signup; $("loginForm").hidden = signup;
-    F.showError("signupError", ""); F.showError("loginError", "");
+  /* ---------- accounts: username + verified email + password ---------- */
+  const PANELS = ["signupForm", "loginForm", "forgotForm", "checkEmail", "newPassForm"];
+  function authPanel(name) {
+    PANELS.forEach((id) => { $(id).hidden = id !== name; });
+    const tabs = name === "signupForm" || name === "loginForm";
+    document.querySelector("#authScreen .seg").hidden = !tabs;
+    $("tabSignup").setAttribute("aria-selected", String(name === "signupForm"));
+    $("tabLogin").setAttribute("aria-selected", String(name === "loginForm"));
+    ["signupError", "loginError", "forgotError", "ceError", "npError"].forEach((id) => F.showError(id, ""));
+    if (name === "signupForm") showSpots();
   }
+  F.authPanel = authPanel;
+  function setAuthTab(which) { authPanel(which === "signup" ? "signupForm" : "loginForm"); }
   $("tabSignup").onclick = () => setAuthTab("signup");
   $("tabLogin").onclick = () => setAuthTab("login");
   const cleanUsername = (raw) => String(raw || "").trim().toLowerCase();
+  const cleanEmail = (raw) => String(raw || "").trim().toLowerCase();
+  const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+  const home = () => location.origin + "/";
   function usernameProblem(u) {
     if (u.length < 3) return "Your username needs at least 3 characters.";
     if (u.length > 20) return "Keep your username to 20 characters or fewer.";
     if (!/^[a-z0-9_.]+$/.test(u)) return "Use only letters, numbers, dots or underscores. No spaces.";
     return "";
   }
+  async function signupStatus(user) {
+    if (!F.sb) return null;
+    const { data, error } = await F.sb.rpc("funi_signup_status", { p_username: user || null });
+    return error ? null : data;
+  }
+  async function showSpots() {
+    const st = await signupStatus();
+    if (!st) return;
+    $("spotsLine").textContent = st.spots_left > 0
+      ? "We'll email you a link to confirm it's you. " + st.spots_left + " of " + st.max + " spots left."
+      : "Funi is full right now (" + st.max + " people). Ask Funi to open more spots.";
+  }
+  let pendingEmail = "", pendingKind = "signup";
+  function showCheckEmail(email, kind) {
+    pendingEmail = email; pendingKind = kind || "signup";
+    $("ceTitle").textContent = pendingKind === "reset" ? "Check your email" : "Confirm your email";
+    $("ceText").textContent = pendingKind === "reset"
+      ? "If " + email + " has a Funi account, we sent it a link to choose a new password."
+      : "We sent a link to " + email + ". Tap it to confirm, then you're in!";
+    $("ceResend").hidden = pendingKind === "reset";
+    authPanel("checkEmail");
+  }
   F.showAuth = () => {
     $("appScreen").hidden = true; $("authScreen").hidden = false;
     $("authArt").innerHTML = window.FuniArt.dreamyScene({ skin: 4, hair: "puffs", hairColor: 0, hoodie: 0 }, "Happy", "funi");
     document.querySelectorAll("dialog[open]").forEach((d) => d.close());
+    if ($("signupForm").hidden === false) showSpots();
   };
   F.showApp = () => {
     $("authScreen").hidden = true; $("appScreen").hidden = false;
@@ -172,37 +210,99 @@
   $("signupForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!F.sb) return F.showError("signupError", "Funi can't reach the internet. Check your connection and try again.");
-    const user = cleanUsername($("suUser").value), p1 = $("suPass").value, p2 = $("suPass2").value;
+    const user = cleanUsername($("suUser").value), email = cleanEmail($("suEmail").value), p1 = $("suPass").value, p2 = $("suPass2").value;
     const bad = usernameProblem(user);
     if (bad) return F.showError("signupError", bad);
+    if (!emailOk(email)) return F.showError("signupError", "Type your full email, like you@gmail.com.");
     if (p1.length < 6) return F.showError("signupError", "Your password needs at least 6 characters.");
     if (p1 !== p2) return F.showError("signupError", "The two passwords don't match.");
     F.showError("signupError", "");
-    $("signupBtn").disabled = true; $("signupBtn").textContent = "Creating…";
-    const { data, error } = await F.sb.auth.signUp({ email: user + "@" + F.USERNAME_DOMAIN, password: p1 });
-    $("signupBtn").disabled = false; $("signupBtn").textContent = "Create account";
+    const busy = (on) => { $("signupBtn").disabled = on; $("signupBtn").textContent = on ? "Creating…" : "Create account"; };
+    busy(true);
+    const st = await signupStatus(user);
+    if (st && st.spots_left <= 0) { busy(false); return F.showError("signupError", "Sorry, Funi is full right now (" + st.max + " people)."); }
+    if (st && !st.username_free) { busy(false); return F.showError("signupError", "That username is taken. Try another one."); }
+    const { data, error } = await F.sb.auth.signUp({ email, password: p1, options: { data: { username: user }, emailRedirectTo: home() } });
+    busy(false);
     if (error) {
-      const taken = /already|registered|exists/i.test(error.message);
-      return F.showError("signupError", taken ? "That username is taken. Try another one." : error.message);
+      const m = error.message || "";
+      if (/already|registered|exists/i.test(m)) return F.showError("signupError", "That email already has a Funi account. Log in instead.");
+      if (/rate limit|too many/i.test(m)) return F.showError("signupError", "Too many sign-ups right now. Please try again in an hour.");
+      if (/database error/i.test(m)) {
+        const again = await signupStatus(user);
+        if (again && again.spots_left <= 0) return F.showError("signupError", "Sorry, Funi is full right now (" + again.max + " people).");
+        if (again && !again.username_free) return F.showError("signupError", "That username is taken. Try another one.");
+      }
+      if (/sending|smtp|email/i.test(m)) return F.showError("signupError", "We couldn't send the confirmation email. Tell Funi support: " + m);
+      return F.showError("signupError", m);
     }
-    if (!data.session) return F.showError("signupError", "Account made, but Supabase still wants email confirmation. Turn off 'Confirm email' in Supabase, then log in.");
-    F.me = data.user;
+    // Supabase hides whether an email is used: a used email comes back with no identities
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0)
+      return F.showError("signupError", "That email already has a Funi account. Log in instead.");
     $("suPass").value = ""; $("suPass2").value = "";
-    F.showApp();
-    F.toast("Welcome to Funi, " + user + "! Pick your avatar in your profile.", { long: true, onClick: () => F.go("profile") });
+    if (data.session) { F.me = data.user; F.showApp(); F.toast("Welcome to Funi, " + user + "! Pick your avatar in your profile.", { long: true, onClick: () => F.go("profile") }); return; }
+    showCheckEmail(email, "signup");
   });
   $("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!F.sb) return F.showError("loginError", "Funi can't reach the internet. Check your connection and try again.");
-    const user = cleanUsername($("liUser").value), pass = $("liPass").value;
-    if (!user || !pass) return F.showError("loginError", "Enter your username and password.");
+    const who = $("liUser").value.trim(), pass = $("liPass").value;
+    if (!who || !pass) return F.showError("loginError", "Enter your username (or email) and password.");
     F.showError("loginError", "");
-    $("loginBtn").disabled = true; $("loginBtn").textContent = "Logging in…";
-    const { data, error } = await F.sb.auth.signInWithPassword({ email: user + "@" + F.USERNAME_DOMAIN, password: pass });
-    $("loginBtn").disabled = false; $("loginBtn").textContent = "Log in";
-    if (error) return F.showError("loginError", "Wrong username or password. Forgot it? Message Funi support to reset it.");
+    const busy = (on) => { $("loginBtn").disabled = on; $("loginBtn").textContent = on ? "Logging in…" : "Log in"; };
+    busy(true);
+    let email = who.includes("@") ? cleanEmail(who) : "";
+    if (!email) {
+      const { data, error } = await F.sb.rpc("funi_login_email", { p_username: cleanUsername(who), p_password: pass });
+      if (error && /FUNI_TOO_MANY/.test(error.message)) { busy(false); return F.showError("loginError", "Too many wrong tries. Wait 15 minutes, or reset your password."); }
+      if (error) email = cleanUsername(who) + "@" + F.USERNAME_DOMAIN; // database not updated yet: old-style accounts
+      else if (!data) { busy(false); return F.showError("loginError", "Wrong username or password."); }
+      else email = data;
+    }
+    const { data, error } = await F.sb.auth.signInWithPassword({ email, password: pass });
+    busy(false);
+    if (error) {
+      if (/not confirmed/i.test(error.message)) { showCheckEmail(email, "signup"); F.showError("ceError", "Confirm your email first, then log in."); return; }
+      return F.showError("loginError", who.includes("@") ? "Wrong email or password." : "Wrong username or password.");
+    }
     F.me = data.user; $("liPass").value = "";
     F.showApp();
+  });
+  // forgot password → email link → choose a new one
+  $("forgotBtn").onclick = () => { const v = $("liUser").value.trim(); $("fgEmail").value = v.includes("@") ? v : ""; authPanel("forgotForm"); $("fgEmail").focus(); };
+  $("forgotBack").onclick = () => authPanel("loginForm");
+  $("forgotForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = cleanEmail($("fgEmail").value);
+    if (!emailOk(email)) return F.showError("forgotError", "Type the email on your Funi account.");
+    $("forgotSend").disabled = true;
+    const { error } = await F.sb.auth.resetPasswordForEmail(email, { redirectTo: home() });
+    $("forgotSend").disabled = false;
+    if (error && /rate limit|too many|seconds/i.test(error.message)) return F.showError("forgotError", "Please wait a minute before asking again.");
+    if (error) return F.showError("forgotError", error.message);
+    showCheckEmail(email, "reset");
+  });
+  $("ceResend").onclick = async () => {
+    if (!pendingEmail) return;
+    $("ceResend").disabled = true;
+    const { error } = await F.sb.auth.resend({ type: "signup", email: pendingEmail, options: { emailRedirectTo: home() } });
+    $("ceResend").disabled = false;
+    if (error) return F.showError("ceError", /seconds|rate/i.test(error.message) ? "Please wait a minute before sending again." : error.message);
+    F.toast("Sent again to " + pendingEmail + ".");
+  };
+  $("ceBack").onclick = () => { if (pendingEmail) $("liUser").value = pendingEmail; authPanel("loginForm"); $("liPass").focus(); };
+  F.showNewPassword = () => { F.showAuth(); authPanel("newPassForm"); };
+  $("newPassForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const p1 = $("npPass").value, p2 = $("npPass2").value;
+    if (p1.length < 6) return F.showError("npError", "Your password needs at least 6 characters.");
+    if (p1 !== p2) return F.showError("npError", "The two passwords don't match.");
+    $("npSave").disabled = true;
+    const { data, error } = await F.sb.auth.updateUser({ password: p1 });
+    $("npSave").disabled = false;
+    if (error) return F.showError("npError", /expired|session/i.test(error.message) ? "That link expired. Ask for a new one from Log in › Forgot your password." : error.message);
+    $("npPass").value = ""; $("npPass2").value = "";
+    F.me = data.user; F.showApp(); F.toast("New password saved. You're logged in.");
   });
   F.logout = async () => {
     F.stopLive();
@@ -211,8 +311,7 @@
     F.me = null;
     Object.assign(F.s, { items: [], modules: [], tasks: [], sessions: [], profile: null, partners: [], invitesIn: [], invitesOut: [], partnerSessions: {}, online: new Set(), convos: {}, notifs: [], chatWith: null });
     document.body.classList.remove("bigclock-mode");
-    setAuthTab("login");
-    F.showAuth();
+    F.showAuth(); setAuthTab("login");
     F.toast("Logged out.");
   };
 
