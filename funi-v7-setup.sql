@@ -61,7 +61,9 @@ drop policy if exists rooms_read on public.study_rooms;
 drop policy if exists rooms_add on public.study_rooms;
 drop policy if exists rooms_change on public.study_rooms;
 drop policy if exists rooms_remove on public.study_rooms;
-create policy rooms_read on public.study_rooms for select to authenticated using (public.funi_can_see_room(id));
+create policy rooms_read on public.study_rooms for select to authenticated
+  using (host_id = auth.uid() or public.funi_are_partners(auth.uid(), host_id)
+         or exists (select 1 from public.study_room_members m where m.room_id = study_rooms.id and m.user_id = auth.uid()));
 create policy rooms_add on public.study_rooms for insert to authenticated with check (host_id = auth.uid());
 create policy rooms_change on public.study_rooms for update to authenticated using (public.funi_in_room(id)) with check (public.funi_in_room(id));
 create policy rooms_remove on public.study_rooms for delete to authenticated using (host_id = auth.uid());
@@ -205,7 +207,8 @@ drop policy if exists decks_read on public.flash_decks;
 drop policy if exists decks_add on public.flash_decks;
 drop policy if exists decks_change on public.flash_decks;
 drop policy if exists decks_remove on public.flash_decks;
-create policy decks_read on public.flash_decks for select to authenticated using (public.funi_can_see_deck(id));
+create policy decks_read on public.flash_decks for select to authenticated
+  using (owner_id = auth.uid() or exists (select 1 from public.flash_shares s where s.deck_id = flash_decks.id and s.user_id = auth.uid()));
 create policy decks_add on public.flash_decks for insert to authenticated with check (owner_id = auth.uid());
 create policy decks_change on public.flash_decks for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy decks_remove on public.flash_decks for delete to authenticated using (owner_id = auth.uid());
