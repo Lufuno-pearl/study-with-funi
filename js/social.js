@@ -539,16 +539,18 @@
       const val = JSON.stringify(o.x.look), on = draftAvatar === val;
       return '<button type="button" class="ava-pick" data-preset="' + o.i + '" aria-pressed="' + on + '" aria-label="Avatar ' + (o.i + 1) + '">' + A.avatarSVG(o.x.look, "Happy", "preset" + o.i) + "</button>";
     }).join("");
-    if (document.activeElement !== $("profDisplay")) $("profDisplay").value = p.display_name || "";
+    if (document.activeElement !== $("profDisplay")) $("profDisplay").value = "";
+    $("profDisplay").placeholder = p.display_name ? "Now: " + p.display_name + " (type to change)" : "e.g. Pearl";
     renderEmail();
     renderThemes();
   }
   function renderEmail() {
     const u = F.me || {}, real = F.hasRealEmail(u);
-    if (document.activeElement !== $("profEmail")) $("profEmail").value = real ? u.email : "";
+    if (document.activeElement !== $("profEmail")) $("profEmail").value = "";
+    $("profEmail").placeholder = real ? "Type a new email to change it" : "you@gmail.com";
     $("emailNote").textContent = u.new_email
       ? "Waiting for you to confirm " + u.new_email + ". Tap the link we emailed you."
-      : real ? "Used to reset your password. Only you can see it." : "Add your email so you can reset your password yourself. Only you can see it.";
+      : real ? "Your email: " + u.email + ". Used to reset your password. Only you can see it." : "Add your email so you can reset your password yourself. Only you can see it.";
     $("saveEmail").textContent = real ? "Change" : "Add";
   }
   $("saveEmail").onclick = async () => {
@@ -560,6 +562,7 @@
     $("saveEmail").disabled = false;
     if (error) return F.toast(/already|registered|exists/i.test(error.message) ? "That email already has a Funi account." : "Couldn't save: " + error.message, { long: true });
     if (data && data.user) F.me = data.user;
+    $("profEmail").value = ""; $("profEmail").blur();
     renderEmail();
     F.toast("Check " + email + " for a link to confirm it. Look in Spam too, and tap \"Not spam\" if it's there.", { long: true });
   };
@@ -607,9 +610,10 @@
   };
   $("saveDisplay").onclick = async () => {
     const v = $("profDisplay").value.trim().slice(0, 30);
+    if (!v) return F.toast("Type the name your partners should see, then tap Save.");
     const { error } = await F.sb.from("study_profiles").update({ display_name: v || null }).eq("id", F.me.id);
     if (error) return F.toast(/display_name/.test(error.message) ? "Run funi-v2-setup.sql in Supabase first." : "Couldn't save: " + error.message);
-    S.profile.display_name = v || null; F.renderMe(); renderProfile(); F.emit("data"); F.toast("Saved. Partners will see " + F.nameOf(S.profile) + ".");
+    S.profile.display_name = v || null; $("profDisplay").value = ""; $("profDisplay").blur(); F.renderMe(); renderProfile(); F.emit("data"); F.toast("Saved. Partners will see " + F.nameOf(S.profile) + ".");
   };
   function renderThemes() {
     const cur = F.currentTheme();

@@ -98,7 +98,7 @@
     if (error) { F.toast("Couldn't join: " + error.message, { long: true }); return; }
     await loadMembers();
     const mine = members.find((m) => m.user_id === F.me.id);
-    $("rmTask").value = (mine && mine.task) || "";
+    $("rmTask").value = ""; $("rmTask").placeholder = mine && mine.task ? "Now: " + mine.task + " (type to change)" : "e.g. Tut 6: rigid bodies";
     if (!chan) {
       chan = F.sb.channel("room-" + id)
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "study_rooms", filter: "id=eq." + id }, (p) => { room = p.new; if (!room.is_open) return; syncMine(); renderRoom(); })
@@ -194,6 +194,7 @@
     const task = $("rmTask").value.trim().slice(0, 60) || null;
     await F.sb.from("study_room_members").update({ task }).eq("room_id", room.id).eq("user_id", F.me.id);
     const m = members.find((x) => x.user_id === F.me.id); if (m) m.task = task;
+    $("rmTask").value = ""; $("rmTask").placeholder = task ? "Now: " + task + " (type to change)" : "e.g. Tut 6: rigid bodies"; $("rmTask").blur();
     renderRoom(); F.toast("Saved. The room can see what you're working on.");
   };
   $("rmCheers").addEventListener("click", async (e) => {
