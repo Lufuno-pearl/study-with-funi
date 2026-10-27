@@ -119,9 +119,9 @@
       const r = (id) => (S.partnerSessions[id] ? 0 : S.online.has(id) ? 1 : 2);
       return r(a.id) - r(b.id) || F.nameOf(profiles[a.id]).localeCompare(F.nameOf(profiles[b.id]));
     });
-    const q = ($("circleSearch").value || "").trim().toLowerCase().replace(/^@/, "");
-    $("circleSearchBox").hidden = sorted.length < 6 && !q;
-    const shown = q ? sorted.filter((p) => { const pr = profiles[p.id] || {}; return (F.nameOf(pr) + " " + (pr.username || "")).toLowerCase().includes(q); }) : sorted;
+    const q = norm($("circleSearch").value);
+    $("circleSearchBox").hidden = !sorted.length;
+    const shown = sorted.filter((p) => nameMatch(p.id, q));
     $("psCircle").innerHTML = shown.length ? shown.map((p) => personCard(p.id, "", true)).join("")
       : sorted.length ? '<div class="empty"><b>No one called "' + esc(q) + '"</b><span>Check the spelling, or invite them.</span></div>'
       : '<div class="empty"><b>No study partners yet</b><span>Invite a friend by their Funi username.</span><button type="button" class="btn primary small" data-go="invite">Invite a friend</button></div>';
@@ -251,13 +251,23 @@
   }
   const hiddenForMe = (m) => (m.hidden_for || []).includes(F.me.id);
   const previewOf = (m) => !m ? "Say hi and plan your first study session" : m.deleted_at ? (m.sender_id === F.me.id ? "You deleted this message" : "This message was deleted") : (m.sender_id === F.me.id ? "You: " : "") + (m.is_help ? "Needs help · " : "") + (m.body || (m.file_name ? "Sent " + m.file_name : "Sent a file"));
+  // search by display name or @username, ignoring case and spaces
+  const norm = (x) => String(x || "").toLowerCase().replace(/^@/, "").replace(/\s+/g, " ").trim();
+  function nameMatch(id, q) {
+    if (!q) return true;
+    const pr = profiles[id] || {};
+    return [F.nameOf(pr), pr.display_name, pr.username].some((v) => norm(v).includes(q) || norm(v).replace(/[\s_.]/g, "").includes(q.replace(/[\s_.]/g, "")));
+  }
   function renderConvos() {
     const unreadTotal = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
     $("msgBadge").hidden = !unreadTotal; $("msgBadge").textContent = unreadTotal;
     if (S.view !== "messages") return;
     if (!S.partners.length) { $("convoList").innerHTML = '<div class="empty"><b>No chats yet</b><span>Add a study partner first, then you can message each other and send files.</span><button type="button" class="btn primary small" data-go="invite">Invite a friend</button></div>'; return; }
     const lastAt = (id) => (S.convos[id] && S.convos[id].last ? S.convos[id].last.created_at : "");
-    const rows = S.partners.slice().sort((a, b) => lastAt(b.id).localeCompare(lastAt(a.id)));
+    const q = norm($("convoSearch").value);
+    $("convoSearchBox").hidden = false;
+    const rows = S.partners.slice().sort((a, b) => lastAt(b.id).localeCompare(lastAt(a.id))).filter((p) => nameMatch(p.id, q));
+    if (!rows.length) { $("convoList").innerHTML = '<div class="empty"><b>No one called "' + esc($("convoSearch").value.trim()) + '"</b><span>Check the spelling. Only your study partners show here.</span></div>'; return; }
     $("convoList").innerHTML = '<div class="list">' + rows.map((p) => {
       const pr = profiles[p.id] || {}, c = S.convos[p.id] || { last: null, unread: 0 }, st = statusOf(p.id);
       return '<button type="button" class="convo" data-open-chat="' + esc(p.id) + '"><span class="ava-wrap"><span class="ava">' + F.avatar(pr) + "</span>" + (st.live ? '<span class="live"></span>' : "") + "</span>" +
@@ -266,6 +276,7 @@
     }).join("") + "</div>";
   }
   F.on("view:messages", () => renderConvos());
+  $("convoSearch").addEventListener("input", () => renderConvos());
 
   let chatMsgs = [], attachFile = null, helpOn = false;
   const signed = {};
