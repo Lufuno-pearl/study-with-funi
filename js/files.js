@@ -80,13 +80,15 @@
       const want = new Set(S.files.filter((f) => f.kind === "file").map((f) => f.path));
       for (const p of [...offSet]) if (!want.has(p) || !offOn()) { await c.delete(offUrl(p)); offSet.delete(p); }
       if (!offOn() || !navigator.onLine || (navigator.connection && navigator.connection.saveData)) return;
+      // re-save copies that don't match the real file (e.g. a download that was cut off)
+      for (const f of S.files) if (f.kind === "file" && offSet.has(f.path) && !goodCopy(await offGet(f.path), f)) { await c.delete(offUrl(f.path)); offSet.delete(f.path); }
       const todo = S.files.filter((f) => f.kind === "file" && !offSet.has(f.path));
       if (todo.length && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
       syncLeft = todo.length; offStatus();
       for (const f of todo) {
         if (!navigator.onLine || !offOn()) break;
         const { data } = await F.sb.storage.from(BUCKET).download(f.path).catch(() => ({}));
-        if (data) await offPut(f.path, data, f.mime);
+        if (data && goodCopy(data, f)) await offPut(f.path, data, f.mime);
         syncLeft--; offStatus();
       }
     } catch (e) {} finally {
@@ -100,13 +102,16 @@
     await syncOffline();
   });
   // a saved copy first (no data used), else download it (and keep a copy)
-  async function fileBlob(f) {
-    let blob = await offGet(f.path);
-    if (blob) return blob;
+  // a saved copy must match the real file, otherwise get it again
+  const goodCopy = (blob, f) => blob && blob.size > 0 && (!(+f.size) || blob.size === +f.size);
+  async function fileBlob(f, fresh) {
+    let blob = fresh ? null : await offGet(f.path);
+    if (goodCopy(blob, f)) return blob;
+    if (blob && F.looksOffline()) return blob; // offline: the saved copy is all we have
     if (F.looksOffline()) throw new Error("offline");
     const { data, error } = await F.sb.storage.from(BUCKET).download(f.path);
     if (error || !data) throw new Error(error ? error.message : "download failed");
-    offPut(f.path, data, f.mime);
+    if (goodCopy(data, f)) offPut(f.path, data, f.mime);
     return data;
   }
 
@@ -486,15 +491,16 @@
     const m = html.match(/<head[^>]*>/i) || html.match(/<html[^>]*>/i) || html.match(/<!doctype[^>]*>/i);
     return m ? html.slice(0, m.index + m[0].length) + head + html.slice(m.index + m[0].length) : head + html;
   }
-  let hvBlob = null, hvName = "page.html";
-  F.openHtml = async ({ bucket, path, title, file }) => {
+  let hvBlob = null, hvName = "page.html", hvArgs = null;
+  F.openHtml = async (args) => {
+    const { bucket, path, title, file, fresh } = args; hvArgs = args;
     $("hvTitle").textContent = title || "Page";
     $("hvNote").hidden = true; hvBlob = null; hvName = (title || "page").replace(/\.html?$/i, "") + ".html";
     const frame = $("hvFrame");
     frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#555">Opening…</p>';
-    $("htmlSheet").showModal();
+    if (!$("htmlSheet").open) $("htmlSheet").showModal();
     let data = null, error = null;
-    if (file) { try { data = await fileBlob(file); } catch (err) { error = err; } }
+    if (file) { try { data = await fileBlob(file, fresh); } catch (err) { error = err; } }
     else ({ data, error } = await F.sb.storage.from(bucket).download(path));
     if (error || !data) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">' + (error && error.message === "offline" ? "This page isn\'t saved on this phone yet. Open it once with internet." : "Couldn\'t open this file. Check your internet and try again.") + "</p>"; return; }
     hvBlob = data;
@@ -506,10 +512,11 @@
   window.addEventListener("message", (e) => {
     if (!$("htmlSheet").open || e.source !== $("hvFrame").contentWindow || !e.data || !e.data.funiHtmlError) return;
     if (!$("hvNote").hidden) return; // show the first problem only
-    $("hvNoteTxt").textContent = "Part of this page didn't work in Funi's safe viewer (" + e.data.funiHtmlError + "). If it looks wrong, tap Open in browser.";
+    $("hvNoteTxt").textContent = "Part of this page didn't work in Funi's safe viewer (" + e.data.funiHtmlError + "). If it looks wrong, tap Reload or Open in browser.";
     $("hvNote").hidden = false;
   });
   // the page opens as a normal file in your own browser (outside Funi)
+  $("hvReload").onclick = () => { if (hvArgs && !F.looksOffline()) F.openHtml(Object.assign({}, hvArgs, { fresh: true })); else if (hvArgs) F.toast("Reload needs internet."); };
   $("hvOpen").onclick = () => { if (hvBlob) saveBlob(new Blob([hvBlob], { type: "text/html" }), hvName, "text/html"); };
   $("htmlSheet").addEventListener("close", () => { $("hvFrame").srcdoc = ""; hvBlob = null; });
 
