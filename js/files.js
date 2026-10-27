@@ -456,8 +456,40 @@
 
   /* ---------- HTML files open as real pages (Supabase shows them as plain text for safety) ---------- */
   F.isHtmlName = (name, mime) => /text\/html/i.test(mime || "") || /\.html?$/i.test(name || "");
+  // Things a page may use that the locked box blocks: give it safe stand-ins that only live while the page is open
+  const HTML_SHIM = "<script>(function(){" +
+    "function M(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}}" +
+    "['localStorage','sessionStorage'].forEach(function(n){try{window[n].length}catch(e){try{Object.defineProperty(window,n,{value:M(),configurable:true})}catch(e2){}}});" +
+    "try{document.cookie}catch(e){var ck='';try{Object.defineProperty(document,'cookie',{get:function(){return ck},set:function(v){ck=String(v).split(';')[0]},configurable:true})}catch(e2){}}" +
+    // pages made with Claude can save with window.storage
+    "if(!window.storage){var S={};window.storage={get:function(k){return Promise.resolve(Object.prototype.hasOwnProperty.call(S,k)?{key:k,value:S[k]}:null)},set:function(k,v){S[k]=v;return Promise.resolve({key:k,value:v})},delete:function(k){var h=Object.prototype.hasOwnProperty.call(S,k);delete S[k];return Promise.resolve({key:k,deleted:h})},list:function(p){return Promise.resolve({keys:Object.keys(S).filter(function(k){return !p||k.indexOf(p)===0})})}}}" +
+    // pages that change the address (#topic) or use in-page links: keep them inside the page
+    "['pushState','replaceState'].forEach(function(n){var o=history[n];history[n]=function(st,t,u){try{return o.call(history,st,t,u)}catch(e){try{if(u&&String(u).indexOf('#')>-1){location.hash=String(u).split('#')[1]}return o.call(history,st,t)}catch(e2){}}}});" +
+    "document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href^=\"#\"]');if(!a||e.defaultPrevented)return;var id=decodeURIComponent(a.getAttribute('href').slice(1));e.preventDefault();var el=id?document.getElementById(id)||document.getElementsByName(id)[0]:document.body;if(el)el.scrollIntoView({behavior:'smooth'});try{location.hash=id}catch(e2){}});" +
+    // tell Funi if part of the page breaks, so you see why instead of a white screen
+    "function R(m){try{parent.postMessage({funiHtmlError:String(m).slice(0,200)},'*')}catch(e){}}" +
+    "window.addEventListener('error',function(e){R(e.message||(e.target&&e.target.src?'Could not load '+e.target.src:'error'))},true);" +
+    "window.addEventListener('unhandledrejection',function(e){R(e.reason&&e.reason.message||e.reason)});" +
+    "})();<\/script>";
+  async function readHtml(blob) {
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    // Notepad "Unicode" files are UTF-16
+    if (buf[0] === 0xFF && buf[1] === 0xFE) return new TextDecoder("utf-16le").decode(buf);
+    if (buf[0] === 0xFE && buf[1] === 0xFF) return new TextDecoder("utf-16be").decode(buf);
+    return new TextDecoder("utf-8").decode(buf);
+  }
+  function prepareHtml(html) {
+    let head = HTML_SHIM;
+    if (!/<meta[^>]+charset/i.test(html)) head = '<meta charset="utf-8">' + head;
+    if (!/<meta[^>]+viewport/i.test(html)) head = '<meta name="viewport" content="width=device-width, initial-scale=1">' + head;
+    // keep <!DOCTYPE html> first, otherwise the browser draws the page in old "quirks" mode
+    const m = html.match(/<head[^>]*>/i) || html.match(/<html[^>]*>/i) || html.match(/<!doctype[^>]*>/i);
+    return m ? html.slice(0, m.index + m[0].length) + head + html.slice(m.index + m[0].length) : head + html;
+  }
+  let hvBlob = null, hvName = "page.html";
   F.openHtml = async ({ bucket, path, title, file }) => {
     $("hvTitle").textContent = title || "Page";
+    $("hvNote").hidden = true; hvBlob = null; hvName = (title || "page").replace(/\.html?$/i, "") + ".html";
     const frame = $("hvFrame");
     frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#555">Opening…</p>';
     $("htmlSheet").showModal();
@@ -465,17 +497,21 @@
     if (file) { try { data = await fileBlob(file); } catch (err) { error = err; } }
     else ({ data, error } = await F.sb.storage.from(bucket).download(path));
     if (error || !data) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">' + (error && error.message === "offline" ? "This page isn\'t saved on this phone yet. Open it once with internet." : "Couldn\'t open this file. Check your internet and try again.") + "</p>"; return; }
-    let html = await data.text();
-    // the page runs in a locked box: it can't see your Funi account or files
-    // pages that save progress in localStorage still work (kept while the page is open)
-    const shim = "<script>(function(){function M(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}}" +
-      "['localStorage','sessionStorage'].forEach(function(n){try{window[n].length}catch(e){try{Object.defineProperty(window,n,{value:M(),configurable:true})}catch(e2){}}})})();<\/script>";
-    html = shim + html;
-    if (!/<meta[^>]+charset/i.test(html)) html = '<meta charset="utf-8">' + html;
-    if (!/<meta[^>]+viewport/i.test(html)) html = '<meta name="viewport" content="width=device-width, initial-scale=1">' + html;
-    frame.srcdoc = html;
+    hvBlob = data;
+    const html = await readHtml(data);
+    if (!html.trim()) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">This file is empty. Try uploading it again.</p>'; return; }
+    frame.srcdoc = prepareHtml(html);
   };
-  $("htmlSheet").addEventListener("close", () => { $("hvFrame").srcdoc = ""; });
+  F.prepareHtml = prepareHtml;
+  window.addEventListener("message", (e) => {
+    if (!$("htmlSheet").open || e.source !== $("hvFrame").contentWindow || !e.data || !e.data.funiHtmlError) return;
+    if (!$("hvNote").hidden) return; // show the first problem only
+    $("hvNoteTxt").textContent = "Part of this page didn't work in Funi's safe viewer (" + e.data.funiHtmlError + "). If it looks wrong, tap Open in browser.";
+    $("hvNote").hidden = false;
+  });
+  // the page opens as a normal file in your own browser (outside Funi)
+  $("hvOpen").onclick = () => { if (hvBlob) saveBlob(new Blob([hvBlob], { type: "text/html" }), hvName, "text/html"); };
+  $("htmlSheet").addEventListener("close", () => { $("hvFrame").srcdoc = ""; hvBlob = null; });
 
   /* ---------- hooks ---------- */
   F.on("view:files", renderFiles);

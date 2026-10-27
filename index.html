@@ -1002,8 +1002,10 @@
 <dialog id="htmlSheet" class="html-view" aria-labelledby="hvTitle">
   <div class="hv-bar">
     <b id="hvTitle">Page</b>
+    <button type="button" class="btn ghost small" id="hvOpen">Open in browser</button>
     <button type="button" class="btn primary small" data-close="htmlSheet">Close</button>
   </div>
+  <p class="hv-note" id="hvNote" hidden><span id="hvNoteTxt"></span></p>
   <iframe id="hvFrame" title="Your HTML file" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
 </dialog>
 <dialog id="pdfSheet" class="html-view" aria-labelledby="pvTitle">
