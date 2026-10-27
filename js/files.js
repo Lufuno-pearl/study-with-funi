@@ -475,6 +475,9 @@
     "function R(m){try{parent.postMessage({funiHtmlError:String(m).slice(0,200)},'*')}catch(e){}}" +
     "window.addEventListener('error',function(e){R(e.message||(e.target&&e.target.src?'Could not load '+e.target.src:'error'))},true);" +
     "window.addEventListener('unhandledrejection',function(e){R(e.reason&&e.reason.message||e.reason)});" +
+    // tell Funi the page is running (and whether it shows anything)
+    "function A(f){try{parent.postMessage({funiHtmlAlive:1,final:f?1:0,text:(document.body&&document.body.innerText||'').trim().length,els:document.body?document.body.getElementsByTagName('*').length:0},'*')}catch(e){}}" +
+    "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){A(0)});else A(0);window.addEventListener('load',function(){setTimeout(function(){A(1)},1200)});" +
     "})();<\/script>";
   async function readHtml(blob) {
     const buf = new Uint8Array(await blob.arrayBuffer());
@@ -506,11 +509,37 @@
     hvBlob = data;
     const html = await readHtml(data);
     if (!html.trim()) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">This file is empty. Try uploading it again.</p>'; return; }
-    frame.srcdoc = prepareHtml(html);
+    showHtml(prepareHtml(html));
   };
+  // Show the page. Some computers block pages drawn straight into Funi; if the page doesn't start, try another way.
+  let hvTry = 0, hvAlive = false, hvUrl = null;
+  function showHtml(doc) {
+    const frame = $("hvFrame"), my = ++hvTry;
+    hvAlive = false;
+    if (hvUrl) { URL.revokeObjectURL(hvUrl); hvUrl = null; }
+    frame.removeAttribute("src");
+    frame.srcdoc = doc;
+    setTimeout(() => {
+      if (my !== hvTry || hvAlive || !$("htmlSheet").open) return;
+      hvUrl = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
+      frame.removeAttribute("srcdoc"); frame.src = hvUrl;
+      setTimeout(() => {
+        if (my !== hvTry || hvAlive || !$("htmlSheet").open) return;
+        note("This computer's browser stopped the page from running inside Funi. Tap Open in browser, or open Funi in Chrome.");
+      }, 3500);
+    }, 3000);
+  }
+  function note(t) { $("hvNoteTxt").textContent = t; $("hvNote").hidden = false; }
   F.prepareHtml = prepareHtml;
   window.addEventListener("message", (e) => {
-    if (!$("htmlSheet").open || e.source !== $("hvFrame").contentWindow || !e.data || !e.data.funiHtmlError) return;
+    if (!$("htmlSheet").open || e.source !== $("hvFrame").contentWindow || !e.data) return;
+    if (e.data.funiHtmlAlive) {
+      hvAlive = true;
+      if (e.data.final && !e.data.text && e.data.els < 3 && $("hvNote").hidden) note("The page opened but has nothing to show. Tap Reload. If it's still empty, the file may be damaged: upload it again.");
+      else if (e.data.text && /has nothing to show/.test($("hvNoteTxt").textContent)) $("hvNote").hidden = true;
+      return;
+    }
+    if (!e.data.funiHtmlError) return;
     if (!$("hvNote").hidden) return; // show the first problem only
     $("hvNoteTxt").textContent = "Part of this page didn't work in Funi's safe viewer (" + e.data.funiHtmlError + "). If it looks wrong, tap Reload or Open in browser.";
     $("hvNote").hidden = false;
@@ -518,7 +547,7 @@
   // the page opens as a normal file in your own browser (outside Funi)
   $("hvReload").onclick = () => { if (hvArgs && !F.looksOffline()) F.openHtml(Object.assign({}, hvArgs, { fresh: true })); else if (hvArgs) F.toast("Reload needs internet."); };
   $("hvOpen").onclick = () => { if (hvBlob) saveBlob(new Blob([hvBlob], { type: "text/html" }), hvName, "text/html"); };
-  $("htmlSheet").addEventListener("close", () => { $("hvFrame").srcdoc = ""; hvBlob = null; });
+  $("htmlSheet").addEventListener("close", () => { hvTry++; $("hvFrame").removeAttribute("src"); $("hvFrame").srcdoc = ""; hvBlob = null; if (hvUrl) { URL.revokeObjectURL(hvUrl); hvUrl = null; } });
 
   /* ---------- hooks ---------- */
   F.on("view:files", renderFiles);
