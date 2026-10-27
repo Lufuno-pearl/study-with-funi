@@ -14,7 +14,6 @@
   };
   S.files = [];
   let curCode = null, filter = "All", missing = false;
-  const urlCache = {}; // path -> { url, until }
 
   /* ---------- helpers ---------- */
   const mb = (n) => (n / 1048576 < 10 ? (n / 1048576).toFixed(1) : Math.round(n / 1048576)) + " MB";
@@ -45,36 +44,95 @@
     S.files.forEach((f) => { const c = f.module_code.trim().toUpperCase(); if (!codes.includes(c)) codes.push(c); });
     return codes;
   }
-  async function signedUrls(paths) {
-    const now = Date.now(), need = [...new Set(paths)].filter((p) => !urlCache[p] || urlCache[p].until < now + 60000);
-    if (need.length) {
-      const { data } = await F.sb.storage.from(BUCKET).createSignedUrls(need, 3600);
-      (data || []).forEach((r) => { if (r.signedUrl) urlCache[r.path] = { url: r.signedUrl, until: now + 3500e3 }; });
+  /* ---------- Offline copies: files are kept on this phone so they open with no internet ---------- */
+  const offKey = () => "funi.offFiles." + (F.me ? F.me.id : "");
+  const offOn = () => F.read(offKey(), true);
+  const cacheName = () => "funi-files-" + (F.me ? F.me.id : "x");
+  const offUrl = (path) => location.origin + "/__offline/" + encodeURIComponent(path);
+  let offSet = new Set(), syncing = false, syncLeft = 0;
+  async function offIndex() {
+    try { const c = await caches.open(cacheName()); offSet = new Set((await c.keys()).map((r) => decodeURIComponent(r.url.split("/__offline/")[1] || ""))); } catch (e) { offSet = new Set(); }
+  }
+  async function offGet(path) {
+    try { const c = await caches.open(cacheName()); const r = await c.match(offUrl(path)); return r ? await r.blob() : null; } catch (e) { return null; }
+  }
+  async function offPut(path, blob, type) {
+    if (!offOn() || !window.caches) return;
+    try { const c = await caches.open(cacheName()); await c.put(offUrl(path), new Response(blob, { headers: { "Content-Type": type || blob.type || "application/octet-stream" } })); offSet.add(path); } catch (e) {}
+  }
+  F.offPutFile = offPut;
+  function offStatus() {
+    const files = S.files.filter((f) => f.kind === "file"), have = files.filter((f) => offSet.has(f.path)).length;
+    $("offToggle").checked = offOn();
+    $("offStatus").textContent = !window.caches ? "This browser can't keep files offline."
+      : !offOn() ? "Off. Files only open when you have internet."
+      : !files.length ? "Your files will open even with no Wi-Fi, data or electricity."
+      : syncing && syncLeft ? "Saving to this phone… " + have + " of " + files.length + " done."
+      : have === files.length ? "All " + files.length + " file" + (files.length === 1 ? " is" : "s are") + " on this phone. They open with no Wi-Fi, data or electricity."
+      : have + " of " + files.length + " on this phone. The rest save next time you're online.";
+  }
+  async function syncOffline() {
+    if (syncing || !window.caches || !F.me || missing) return;
+    syncing = true;
+    try {
+      await offIndex();
+      const c = await caches.open(cacheName());
+      const want = new Set(S.files.filter((f) => f.kind === "file").map((f) => f.path));
+      for (const p of [...offSet]) if (!want.has(p) || !offOn()) { await c.delete(offUrl(p)); offSet.delete(p); }
+      if (!offOn() || !navigator.onLine || (navigator.connection && navigator.connection.saveData)) return;
+      const todo = S.files.filter((f) => f.kind === "file" && !offSet.has(f.path));
+      if (todo.length && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+      syncLeft = todo.length; offStatus();
+      for (const f of todo) {
+        if (!navigator.onLine || !offOn()) break;
+        const { data } = await F.sb.storage.from(BUCKET).download(f.path).catch(() => ({}));
+        if (data) await offPut(f.path, data, f.mime);
+        syncLeft--; offStatus();
+      }
+    } catch (e) {} finally {
+      syncing = false; syncLeft = 0; offStatus();
+      if (S.view === "files") renderFiles(); if (S.view === "modfiles") renderModFiles();
     }
   }
-  const hrefOf = (f) => (f.kind === "link" ? f.url : urlCache[f.path] ? urlCache[f.path].url : "");
+  $("offToggle").addEventListener("change", async () => {
+    F.store(offKey(), $("offToggle").checked);
+    if ($("offToggle").checked) F.toast("Saving your files to this phone…"); else F.toast("Offline copies removed from this phone.");
+    await syncOffline();
+  });
+  // a saved copy first (no data used), else download it (and keep a copy)
+  async function fileBlob(f) {
+    let blob = await offGet(f.path);
+    if (blob) return blob;
+    if (F.looksOffline()) throw new Error("offline");
+    const { data, error } = await F.sb.storage.from(BUCKET).download(f.path);
+    if (error || !data) throw new Error(error ? error.message : "download failed");
+    offPut(f.path, data, f.mime);
+    return data;
+  }
 
   /* ---------- loading ---------- */
   async function loadFiles() {
     if (!F.sb || !F.me) return;
+    const listKey = "funi.files." + F.me.id;
     const { data, error } = await F.sb.from("module_files").select("*").order("created_at", { ascending: false });
-    missing = !!error; S.files = error ? [] : data || [];
+    if (error && F.looksOffline(error)) { missing = false; S.files = F.read(listKey, []); }
+    else { missing = !!error; S.files = error ? [] : data || []; if (!error) F.store(listKey, S.files); }
+    await offIndex();
     if (S.view === "files") renderFiles();
     if (S.view === "modfiles") renderModFiles();
+    syncOffline();
   }
   F.loadFiles = loadFiles;
 
   /* ---------- My modules page ---------- */
   function fileRow(f, opts) {
-    const [k, cls] = kindOf(f), href = hrefOf(f);
+    const [k, cls] = kindOf(f);
     const meta = opts && opts.recent ? f.module_code + " · opened " + when(f.opened_at) : f.folder + " · " + (f.kind === "link" ? "Link" : sizeTxt(+f.size || 0)) + " · " + when(f.created_at);
-    const inner = '<span class="file-ic ' + cls + '">' + k + '</span><span class="file-txt"><b>' + esc(f.name) + "</b><span>" + esc(meta) + "</span></span>";
-    const open = k === "HTML" && f.kind === "file"
-      ? '<button type="button" class="file-open" data-html="' + esc(f.id) + '">' + inner + "</button>"
-      : k === "IMG" && href
-      ? '<button type="button" class="file-open" data-img="' + esc(f.id) + '">' + inner + "</button>"
-      : href ? '<a class="file-open" href="' + esc(href) + '" target="_blank" rel="noopener" data-open="' + esc(f.id) + '">' + inner + "</a>"
-        : '<span class="file-open">' + inner + "</span>";
+    const tick = f.kind === "file" && offSet.has(f.path) ? '<span class="off-ok" title="Opens without internet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Offline</span>' : "";
+    const inner = '<span class="file-ic ' + cls + '">' + k + '</span><span class="file-txt"><b>' + esc(f.name) + "</b><span>" + esc(meta) + tick + "</span></span>";
+    const open = f.kind === "link"
+      ? '<a class="file-open" href="' + esc(f.url) + '" target="_blank" rel="noopener" data-open="' + esc(f.id) + '">' + inner + "</a>"
+      : '<button type="button" class="file-open" data-fopen="' + esc(f.id) + '">' + inner + "</button>";
     if (opts && opts.recent) return '<div class="file-row">' + open + "</div>";
     return '<div class="file-row">' + open +
       '<button type="button" class="icon-btn" data-send-file="' + esc(f.id) + '" aria-label="Send ' + esc(f.name) + ' to a study partner">' + ICON.send + "</button>" +
@@ -95,8 +153,8 @@
     }).join("");
     const recent = S.files.filter((f) => f.opened_at).sort((a, b) => b.opened_at.localeCompare(a.opened_at)).slice(0, 3);
     $("recentCard").hidden = !recent.length;
+    offStatus();
     if (recent.length) {
-      await signedUrls(recent.filter((f) => f.kind === "file").map((f) => f.path));
       $("recentList").innerHTML = recent.map((f) => fileRow(f, { recent: true })).join("");
     }
   }
@@ -119,7 +177,6 @@
       $("mfList").innerHTML = '<div class="empty"><b>' + (mine.length ? "Nothing in " + esc(filter) + " yet" : "No files yet") + '</b><span>Add lecture notes, past papers, photos of the board or a Google Drive link.</span><button type="button" class="btn primary small" data-add-file>Add a file</button></div>';
       return;
     }
-    await signedUrls(list.filter((f) => f.kind === "file").map((f) => f.path));
     $("mfList").innerHTML = list.map((f) => fileRow(f)).join("");
   }
   $("mfChips").addEventListener("click", (e) => { const b = e.target.closest("[data-filter]"); if (!b) return; filter = b.dataset.filter; renderModFiles(); });
@@ -133,12 +190,13 @@
   }
   document.addEventListener("click", async (e) => {
     const t = e.target;
-    const hb = t.closest("[data-html]");
-    if (hb) { const f = byId(hb.dataset.html); if (!f) return; markOpened(f); F.openHtml({ bucket: BUCKET, path: f.path, title: f.name }); return; }
-    const img = t.closest("[data-img]");
-    if (img) { const f = byId(img.dataset.img); if (!f) return; $("imgFull").src = hrefOf(f); $("imgSheet").showModal(); markOpened(f); return; }
+    const fo = t.closest("[data-fopen]");
+    if (fo) { const f = byId(fo.dataset.fopen); if (f) openFile(f); return; }
     const op = t.closest("[data-open]");
-    if (op) { const f = byId(op.dataset.open); if (f) markOpened(f); return; }
+    if (op) {
+      if (F.looksOffline()) { e.preventDefault(); F.toast("Links open on the internet, so they need Wi-Fi or data. Your saved files still open."); return; }
+      const f = byId(op.dataset.open); if (f) markOpened(f); return;
+    }
     const add = t.closest("[data-add-file]");
     if (add) { openSheet(); return; }
     const snd = t.closest("[data-send-file]");
@@ -154,6 +212,73 @@
       renderModFiles(); F.toast("Deleted.");
     }
   });
+
+  async function openFile(f) {
+    const [k] = kindOf(f);
+    if (!F.looksOffline()) markOpened(f);
+    if (k === "HTML") return F.openHtml({ bucket: BUCKET, path: f.path, title: f.name, file: f });
+    if (k === "PDF") return openPdf(f);
+    F.toast("Opening " + f.name + "…");
+    let blob;
+    try { blob = await fileBlob(f); } catch (err) {
+      return F.toast(err.message === "offline" ? "This file isn't saved on this phone yet. Open it once with internet." : "Couldn't open: " + err.message, { long: true });
+    }
+    if (k === "IMG") { const u = URL.createObjectURL(blob); $("imgFull").src = u; $("imgSheet").showModal(); $("imgSheet").addEventListener("close", () => URL.revokeObjectURL(u), { once: true }); $("toast").hidden = true; return; }
+    saveBlob(blob, f.name, f.mime); // Word, PowerPoint, Excel…: opens in your phone's own app
+    $("toast").hidden = true;
+  }
+  function saveBlob(blob, name, type) {
+    const u = URL.createObjectURL(type && !blob.type ? new Blob([blob], { type }) : blob), a = document.createElement("a");
+    a.href = u; a.download = name || "file"; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 60000);
+  }
+
+  /* ---------- PDFs open inside Funi (also offline) ---------- */
+  let pdfDoc = null, pdfZoom = 1, pdfFile = null, pdfBlob = null, pdfJob = 0;
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    return new Promise((res, rej) => {
+      const sc = document.createElement("script"); sc.src = "/js/vendor/pdf.min.js";
+      sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "/js/vendor/pdf.worker.min.js"; res(window.pdfjsLib); };
+      sc.onerror = () => rej(new Error("The PDF reader didn't load. Open Funi once with internet."));
+      document.head.appendChild(sc);
+    });
+  }
+  async function drawPdf() {
+    const job = ++pdfJob, box = $("pvPages");
+    box.innerHTML = "";
+    const width = Math.min(box.clientWidth - 24, 900) * pdfZoom, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    $("pvInfo").textContent = pdfDoc.numPages + " page" + (pdfDoc.numPages === 1 ? "" : "s") + " · " + Math.round(pdfZoom * 100) + "%";
+    for (let n = 1; n <= pdfDoc.numPages; n++) {
+      if (job !== pdfJob || !$("pdfSheet").open) return;
+      const page = await pdfDoc.getPage(n), v1 = page.getViewport({ scale: 1 }), scale = width / v1.width, vp = page.getViewport({ scale: scale * dpr });
+      const cv = document.createElement("canvas");
+      cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+      cv.style.width = Math.floor(vp.width / dpr) + "px"; cv.style.height = Math.floor(vp.height / dpr) + "px";
+      cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "Page " + n);
+      box.appendChild(cv);
+      await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise;
+    }
+  }
+  async function openPdf(f) {
+    pdfFile = f; pdfZoom = 1; pdfDoc = null; pdfBlob = null;
+    $("pvTitle").textContent = f.name; $("pvInfo").textContent = "Opening…";
+    $("pvPages").innerHTML = '<p class="pdf-msg">Opening…</p>';
+    $("pdfSheet").showModal();
+    try {
+      const [lib, blob] = await Promise.all([loadPdfJs(), fileBlob(f)]);
+      pdfBlob = blob;
+      pdfDoc = await lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+      await drawPdf();
+    } catch (err) {
+      $("pvInfo").textContent = "";
+      $("pvPages").innerHTML = '<p class="pdf-msg">' + esc(err.message === "offline" ? "This PDF isn't saved on this phone yet. Open it once with internet." : "Couldn't open this PDF. " + (err.message || "")) + "</p>";
+    }
+  }
+  $("pvIn").onclick = () => { if (pdfDoc && pdfZoom < 3) { pdfZoom = Math.round((pdfZoom + 0.25) * 100) / 100; drawPdf(); } };
+  $("pvOut").onclick = () => { if (pdfDoc && pdfZoom > 0.5) { pdfZoom = Math.round((pdfZoom - 0.25) * 100) / 100; drawPdf(); } };
+  $("pvSave").onclick = () => { if (pdfBlob && pdfFile) saveBlob(pdfBlob, pdfFile.name, "application/pdf"); };
+  $("pdfSheet").addEventListener("close", () => { pdfJob++; $("pvPages").innerHTML = ""; if (pdfDoc) pdfDoc.destroy(); pdfDoc = null; pdfBlob = null; });
 
   /* ---------- Add sheet ---------- */
   let mode = null, picked = null, folder = "Notes";
@@ -220,7 +345,8 @@
       const { data, error } = await F.sb.from("module_files").insert(row).select().single();
       $("fsSave").disabled = false;
       if (error) return F.showError("fsError", "Couldn't save: " + error.message);
-      S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Link saved to " + curCode + ".");
+      offPut(path, blob, type);
+    S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Link saved to " + curCode + ".");
       return;
     }
     if (!picked) return F.showError("fsError", "Choose Upload file, Take photo or Save a link.");
@@ -240,6 +366,7 @@
     const { data, error } = await F.sb.from("module_files").insert({ user_id: F.me.id, module_code: curCode, folder, name, kind: "file", path, mime: type, size: blob.size }).select().single();
     $("fsSave").disabled = false;
     if (error) { await F.sb.storage.from(BUCKET).remove([path]); return F.showError("fsError", error.message); }
+    offPut(path, blob, type);
     S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Saved to " + curCode + " › " + folder + ".");
   });
 
@@ -318,6 +445,7 @@
       if (up.error) throw new Error(up.error.message);
       const { data, error } = await F.sb.from("module_files").insert({ user_id: F.me.id, module_code: code, folder: svFolder, name, kind: "file", path, mime: type, size: dl.data.size }).select().single();
       if (error) { await F.sb.storage.from(BUCKET).remove([path]); throw new Error(error.message); }
+      offPut(path, dl.data, type);
       S.files.unshift(data);
       $("saveSheet").close();
       F.toast("Saved to " + code + " › " + svFolder + ".", { onClick: () => F.go("modfiles:" + code) });
@@ -328,13 +456,15 @@
 
   /* ---------- HTML files open as real pages (Supabase shows them as plain text for safety) ---------- */
   F.isHtmlName = (name, mime) => /text\/html/i.test(mime || "") || /\.html?$/i.test(name || "");
-  F.openHtml = async ({ bucket, path, title }) => {
+  F.openHtml = async ({ bucket, path, title, file }) => {
     $("hvTitle").textContent = title || "Page";
     const frame = $("hvFrame");
     frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#555">Opening…</p>';
     $("htmlSheet").showModal();
-    const { data, error } = await F.sb.storage.from(bucket).download(path);
-    if (error || !data) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">Couldn\'t open this file. Check your internet and try again.</p>'; return; }
+    let data = null, error = null;
+    if (file) { try { data = await fileBlob(file); } catch (err) { error = err; } }
+    else ({ data, error } = await F.sb.storage.from(bucket).download(path));
+    if (error || !data) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">' + (error && error.message === "offline" ? "This page isn\'t saved on this phone yet. Open it once with internet." : "Couldn\'t open this file. Check your internet and try again.") + "</p>"; return; }
     let html = await data.text();
     // the page runs in a locked box: it can't see your Funi account or files
     // pages that save progress in localStorage still work (kept while the page is open)

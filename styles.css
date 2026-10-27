@@ -917,3 +917,16 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 .tile.tile-night { background: linear-gradient(150deg, #1E1A45, #2C2266); color: #FFFFFF; border-color: transparent; }
 .tile.tile-night i { background: rgba(255,255,255,0.14); color: #FDD167; }
 .ptabs button { flex: 1 1 0; padding: 0 8px; font-size: 13px; }
+
+/* ---------- Offline ---------- */
+.offline-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); z-index: 60; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--ink); color: var(--bg); font: 800 13px var(--body); box-shadow: var(--shadow); white-space: nowrap; pointer-events: none; }
+.offline-bar svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+@media (min-width: 1000px) { .offline-bar { bottom: 18px; } }
+.off-ok { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--mint-ink); font-weight: 800; }
+.off-ok svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.file-open.btnlike { font: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; color: inherit; }
+/* PDF viewer */
+.pdf-zoom { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px; background: var(--card); border-bottom: 1px solid var(--line); font-weight: 800; font-size: 13px; color: var(--muted); }
+.pdf-pages { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--bg-2); -webkit-overflow-scrolling: touch; }
+.pdf-pages canvas { display: block; background: #FFFFFF; border-radius: 6px; box-shadow: 0 6px 18px -10px rgba(0,0,0,0.4); max-width: none; }
+.pdf-pages .pdf-msg { margin: 40px 16px; text-align: center; font-weight: 700; color: var(--muted); }

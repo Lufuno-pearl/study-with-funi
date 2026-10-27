@@ -55,8 +55,21 @@
     "Confused": "Some of this isn't clicking", "Stressed": "A lot on my plate", "Need help": "Your partners will be told" };
 
   let toastTimer = null, toastClick = null;
+  F.looksOffline = (err) => !navigator.onLine || !!(err && /fetch|network|load failed|offline|retryable|timed? ?out/i.test((err.name || "") + " " + (err.message || err)));
+  // the login saved on this phone (used only when there's no internet to check it)
+  F.savedSession = () => {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (/^sb-.*-auth-token$/.test(k)) { const v = JSON.parse(localStorage.getItem(k)); if (v && v.user && v.user.id && v.access_token) return { key: k, session: v }; }
+      }
+    } catch (e) {}
+    return null;
+  };
   F.toast = (msg, opts) => {
     const o = opts || {}, t = $("toast");
+    if (typeof msg === "string" && /failed to fetch|networkerror|load failed|you're offline"?$/i.test(msg) && F.looksOffline(msg))
+      msg = "You're offline. This needs internet. Your saved stuff still works.";
     t.innerHTML = (o.icon ? '<span class="ava">' + o.icon + "</span>" : "") + "<span>" + F.esc(msg) + "</span>";
     t.hidden = false; toastClick = o.onClick || null;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, o.long ? 6000 : 3500);
@@ -343,7 +356,9 @@
     F.stopLive();
     await F.unsubscribePush();
     if (F.sb) await F.sb.auth.signOut();
-    F.me = null;
+    // remove this account's offline copies from the phone
+    try { if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.filter((k) => k === "funi-data" || k.startsWith("funi-files-")).map((k) => caches.delete(k))); } } catch (e) {}
+    F.me = null; F.startedOffline = false; if (F.offlineBar) F.offlineBar();
     Object.assign(F.s, { items: [], modules: [], tasks: [], sessions: [], profile: null, partners: [], invitesIn: [], invitesOut: [], partnerSessions: {}, online: new Set(), convos: {}, notifs: [], chatWith: null });
     document.body.classList.remove("bigclock-mode");
     F.showAuth(); setAuthTab("login");

@@ -216,6 +216,10 @@
       <div class="space-bar"><i id="spaceBar"></i></div>
       <span class="hint">Free forever. Big files? Save a Google Drive link instead, it uses no space.</span>
     </div>
+    <div class="card stack off-card">
+      <label class="switch" for="offToggle"><span>Keep my files on this phone</span><input type="checkbox" id="offToggle"></label>
+      <p class="hint" id="offStatus">Your files open even with no Wi-Fi, data or electricity.</p>
+    </div>
     <div class="mod-tiles" id="modTiles"></div>
     <div class="card stack" id="recentCard" hidden>
       <h2>Recently opened</h2>
@@ -1001,6 +1005,16 @@
   </div>
   <iframe id="hvFrame" title="Your HTML file" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
 </dialog>
+<dialog id="pdfSheet" class="html-view" aria-labelledby="pvTitle">
+  <div class="hv-bar">
+    <b id="pvTitle">PDF</b>
+    <button type="button" class="btn ghost small" id="pvSave">Save to phone</button>
+    <button type="button" class="btn primary small" data-close="pdfSheet">Close</button>
+  </div>
+  <div class="pdf-zoom"><button type="button" class="icon-btn" id="pvOut" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span id="pvInfo">Opening…</span><button type="button" class="icon-btn" id="pvIn" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+  <div class="pdf-pages" id="pvPages"></div>
+</dialog>
+<div class="offline-bar" id="offlineBar" role="status" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0"/><path d="M3 3l18 18"/></svg>Offline · your saved stuff still works</div>
 <dialog id="imgSheet" class="img-view"><button type="button" class="btn ghost block" data-close="imgSheet">Close</button><img id="imgFull" alt="Shared photo"></dialog>
 
 <dialog id="iosSheet"><div class="sheet">
