@@ -500,6 +500,7 @@
     $("hvTitle").textContent = title || "Page";
     $("hvNote").hidden = true; hvBlob = null; hvName = (title || "page").replace(/\.html?$/i, "") + ".html";
     const frame = $("hvFrame");
+    hvTry++; if (hvUrl) { URL.revokeObjectURL(hvUrl); hvUrl = null; } frame.removeAttribute("src");
     frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#555">Opening…</p>';
     if (!$("htmlSheet").open) $("htmlSheet").showModal();
     let data = null, error = null;
@@ -511,29 +512,39 @@
     if (!html.trim()) { frame.srcdoc = '<p style="font:600 16px system-ui;padding:24px;color:#B42318">This file is empty. Try uploading it again.</p>'; return; }
     showHtml(prepareHtml(html));
   };
-  // Show the page. Some computers block pages drawn straight into Funi; if the page doesn't start, try another way.
-  let hvTry = 0, hvAlive = false, hvUrl = null;
-  function showHtml(doc) {
-    const frame = $("hvFrame"), my = ++hvTry;
-    hvAlive = false;
+  // Show the page. Browsers differ: some show pages best from a page link (blob), some written straight in (srcdoc).
+  // Try the way that worked last time on this device first, and remember what works.
+  let hvTry = 0, hvAlive = false, hvUrl = null, hvMode = null;
+  function setFrame(doc, mode) {
+    const frame = $("hvFrame");
     if (hvUrl) { URL.revokeObjectURL(hvUrl); hvUrl = null; }
-    frame.removeAttribute("src");
-    frame.srcdoc = doc;
-    setTimeout(() => {
-      if (my !== hvTry || hvAlive || !$("htmlSheet").open) return;
+    hvMode = mode;
+    if (mode === "blob") {
       hvUrl = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
       frame.removeAttribute("srcdoc"); frame.src = hvUrl;
+    } else { frame.removeAttribute("src"); frame.srcdoc = doc; }
+  }
+  function showHtml(doc) {
+    const my = ++hvTry, first = F.read("funi.hvMode", "blob"), second = first === "blob" ? "srcdoc" : "blob";
+    hvAlive = false;
+    setFrame(doc, first);
+    setTimeout(() => {
+      if (my !== hvTry || hvAlive || !$("htmlSheet").open) return;
+      setFrame(doc, second);
       setTimeout(() => {
         if (my !== hvTry || hvAlive || !$("htmlSheet").open) return;
-        note("This computer's browser stopped the page from running inside Funi. Tap Open in browser, or open Funi in Chrome.");
-      }, 4000);
-    }, 4000);
+        // neither way said "running": the page may still show, but its buttons might not work here
+        setFrame(doc, first);
+        note("If the buttons on this page don't respond here, tap Open in browser.");
+      }, 5000);
+    }, 5000);
   }
   function note(t) { $("hvNoteTxt").textContent = t; $("hvNote").hidden = false; }
   F.prepareHtml = prepareHtml;
   window.addEventListener("message", (e) => {
     if (!$("htmlSheet").open || e.source !== $("hvFrame").contentWindow || !e.data) return;
     if (e.data.funiHtmlAlive) {
+      if (!hvAlive && hvMode) F.store("funi.hvMode", hvMode);
       hvAlive = true;
       if (e.data.final && !e.data.text && e.data.els < 3 && $("hvNote").hidden) note("The page opened but has nothing to show. Tap Reload. If it's still empty, the file may be damaged: upload it again.");
       else if (e.data.text && /has nothing to show/.test($("hvNoteTxt").textContent)) $("hvNote").hidden = true;
