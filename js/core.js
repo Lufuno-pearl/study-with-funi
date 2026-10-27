@@ -210,21 +210,22 @@
     male: [{ skin: 4, hair: "beanie", hairColor: 0, hoodie: 5, phones: true }, { skin: 1, hair: "beanie", hairColor: 3, hoodie: 5, phones: true }]
   };
   F.START_THEME = { female: "lavender", male: "ocean" };
+  F.startLookFor = (sx, id) => { const l = F.START_LOOK[sx]; return l[Math.abs([...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)) % l.length]; };
   let signSex = "";
   function drawAuthArt() {
     $("authArt").innerHTML = window.FuniArt.dreamyScene(signSex === "male" ? F.START_LOOK.male[0] : F.START_LOOK.female[0], "Happy", "funi");
   }
   function pickSex(sx) {
     signSex = sx;
-    document.querySelectorAll("[data-sex]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.sex === sx)));
+    document.querySelectorAll("#suSex [data-sex]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.sex === sx)));
     $("suSexHint").textContent = sx === "male"
       ? "You'll start with the blue Ocean theme and a guy avatar. Change both anytime."
       : "You'll start with the Lavender theme and a girl avatar. Change both anytime.";
     F.applyTheme(F.START_THEME[sx]);
     drawAuthArt();
   }
-  document.querySelector(".sex-pick").addEventListener("click", (e) => { const b = e.target.closest("[data-sex]"); if (b) { pickSex(b.dataset.sex); F.showError("signupError", ""); } });
-  document.querySelector(".sex-pick").addEventListener("keydown", (e) => {
+  $("suSex").addEventListener("click", (e) => { const b = e.target.closest("[data-sex]"); if (b) { pickSex(b.dataset.sex); F.showError("signupError", ""); } });
+  $("suSex").addEventListener("keydown", (e) => {
     if (!/^Arrow/.test(e.key)) return;
     e.preventDefault(); const nx = signSex === "male" ? "female" : "male"; pickSex(nx); document.querySelector('[data-sex="' + nx + '"]').focus();
   });

@@ -22,12 +22,19 @@
   // First time on this device: use the Female/Male choice from sign-up for the theme and (if none yet) the avatar
   async function startingLook() {
     const sx = (F.me.user_metadata || {}).sex, key = "funi.started." + F.me.id;
-    if (!F.START_LOOK[sx] || F.read(key, false)) return;
+    if (!F.START_LOOK[sx]) {
+      // signed up before Female/Male existed: point them to Profile once
+      if (!F.read("funi.sexAsked." + F.me.id, false)) {
+        F.store("funi.sexAsked." + F.me.id, true);
+        setTimeout(() => F.toast("New: tell Funi if you're female or male in Profile. Guys get a blue theme and a guy avatar.", { long: true, onClick: () => F.go("profile") }), 6000);
+      }
+      return;
+    }
+    if (F.read(key, false)) return;
     F.store(key, true);
     if (F.currentTheme() === "lavender" || F.currentTheme() === F.START_THEME[sx]) F.applyTheme(F.START_THEME[sx]);
     if (S.profile.avatar || S.socialMissing) return;
-    const looks = F.START_LOOK[sx], pick = looks[Math.abs([...F.me.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)) % looks.length];
-    const val = JSON.stringify(pick);
+    const val = JSON.stringify(F.startLookFor(sx, F.me.id));
     const { error } = await F.sb.from("study_profiles").update({ avatar: val }).eq("id", F.me.id);
     if (!error) S.profile.avatar = val;
   }
@@ -668,7 +675,27 @@
     renderEmail();
     F.toast("Check " + email + " for a link to confirm it. Look in Spam too, and tap \"Not spam\" if it's there.", { long: true });
   };
-  F.on("view:profile", () => { draftAvatar = null; renderProfile(); });
+  F.on("view:profile", () => { draftAvatar = null; renderProfile(); renderSex(); });
+  // I am: Female / Male (switches theme and avatar to match)
+  function renderSex() {
+    const sx = (F.me && F.me.user_metadata || {}).sex || "";
+    document.querySelectorAll("#profSex [data-psex]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.psex === sx)));
+  }
+  async function setSex(sx) {
+    if (!F.START_LOOK[sx]) return;
+    document.querySelectorAll("#profSex [data-psex]").forEach((b) => { b.disabled = true; b.setAttribute("aria-checked", String(b.dataset.psex === sx)); });
+    const { data, error } = await F.sb.auth.updateUser({ data: { sex: sx } });
+    document.querySelectorAll("#profSex [data-psex]").forEach((b) => { b.disabled = false; });
+    if (error) { renderSex(); return F.toast("Couldn't save: " + error.message, { long: true }); }
+    if (data && data.user) F.me = data.user;
+    F.store("funi.started." + F.me.id, true); F.store("funi.sexAsked." + F.me.id, true);
+    F.applyTheme(F.START_THEME[sx]); renderThemes();
+    const photo = S.profile && F.isPhoto(S.profile.avatar);
+    if (photo) { renderSex(); return F.toast("Theme switched. We kept your photo as your avatar.", { long: true }); }
+    await saveAvatarValue(JSON.stringify(F.startLookFor(sx, F.me.id)), sx === "male" ? "Done! Blue theme and a guy avatar. Change either one anytime below." : "Done! Lavender theme and a girl avatar. Change either one anytime below.");
+    renderSex();
+  }
+  $("profSex").addEventListener("click", (e) => { const b = e.target.closest("[data-psex]"); if (b) setSex(b.dataset.psex); });
   document.querySelectorAll("#avaTabs [data-avtab]").forEach((b) => b.addEventListener("click", () => { avTab = b.dataset.avtab; renderProfile(); }));
   $("avaGrid").addEventListener("click", (e) => { const b = e.target.closest("[data-preset]"); if (!b) return; draftAvatar = JSON.stringify(A.PRESETS[+b.dataset.preset].look); renderProfile(); });
   async function saveAvatarValue(val, msg) {
@@ -684,13 +711,14 @@
   function drawLook() {
     $("lookPreview").innerHTML = A.avatarSVG(draftLook, (S.profile && S.profile.feeling) || "Happy", F.me.id);
     $("lookSkin").innerHTML = A.SKIN.map((c, i) => '<button type="button" class="look-opt" style="background:' + c + '" data-look="skin" data-v="' + i + '" aria-pressed="' + (draftLook.skin === i) + '" aria-label="Skin tone ' + (i + 1) + '"></button>').join("");
-    const names = { puffs: "Puffs", afro: "Afro", bun: "Bun", long: "Long", braids: "Braids", short: "Short", curly: "Curly" };
-    $("lookHair").innerHTML = A.HAIR_STYLES.map((h) => '<button type="button" class="look-txt" data-look="hair" data-v="' + h + '" aria-pressed="' + (draftLook.hair === h) + '">' + names[h] + "</button>").join("");
+    const names = { puffs: "Puffs", afro: "Afro", bun: "Bun", long: "Long", braids: "Braids", short: "Short", curly: "Curly", beanie: "Beanie" };
+    $("lookPhones").innerHTML = [[false, "None"], [true, "White headphones"]].map((o) => '<button type="button" class="look-txt" data-look="phones" data-v="' + o[0] + '" aria-pressed="' + (!!draftLook.phones === o[0]) + '">' + o[1] + "</button>").join("");
+    $("lookHair").innerHTML = A.HAIR_STYLES.concat(["beanie"]).map((h) => '<button type="button" class="look-txt" data-look="hair" data-v="' + h + '" aria-pressed="' + (draftLook.hair === h) + '">' + names[h] + "</button>").join("");
     $("lookHairColor").innerHTML = A.HAIR_COLORS.map((c, i) => '<button type="button" class="look-opt" style="background:' + c + '" data-look="hairColor" data-v="' + i + '" aria-pressed="' + (draftLook.hairColor === i) + '" aria-label="Hair colour ' + (i + 1) + '"></button>').join("");
     $("lookHoodie").innerHTML = A.HOODIES.map((c, i) => '<button type="button" class="look-opt" style="background:' + c + '" data-look="hoodie" data-v="' + i + '" aria-pressed="' + (draftLook.hoodie === i) + '" aria-label="Hoodie colour ' + (i + 1) + '"></button>').join("");
   }
   $("editLook").onclick = () => { draftLook = A.parseLook(F.isPhoto(draftAvatar) ? null : draftAvatar, F.me.id); drawLook(); $("lookSheet").showModal(); };
-  $("lookSheet").addEventListener("click", (e) => { const b = e.target.closest("[data-look]"); if (!b) return; draftLook[b.dataset.look] = b.dataset.look === "hair" ? b.dataset.v : +b.dataset.v; drawLook(); });
+  $("lookSheet").addEventListener("click", (e) => { const b = e.target.closest("[data-look]"); if (!b) return; draftLook[b.dataset.look] = b.dataset.look === "hair" ? b.dataset.v : b.dataset.look === "phones" ? b.dataset.v === "true" : +b.dataset.v; drawLook(); });
   $("saveLook").onclick = () => { draftAvatar = JSON.stringify(draftLook); $("lookSheet").close(); renderProfile(); F.toast("Tap Save avatar to keep it."); };
   // photo upload (made small on the phone before uploading)
   $("uploadPhoto").onclick = () => $("photoInput").click();

@@ -36,7 +36,7 @@
     </div>
     <form id="signupForm" novalidate>
       <span class="label" id="suSexLbl">I am</span>
-      <div class="sex-pick" role="radiogroup" aria-labelledby="suSexLbl">
+      <div class="sex-pick" id="suSex" role="radiogroup" aria-labelledby="suSexLbl">
         <button type="button" role="radio" aria-checked="false" data-sex="female">Female</button>
         <button type="button" role="radio" aria-checked="false" data-sex="male">Male</button>
       </div>
@@ -724,6 +724,14 @@
         <button type="button" class="btn primary" id="saveEmail">Save</button>
       </div>
     </div>
+    <div class="card flat stack" id="sexCard">
+      <h2 id="profSexLbl">I am</h2>
+      <div class="sex-pick" id="profSex" role="radiogroup" aria-labelledby="profSexLbl">
+        <button type="button" role="radio" aria-checked="false" data-psex="female">Female</button>
+        <button type="button" role="radio" aria-checked="false" data-psex="male">Male</button>
+      </div>
+      <p class="hint" id="profSexHint">Tap one and Funi switches your theme and avatar to match. You can still change both below.</p>
+    </div>
     <div class="card flat stack">
       <h2>Theme</h2>
       <div class="themes" id="themePicker"></div>
@@ -849,6 +857,7 @@
   <span class="label">Hair</span><div class="look-row" id="lookHair"></div>
   <span class="label">Hair colour</span><div class="look-row" id="lookHairColor"></div>
   <span class="label">Hoodie</span><div class="look-row" id="lookHoodie"></div>
+  <span class="label">Headphones</span><div class="look-row" id="lookPhones"></div>
   <div class="btns">
     <button type="button" class="btn ghost" data-close="lookSheet">Cancel</button>
     <button type="button" class="btn primary" id="saveLook">Use this look</button>
