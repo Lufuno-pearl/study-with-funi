@@ -10,6 +10,7 @@
   const HOODIE_DARK = ["#7258D0", "#DD7F62", "#479F82", "#D29C33", "#CC6393", "#4659BC"];
   const BG = ["#EDE6FF", "#FFE7DD", "#DDF3EA", "#FFF1D2", "#FFE2EE", "#E2E8FF"];
   const HAIR_STYLES = ["puffs", "afro", "bun", "long", "braids", "short", "curly"];
+  const EXTRA_HAIR = ["beanie"]; // kept separate so everyone's automatic avatar stays the same
   const FEELINGS = ["Feeling great", "Happy", "Okay", "Confused", "Stressed", "Need help"];
 
   function hashOf(s) { let h = 7; for (const c of String(s || "funi")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
@@ -26,7 +27,8 @@
     if (!look) return d;
     return {
       skin: Number.isInteger(look.skin) && SKIN[look.skin] ? look.skin : d.skin,
-      hair: HAIR_STYLES.includes(look.hair) ? look.hair : d.hair,
+      hair: HAIR_STYLES.concat(EXTRA_HAIR).includes(look.hair) ? look.hair : d.hair,
+      phones: look.phones === true,
       hairColor: Number.isInteger(look.hairColor) && HAIR_COLORS[look.hairColor] ? look.hairColor : d.hairColor,
       hoodie: Number.isInteger(look.hoodie) && HOODIES[look.hoodie] ? look.hoodie : d.hoodie
     };
@@ -59,6 +61,11 @@
           '<path d="M37 41Q60 27 83 41" fill="none" stroke="#F3C25E" stroke-width="5" stroke-linecap="round"/>';
       case "short":
         return '<path d="M35 53Q33 25 60 24Q87 25 85 53Q83 40 74 36Q62 42 41 40Q37 45 35 53Z" fill="' + h + '"/>';
+      case "beanie":
+        return '<path d="M36 52Q38 44 46 43L50 50L54 43L60 49L66 43L71 50L75 43Q83 44 84 52Q80 47 74 47Q60 52 46 47Q40 47 36 52Z" fill="' + h + '"/>' +
+          '<path d="M33 46Q31 15 60 14Q89 15 87 46Z" fill="#F4F2EE"/>' +
+          '<path d="M31 47Q60 36 89 47L89 40Q60 30 31 40Z" fill="#E6E2DB"/>' +
+          '<path d="M43 39V20M51 37V16M60 36V15M69 37V16M77 39V20" stroke="#D9D3C9" stroke-width="2.2" stroke-linecap="round"/>';
       case "curly":
         return '<g fill="' + h + '"><circle cx="40" cy="38" r="8"/><circle cx="50" cy="31" r="8.5"/><circle cx="61" cy="29" r="9"/><circle cx="72" cy="31" r="8.5"/><circle cx="81" cy="38" r="8"/><path d="M35 52Q33 34 45 32H75Q87 34 85 52Q80 42 60 41Q40 42 35 52Z"/></g>';
       default: return "";
@@ -132,6 +139,8 @@
       '<circle cx="36" cy="58" r="5.5" fill="' + shade + '"/><circle cx="84" cy="58" r="5.5" fill="' + shade + '"/>' +
       '<ellipse cx="60" cy="55" rx="25" ry="27" fill="' + skin + '"/>' +
       hairFront(L.hair, hair) + face(feeling || "Happy") +
+      (L.phones ? '<path d="M30 54Q29 14 60 13Q91 14 90 54" fill="none" stroke="#F7F7F9" stroke-width="5" stroke-linecap="round"/><path d="M30 54Q29 14 60 13Q91 14 90 54" fill="none" stroke="#D8DCE6" stroke-width="1.5" stroke-linecap="round" opacity=".8"/>' +
+        '<rect x="24" y="48" width="12" height="20" rx="6" fill="#FFFFFF" stroke="#D8DCE6" stroke-width="1.5"/><rect x="84" y="48" width="12" height="20" rx="6" fill="#FFFFFF" stroke="#D8DCE6" stroke-width="1.5"/>' : "") +
       (o.chin ? chinHands(hood, hoodD, skin, shade) : "") +
       "</g></svg>";
   }
@@ -207,6 +216,7 @@
     { look: { skin: 4, hair: "puffs", hairColor: 0, hoodie: 0 }, kind: "Girls" }, { look: { skin: 2, hair: "afro", hairColor: 1, hoodie: 1 }, kind: "Girls" },
     { look: { skin: 1, hair: "bun", hairColor: 3, hoodie: 2 }, kind: "Girls" }, { look: { skin: 0, hair: "long", hairColor: 4, hoodie: 4 }, kind: "Girls" },
     { look: { skin: 5, hair: "braids", hairColor: 0, hoodie: 3 }, kind: "Girls" }, { look: { skin: 3, hair: "long", hairColor: 0, hoodie: 5 }, kind: "Girls" },
+    { look: { skin: 1, hair: "beanie", hairColor: 3, hoodie: 5, phones: true }, kind: "Guys" }, { look: { skin: 4, hair: "beanie", hairColor: 0, hoodie: 5, phones: true }, kind: "Guys" },
     { look: { skin: 4, hair: "short", hairColor: 0, hoodie: 5 }, kind: "Guys" }, { look: { skin: 3, hair: "curly", hairColor: 0, hoodie: 2 }, kind: "Guys" },
     { look: { skin: 5, hair: "afro", hairColor: 0, hoodie: 3 }, kind: "Guys" }, { look: { skin: 1, hair: "short", hairColor: 3, hoodie: 1 }, kind: "Guys" },
     { look: { skin: 2, hair: "curly", hairColor: 1, hoodie: 0 }, kind: "Guys" }, { look: { skin: 0, hair: "short", hairColor: 4, hoodie: 4 }, kind: "Guys" }

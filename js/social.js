@@ -17,6 +17,19 @@
     if (!data) { const ins = await F.sb.from("study_profiles").insert({ id: F.me.id, username: fallback.username }).select().single(); S.profile = ins.data || fallback; }
     else S.profile = data;
     profiles[F.me.id] = S.profile;
+    await startingLook();
+  }
+  // First time on this device: use the Female/Male choice from sign-up for the theme and (if none yet) the avatar
+  async function startingLook() {
+    const sx = (F.me.user_metadata || {}).sex, key = "funi.started." + F.me.id;
+    if (!F.START_LOOK[sx] || F.read(key, false)) return;
+    F.store(key, true);
+    if (F.currentTheme() === "lavender" || F.currentTheme() === F.START_THEME[sx]) F.applyTheme(F.START_THEME[sx]);
+    if (S.profile.avatar || S.socialMissing) return;
+    const looks = F.START_LOOK[sx], pick = looks[Math.abs([...F.me.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)) % looks.length];
+    const val = JSON.stringify(pick);
+    const { error } = await F.sb.from("study_profiles").update({ avatar: val }).eq("id", F.me.id);
+    if (!error) S.profile.avatar = val;
   }
   F.renderMe = () => {
     const p = S.profile; if (!p) return;
@@ -99,7 +112,11 @@
       const r = (id) => (S.partnerSessions[id] ? 0 : S.online.has(id) ? 1 : 2);
       return r(a.id) - r(b.id) || F.nameOf(profiles[a.id]).localeCompare(F.nameOf(profiles[b.id]));
     });
-    $("psCircle").innerHTML = sorted.length ? sorted.map((p) => personCard(p.id, "", true)).join("")
+    const q = ($("circleSearch").value || "").trim().toLowerCase().replace(/^@/, "");
+    $("circleSearchBox").hidden = sorted.length < 6 && !q;
+    const shown = q ? sorted.filter((p) => { const pr = profiles[p.id] || {}; return (F.nameOf(pr) + " " + (pr.username || "")).toLowerCase().includes(q); }) : sorted;
+    $("psCircle").innerHTML = shown.length ? shown.map((p) => personCard(p.id, "", true)).join("")
+      : sorted.length ? '<div class="empty"><b>No one called "' + esc(q) + '"</b><span>Check the spelling, or invite them.</span></div>'
       : '<div class="empty"><b>No study partners yet</b><span>Invite a friend by their Funi username.</span><button type="button" class="btn primary small" data-go="invite">Invite a friend</button></div>';
     let inv = "";
     if (S.invitesIn.length) inv += "<h2>Waiting for you</h2>" + S.invitesIn.map((r) => personCard(r.requester_id,
@@ -116,8 +133,10 @@
   function openPseg(seg) {
     pseg = seg;
     document.querySelectorAll("#partnerSeg [data-pseg]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pseg === seg)));
-    $("psCircle").hidden = seg !== "circle"; $("psInvites").hidden = seg !== "invites";
+    $("psCirclePane").hidden = seg !== "circle"; $("psFun").hidden = seg !== "fun"; $("psInvites").hidden = seg !== "invites";
   }
+  $("circleSearch").addEventListener("input", () => renderPartners());
+  document.querySelector("[data-cross-night]").addEventListener("click", () => $("crossNightBtn").click());
   document.querySelectorAll("#partnerSeg [data-pseg]").forEach((b) => b.addEventListener("click", () => openPseg(b.dataset.pseg)));
   F.on("view:partners", (sub) => { renderPartners(); openPseg(sub || (S.invitesIn.length ? "invites" : pseg)); });
 

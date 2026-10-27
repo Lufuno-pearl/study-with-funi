@@ -89,6 +89,8 @@
   F.THEMES = [
     { id: "lavender", name: "Lavender", sw: ["#FAF5F4", "#7556DC"], meta: "#FAF5F4" },
     { id: "blush", name: "Blush", sw: ["#FBF1F4", "#B04A72"], meta: "#FBF1F4" },
+    { id: "ocean", name: "Ocean", sw: ["#EEF3FF", "#3550D4"], meta: "#EEF3FF" },
+    { id: "navy", name: "Deep navy", sw: ["#0E1528", "#7D95FF"], meta: "#0E1528" },
     { id: "midnight", name: "Midnight", sw: ["#14101E", "#A890FB"], meta: "#14101E" },
     { id: "night", name: "Night", sw: ["#0F0F13", "#F0A5C7"], meta: "#0F0F13" }
   ];
@@ -202,9 +204,33 @@
     $("ceResend").hidden = pendingKind === "reset";
     authPanel("checkEmail");
   }
+  /* Female / Male: sets the starting theme and avatar (both can be changed later in Profile) */
+  F.START_LOOK = {
+    female: [{ skin: 4, hair: "puffs", hairColor: 0, hoodie: 0 }, { skin: 2, hair: "afro", hairColor: 1, hoodie: 1 }, { skin: 5, hair: "braids", hairColor: 0, hoodie: 3 }],
+    male: [{ skin: 4, hair: "beanie", hairColor: 0, hoodie: 5, phones: true }, { skin: 1, hair: "beanie", hairColor: 3, hoodie: 5, phones: true }]
+  };
+  F.START_THEME = { female: "lavender", male: "ocean" };
+  let signSex = "";
+  function drawAuthArt() {
+    $("authArt").innerHTML = window.FuniArt.dreamyScene(signSex === "male" ? F.START_LOOK.male[0] : F.START_LOOK.female[0], "Happy", "funi");
+  }
+  function pickSex(sx) {
+    signSex = sx;
+    document.querySelectorAll("[data-sex]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.sex === sx)));
+    $("suSexHint").textContent = sx === "male"
+      ? "You'll start with the blue Ocean theme and a guy avatar. Change both anytime."
+      : "You'll start with the Lavender theme and a girl avatar. Change both anytime.";
+    F.applyTheme(F.START_THEME[sx]);
+    drawAuthArt();
+  }
+  document.querySelector(".sex-pick").addEventListener("click", (e) => { const b = e.target.closest("[data-sex]"); if (b) { pickSex(b.dataset.sex); F.showError("signupError", ""); } });
+  document.querySelector(".sex-pick").addEventListener("keydown", (e) => {
+    if (!/^Arrow/.test(e.key)) return;
+    e.preventDefault(); const nx = signSex === "male" ? "female" : "male"; pickSex(nx); document.querySelector('[data-sex="' + nx + '"]').focus();
+  });
   F.showAuth = () => {
     $("appScreen").hidden = true; $("authScreen").hidden = false;
-    $("authArt").innerHTML = window.FuniArt.dreamyScene({ skin: 4, hair: "puffs", hairColor: 0, hoodie: 0 }, "Happy", "funi");
+    drawAuthArt();
     document.querySelectorAll("dialog[open]").forEach((d) => d.close());
     if ($("signupForm").hidden === false) showSpots();
   };
@@ -218,6 +244,7 @@
     e.preventDefault();
     if (!F.sb) return F.showError("signupError", "Funi can't reach the internet. Check your connection and try again.");
     const user = cleanUsername($("suUser").value), email = cleanEmail($("suEmail").value), p1 = $("suPass").value, p2 = $("suPass2").value;
+    if (!signSex) return F.showError("signupError", "Choose Female or Male first.");
     const bad = usernameProblem(user);
     if (bad) return F.showError("signupError", bad);
     if (!emailOk(email)) return F.showError("signupError", "Type your full email, like you@gmail.com.");
@@ -229,7 +256,7 @@
     const st = await signupStatus(user);
     if (st && st.spots_left <= 0) { busy(false); return F.showError("signupError", "Sorry, Funi is full right now (" + st.max + " people)."); }
     if (st && !st.username_free) { busy(false); return F.showError("signupError", "That username is taken. Try another one."); }
-    const { data, error } = await F.sb.auth.signUp({ email, password: p1, options: { data: { username: user }, emailRedirectTo: home() } });
+    const { data, error } = await F.sb.auth.signUp({ email, password: p1, options: { data: { username: user, sex: signSex }, emailRedirectTo: home() } });
     busy(false);
     if (error) {
       const m = error.message || "";
