@@ -477,7 +477,7 @@
     "window.addEventListener('unhandledrejection',function(e){R(e.reason&&e.reason.message||e.reason)});" +
     // tell Funi the page is running (and whether it shows anything)
     "function A(f){try{parent.postMessage({funiHtmlAlive:1,final:f?1:0,text:(document.body&&document.body.innerText||'').trim().length,els:document.body?document.body.getElementsByTagName('*').length:0},'*')}catch(e){}}" +
-    "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){A(0)});else A(0);window.addEventListener('load',function(){setTimeout(function(){A(1)},1200)});" +
+    "A(0);window.addEventListener('load',function(){setTimeout(function(){A(1)},1200)});" +
     "})();<\/script>";
   async function readHtml(blob) {
     const buf = new Uint8Array(await blob.arrayBuffer());
@@ -526,8 +526,8 @@
       setTimeout(() => {
         if (my !== hvTry || hvAlive || !$("htmlSheet").open) return;
         note("This computer's browser stopped the page from running inside Funi. Tap Open in browser, or open Funi in Chrome.");
-      }, 3500);
-    }, 3000);
+      }, 4000);
+    }, 4000);
   }
   function note(t) { $("hvNoteTxt").textContent = t; $("hvNote").hidden = false; }
   F.prepareHtml = prepareHtml;

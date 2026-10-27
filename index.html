@@ -400,10 +400,12 @@
   <section class="view" id="vStudy" hidden>
     <form class="stack" id="sessionForm">
       <h1>Start a study session</h1>
+      <div class="cols"><div class="col">
       <label for="sesModule" style="margin-top:4px">What are you studying?</label>
       <select id="sesModule"></select>
       <span class="label">How are you feeling?</span>
       <div class="feelings" id="sesFeelings"></div>
+      </div><div class="col">
       <span class="label">What will you work on?</span>
       <div class="radio-list" id="sesActivity">
         <label><input type="radio" name="act" value="Reviewing lecture notes" checked> Reviewing lecture notes</label>
@@ -418,6 +420,7 @@
       <label class="switch" for="sesShare"><span>Share with my study partners</span><input type="checkbox" id="sesShare" checked></label>
       <p class="form-error" id="sesError" hidden></p>
       <button type="submit" class="btn primary block">Start studying</button>
+      </div></div>
     </form>
 
     <div class="stack" id="sessionLive" hidden>
@@ -517,6 +520,7 @@
       <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <div class="grow"><h1>What do I need?</h1></div>
     </header>
+    <div class="cols"><div class="col">
     <p>Check your course outline for how much the exam is worth. Drag the sliders or type the exact numbers.</p>
     <label for="mModule">Module</label>
     <select id="mModule"></select>
@@ -529,6 +533,7 @@
       <div class="slider-row"><label class="lbl" for="mSubN">Exam subminimum</label><span class="num-box"><input type="number" id="mSubN" min="0" max="100" step="any" inputmode="decimal" value="40"><span>%</span></span></div>
       <input type="range" id="mSub" min="0" max="100" step="1" value="40" aria-label="Exam subminimum">
     </div>
+    </div><div class="col">
     <div class="card flat have-row" id="mHave"></div>
     <section class="need-hero">
       <span class="eyebrow">TO PASS WITH 50% YOU NEED</span>
@@ -541,6 +546,7 @@
       <div class="card flat"><small>For a distinction (75%)</small><div class="stat-big" id="m75"></div><small class="hint" id="m75p"></small></div>
     </div>
     <button type="button" class="btn soft-btn block" id="mSave">Save and update my priorities</button>
+    </div></div>
   </section>
 
   <!-- ---------- REMINDERS ---------- -->
@@ -697,6 +703,7 @@
       <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <div class="grow"><h1>Choose your avatar</h1></div>
     </header>
+    <div class="cols"><div class="col">
     <div class="card flat mood-row">
       <span class="ava xl" id="profAva"></span>
       <div class="grow"><b class="big-name" id="profName"></b><span class="hint" id="profUser"></span><p class="hint">This is how your study partners see you.</p></div>
@@ -713,6 +720,7 @@
     </div>
     <input type="file" id="photoInput" accept="image/*" hidden>
     <button type="button" class="btn primary block" id="saveAvatar">Save avatar</button>
+    </div><div class="col">
 
     <div class="card flat">
       <label for="profDisplay" style="margin-top:0">Name partners see</label>
@@ -747,6 +755,7 @@
       <button type="button" class="btn ghost block" id="installBtn2">How to download Funi</button>
     </div>
     <button type="button" class="btn danger block" id="logoutBtn">Log out</button>
+    </div></div>
   </section>
 </main>
 
