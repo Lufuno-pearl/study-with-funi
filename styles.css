@@ -992,3 +992,50 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
 }
 .hs-invite .grow { flex: 1 1 200px; }
 .hs-invite .person-actions { margin-left: auto; }
+
+/* ---------- Study FC ---------- */
+.for-guys { display: none !important; }
+body.guy .for-guys { display: flex !important; }
+body.guy .side-links .for-guys { display: block !important; }
+body.guy .for-girls { display: none !important; }
+.fc-card { align-self: center; width: 240px; min-height: 330px; box-sizing: border-box; border-radius: 26px 26px 44px 44px; padding: 16px 16px 20px; position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 22px 44px -20px rgba(0,0,0,.6); }
+.fc-card.tier-bronze { background: linear-gradient(160deg, #E2A979, #A8683C 60%, #7A4622); color: #2B1608; }
+.fc-card.tier-silver { background: linear-gradient(160deg, #F1F4F8, #BFC7D2 60%, #8D96A3); color: #1E242D; }
+.fc-card.tier-gold { background: linear-gradient(160deg, #F7DD8A, #C8962E 58%, #8E6514); color: #2A1E05; }
+.fc-card.tier-legend { background: linear-gradient(160deg, #4B3C9A, #1F1747 62%, #0E0A22); color: #FFE7A3; }
+.fc-rate { position: absolute; left: 16px; top: 14px; display: flex; flex-direction: column; align-items: center; line-height: 1; gap: 3px; }
+.fc-rate b { font-family: var(--display); font-size: 42px; font-weight: 700; }
+.fc-rate span { font-size: 13px; font-weight: 800; }
+.fc-tier { position: absolute; right: 14px; top: 14px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.14); }
+.fc-ava { width: 132px; height: 132px; margin-top: 20px; display: block; }
+.fc-ava svg, .fc-ava img { width: 100%; height: 100%; border-radius: 50%; }
+.fc-name { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: .03em; }
+.fc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 22px; font-size: 14px; font-weight: 700; }
+.fc-stats b { font-weight: 800; }
+.fc-bar { height: 10px; border-radius: 5px; background: var(--card-3); overflow: hidden; }
+.fc-bar i { display: block; height: 100%; background: linear-gradient(90deg, #F6CD5C, #FFB37A); border-radius: 5px; }
+.fc-explain p { margin: 0; }
+.fc-pitch { border-radius: 24px; padding: 16px; background: linear-gradient(160deg, #1E7A4E, #0F4D31); color: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.fc-pitch p { margin: 0; font-weight: 700; color: #E2F6EA; }
+.fc-live { font-size: 12px; font-weight: 800; letter-spacing: .06em; color: #CDEFD9; }
+.fc-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; width: 100%; }
+.fc-score > div { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.fc-badge { font-size: 32px; line-height: 1; }
+.fc-big { font-family: var(--display); font-size: 44px; font-weight: 700; color: #FFFFFF; }
+.fc-res { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; }
+.fc-wdl { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.fc-wdl.W { background: var(--mint); color: var(--mint-ink); }
+.fc-wdl.D { background: var(--butter); color: var(--butter-ink); }
+.fc-wdl.L { background: var(--pink); color: var(--pink-ink); }
+.fc-table { padding: 0; overflow: hidden; }
+.fc-tr { display: grid; grid-template-columns: 26px minmax(0, 1fr) 26px 26px 26px 26px 34px 36px; gap: 2px; padding: 10px 12px; font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--line); align-items: center; }
+.fc-tr:last-child { border-bottom: 0; }
+.fc-tr span:not(.fc-tn), .fc-tr b { text-align: center; }
+.fc-th { font-size: 12px; font-weight: 800; color: var(--muted); }
+.fc-tr.me { background: var(--accent-soft); color: var(--accent-soft-ink); }
+.fc-tn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#fcSeg button { flex: 1 1 0; }
+@media (min-width: 1000px) {
+  #fcCard { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 24px; align-items: start; }
+  #fcMatch, #fcLeague { max-width: 900px; }
+}

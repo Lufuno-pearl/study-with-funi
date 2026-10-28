@@ -701,6 +701,7 @@
     document.querySelectorAll("#profSex [data-psex]").forEach((b) => { b.disabled = false; });
     if (error) { renderSex(); return F.toast("Couldn't save: " + error.message, { long: true }); }
     if (data && data.user) F.me = data.user;
+    F.applyGuy();
     F.store("funi.started." + F.me.id, true); F.store("funi.sexAsked." + F.me.id, true);
     F.applyTheme(F.START_THEME[sx]); renderThemes();
     const photo = S.profile && F.isPhoto(S.profile.avatar);

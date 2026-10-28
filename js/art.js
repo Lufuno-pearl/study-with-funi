@@ -174,22 +174,32 @@
   }
 
   /* ---------- scenes ---------- */
+  // guys see lightning bolts and blue/gold instead of hearts and lilac
+  let guy = false;
+  const GUY_COL = { "#B9A3F7": "#8FA8FF", "#C9B8FF": "#A9C1FF", "#F7B7CF": "#FFD25A", "#B49CF5": "#5B7CFA", "#D8C9FF": "#A9C1FF", "#F28CB0": "#FFB020", "#F7A9B9": "#7FB6E8", "#B9A6F2": "#8FA8FF" };
+  const col = (c) => (guy && GUY_COL[c]) || c;
   function sparkle(x, y, s, c) {
-    return '<path transform="translate(' + x + " " + y + ") scale(" + s + ')" d="M0-9C1-3 3-1 9 0C3 1 1 3 0 9C-1 3-3 1-9 0C-3-1-1-3 0-9Z" fill="' + c + '"/>';
+    return '<path transform="translate(' + x + " " + y + ") scale(" + s + ')" d="M0-9C1-3 3-1 9 0C3 1 1 3 0 9C-1 3-3 1-9 0C-3-1-1-3 0-9Z" fill="' + col(c) + '"/>';
+  }
+  // a little heart (or, for guys, a lightning bolt); x,y = top middle, w = width
+  function heart(x, y, w, c) {
+    const s = w / 20;
+    return guy ? '<path transform="translate(' + x + " " + y + ") scale(" + s + ')" d="M3-2L-7 9H0L-3 19L8 6H1L4-2Z" fill="' + col(c) + '"/>'
+      : '<path transform="translate(' + x + " " + y + ") scale(" + s + ')" d="M0 0c-4-6-12-2-10 4 1 4 10 9 10 9s9-5 10-9c2-6-6-10-10-4z" fill="' + c + '"/>';
   }
   // person at a laptop with a mug and a plant
   function studyScene(look, feeling, seed) {
     return '<svg viewBox="0 0 220 170" class="scene-svg" aria-hidden="true">' +
       '<ellipse cx="110" cy="96" rx="92" ry="70" fill="#FFFFFF" opacity=".35"/>' +
       sparkle(30, 34, 1, "#FFFFFF") + sparkle(190, 28, 0.8, "#FFE08A") + sparkle(196, 80, 0.55, "#FFFFFF") + sparkle(22, 92, 0.6, "#FFE08A") +
-      '<path d="M176 40c-4-6-12-2-10 4 1 4 10 9 10 9s9-5 10-9c2-6-6-10-10-4z" fill="#F28CB0"/>' +
+      heart(176, 40, 20, "#F28CB0") +
       '<g transform="translate(46 8) scale(1.08)">' + avatarSVG(look, feeling, seed, { noBg: true }) + "</g>" +
       '<rect x="0" y="146" width="220" height="24" rx="8" fill="#E7C9A6"/><rect x="0" y="146" width="220" height="6" fill="#D9B48C"/>' +
       '<path d="M78 108h64a6 6 0 0 1 6 6v32H72v-32a6 6 0 0 1 6-6z" fill="#D7D2E3"/><path d="M62 146h96l-6 6H68z" fill="#BDB6CF"/>' +
-      '<path d="M106 124c-3-4-9-1-7 3 1 3 7 6 7 6s6-3 7-6c2-4-4-7-7-3z" fill="#FFFFFF"/>' +
-      '<rect x="20" y="124" width="22" height="22" rx="6" fill="#F7A9B9"/><path d="M42 130c7 0 7 10 0 10" fill="none" stroke="#F7A9B9" stroke-width="4"/>' +
-      '<path d="M27 133c1-2 4-2 4 0 0-2 3-2 4 0 0 2-4 5-4 5s-4-3-4-5z" fill="#FFFFFF"/>' +
-      '<rect x="176" y="128" width="22" height="18" rx="5" fill="#B9A6F2"/>' +
+      heart(106, 124, 14, "#FFFFFF") +
+      '<rect x="20" y="124" width="22" height="22" rx="6" fill="' + col("#F7A9B9") + '"/><path d="M42 130c7 0 7 10 0 10" fill="none" stroke="' + col("#F7A9B9") + '" stroke-width="4"/>' +
+      (guy ? "" : '<path d="M27 133c1-2 4-2 4 0 0-2 3-2 4 0 0 2-4 5-4 5s-4-3-4-5z" fill="#FFFFFF"/>') +
+      '<rect x="176" y="128" width="22" height="18" rx="5" fill="' + col("#B9A6F2") + '"/>' +
       '<path d="M187 128c-10-6-12-18-4-20 2 8 4 12 4 20zM187 128c8-8 14-16 18-12-4 6-10 10-18 12zM187 128c-2-10 2-20 8-20 0 8-4 14-8 20z" fill="#6FBF8E"/>' +
       "</svg>";
   }
@@ -197,7 +207,7 @@
   function friendsScene(lookA, lookB, seedA, seedB) {
     return '<svg viewBox="0 0 220 140" class="scene-svg" aria-hidden="true">' +
       sparkle(26, 30, 0.9, "#C9B8FF") + sparkle(196, 26, 0.8, "#C9B8FF") + sparkle(110, 18, 0.6, "#F7B7CF") +
-      '<path d="M110 40c-5-7-14-2-12 5 1 5 12 11 12 11s11-6 12-11c2-7-7-12-12-5z" fill="#B49CF5"/>' +
+      heart(110, 40, 24, "#B49CF5") +
       '<g transform="translate(14 24) scale(0.95)">' + avatarSVG(lookA, "Happy", seedA, { noBg: true }) + "</g>" +
       '<g transform="translate(92 24) scale(0.95)">' + avatarSVG(lookB, "Feeling great", seedB, { noBg: true }) + "</g>" +
       "</svg>";
@@ -206,8 +216,7 @@
   function dreamyScene(look, feeling, seed) {
     return '<svg viewBox="0 0 200 180" class="scene-svg" aria-hidden="true">' +
       sparkle(26, 40, 1, "#B9A3F7") + sparkle(178, 30, 0.9, "#C9B8FF") + sparkle(184, 120, 0.6, "#B9A3F7") + sparkle(18, 128, 0.55, "#C9B8FF") +
-      '<path d="M166 66c-4-6-12-2-10 4 1 4 10 9 10 9s9-5 10-9c2-6-6-10-10-4z" fill="#B49CF5"/>' +
-      '<path d="M34 86c-3-4-9-1-7 3 1 3 7 6 7 6s6-3 7-6c2-4-4-7-7-3z" fill="#D8C9FF"/>' +
+      heart(166, 66, 20, "#B49CF5") + heart(34, 86, 14, "#D8C9FF") +
       '<g transform="translate(28 22) scale(1.2)">' + avatarSVG(look, feeling, seed, { noBg: true, chin: true }) + "</g></svg>";
   }
 
@@ -225,6 +234,7 @@
   window.FuniArt = {
     PRESETS,
     SKIN, HAIR_COLORS, HOODIES, HAIR_STYLES, FEELINGS, BG,
-    parseLook, defaultLook, avatarSVG, feelingSVG, studyScene, friendsScene, dreamyScene
+    parseLook, defaultLook, avatarSVG, feelingSVG, studyScene, friendsScene, dreamyScene,
+    setGuy: (v) => { guy = !!v; }, isGuy: () => guy
   };
 })();

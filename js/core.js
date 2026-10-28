@@ -238,6 +238,7 @@
       ? "You'll start with the blue Ocean theme and a guy avatar. Change both anytime."
       : "You'll start with the Lavender theme and a girl avatar. Change both anytime.";
     F.applyTheme(F.START_THEME[sx]);
+    window.FuniArt.setGuy(sx === "male");
     drawAuthArt();
   }
   $("suSex").addEventListener("click", (e) => { const b = e.target.closest("[data-sex]"); if (b) { pickSex(b.dataset.sex); F.showError("signupError", ""); } });
@@ -251,7 +252,11 @@
     document.querySelectorAll("dialog[open]").forEach((d) => d.close());
     if ($("signupForm").hidden === false) showSpots();
   };
+  // guys: Study FC instead of the garden, bolts instead of hearts in the pictures
+  F.isGuy = () => (((F.me && F.me.user_metadata) || {}).sex === "male");
+  F.applyGuy = () => { const g = F.isGuy(); window.FuniArt.setGuy(g); document.body.classList.toggle("guy", g); };
   F.showApp = () => {
+    F.applyGuy();
     $("authScreen").hidden = true; $("appScreen").hidden = false;
     history.length = 0;
     F.go("dash");
