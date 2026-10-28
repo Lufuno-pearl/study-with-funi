@@ -139,6 +139,7 @@
     $("composer").hidden = view !== "chat";
     document.body.classList.toggle("in-chat", view === "chat");
     if (view !== "chat") window.scrollTo(0, 0);
+    F.emit("view", view);
     F.emit("view:" + view, sub);
   };
   F.back = () => {

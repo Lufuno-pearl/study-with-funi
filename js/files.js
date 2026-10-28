@@ -251,6 +251,7 @@
       document.head.appendChild(sc);
     });
   }
+  F.loadPdfJs = loadPdfJs;
   async function drawPdf() {
     const job = ++pdfJob, box = $("pvPages");
     box.innerHTML = "";

@@ -16,7 +16,8 @@ Live: https://study-with-funi.vercel.app
 9. New query again: paste **`funi-v9-setup.sql`** and **Run**. This adds repeating reminders.
 10. New query again: paste **`funi-v10-setup.sql`** and **Run**. Partners can share their exam timetable and modules (never marks).
 11. New query again: paste **`funi-v11-setup.sql`** and **Run**. Chat messages can be replied to and deleted (for me / for everyone).
-12. All of them are safe to run again any time. They keep existing data.
+12. New query again: paste **`funi-v12-setup.sql`** and **Run**. Adds My House (shared files, notes and exam calendar), Study FC, and call rooms (video, whiteboard, presenting files).
+13. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
 

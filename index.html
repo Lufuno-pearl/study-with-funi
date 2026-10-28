@@ -256,9 +256,16 @@
     </button>
     <form class="card stack" id="roomForm" novalidate>
       <h2>Open a room</h2>
-      <div><label for="roomName" style="margin-top:0">Room name</label><input id="roomName" maxlength="40" placeholder="e.g. APPM squad"></div>
+      <span class="label" style="margin-top:0">What kind of room?</span>
+      <div class="room-kinds" id="roomKinds" role="radiogroup" aria-label="Kind of room">
+        <button type="button" role="radio" aria-checked="true" data-rkind="study"><span class="rk-ic">⏱️</span><span class="grow"><b>Study together</b><span>Shared timer, no cameras</span></span></button>
+        <button type="button" role="radio" aria-checked="false" data-rkind="call"><span class="rk-ic">🎥</span><span class="grow"><b>Video call</b><span>See and hear each other, up to 4 people</span></span></button>
+        <button type="button" role="radio" aria-checked="false" data-rkind="teach"><span class="rk-ic">✏️</span><span class="grow"><b>Teach session</b><span>Call + live whiteboard + present files or your screen</span></span></button>
+      </div>
+      <div><label for="roomName">Room name</label><input id="roomName" maxlength="40" placeholder="e.g. APPM squad"></div>
       <div><label for="roomModule">Module</label><select id="roomModule"></select></div>
-      <div class="two">
+      <div id="roomMeetBox" hidden><label for="roomMeet">Rather use Zoom, Meet or Teams? (optional)</label><input id="roomMeet" type="url" inputmode="url" maxlength="500" placeholder="Paste the meeting link" autocomplete="off"><p class="hint" style="margin:4px 0 0">Everyone gets a Join button that opens it. Good for groups bigger than 4.</p></div>
+      <div class="two" id="roomTimes">
         <div><label for="roomFocus">Focus (min)</label><input id="roomFocus" type="number" inputmode="numeric" min="1" max="240" value="25"></div>
         <div><label for="roomBreak">Break (min)</label><input id="roomBreak" type="number" inputmode="numeric" min="1" max="60" value="5"></div>
       </div>
@@ -702,7 +709,54 @@
   </section>
 
   <!-- ---------- CALL ROOM ---------- -->
-  <section class="view call-view" id="vCall" hidden></section>
+  <section class="view call-view" id="vCall" hidden>
+    <header class="call-head">
+      <button type="button" class="icon-btn" id="clBack" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1 id="clTitle">Call</h1><p class="hint" id="clSub"></p></div>
+      <a class="btn soft-btn small" id="clMeet" target="_blank" rel="noopener" hidden>Join on Meet</a>
+    </header>
+    <div class="call-pre card stack" id="clPre">
+      <div class="pre-video"><video id="clPreVideo" autoplay playsinline muted></video><span class="pre-off" id="clPreOff">Camera off</span></div>
+      <div class="two">
+        <button type="button" class="btn ghost" id="clPreMic" aria-pressed="true">🎙️ Mic on</button>
+        <button type="button" class="btn ghost" id="clPreCam" aria-pressed="true">📷 Camera on</button>
+      </div>
+      <p class="hint" id="clPreNote">A video call uses about as much data as a WhatsApp video call. Wi-Fi is best. Calls go straight between your phones, Funi doesn't record anything.</p>
+      <p class="form-error" id="clPreError" hidden></p>
+      <button type="button" class="btn primary block" id="clJoin">Join the call</button>
+    </div>
+    <div class="call-main mode-faces" id="clMain" hidden>
+      <div class="call-stage" id="clStage">
+        <div class="stage-who" id="clStageWho"></div>
+        <div class="stage-sheet" id="clSheet">
+          <div class="doc-bar" id="clDocBar" hidden>
+            <span class="grow" id="clDocName"></span>
+            <button type="button" class="icon-btn sm" id="clPrev" aria-label="Previous page"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <span id="clPageNo"></span>
+            <button type="button" class="icon-btn sm" id="clNext" aria-label="Next page"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <div class="sheet-area" id="clArea"><div class="sheet-paper" id="clPaper"><canvas id="clDocCanvas"></canvas><canvas id="clInk" aria-label="Whiteboard"></canvas><input id="clTextInput" class="ink-text" maxlength="120" hidden aria-label="Type on the board"></div></div>
+        </div>
+        <video id="clScreen" autoplay playsinline hidden></video>
+      </div>
+      <div class="call-tools" id="clTools" hidden>
+        <div class="tool-row" id="clToolBtns"></div>
+        <div class="tool-row" id="clColors"></div>
+        <div class="tool-row"><button type="button" class="chip" id="clUndo">Undo</button><button type="button" class="chip" id="clClear">Clear</button><button type="button" class="chip" id="clSaveBoard">Save to my files</button></div>
+      </div>
+      <div class="call-tiles" id="clTiles"></div>
+    </div>
+    <div class="call-controls" id="clControls" hidden>
+      <button type="button" class="cc" id="ccMic" aria-pressed="false"><span>🎙️</span><b>Mute</b></button>
+      <button type="button" class="cc" id="ccCam" aria-pressed="false"><span>📷</span><b>Camera</b></button>
+      <button type="button" class="cc" id="ccFaces" aria-pressed="true"><span>👥</span><b>Faces</b></button>
+      <button type="button" class="cc" id="ccBoard" aria-pressed="false"><span>✏️</span><b>Board</b></button>
+      <button type="button" class="cc" id="ccFile" aria-pressed="false"><span>📎</span><b>Present file</b></button>
+      <button type="button" class="cc" id="ccScreen" aria-pressed="false"><span>🖥️</span><b>Share screen</b></button>
+      <button type="button" class="cc" id="ccHand" aria-pressed="false"><span>✋</span><b>Hand</b></button>
+      <button type="button" class="cc danger" id="ccLeave"><span>📞</span><b>Leave</b></button>
+    </div>
+  </section>
 
   <!-- ---------- INVITE A FRIEND ---------- -->
   <section class="view" id="vInvite" hidden>
@@ -1135,6 +1189,15 @@
   <button type="button" class="btn ghost block" id="hsLeave">Leave this house</button>
   <button type="button" class="btn ghost block" data-close="hsPeopleSheet">Close</button>
 </div></dialog>
+<dialog id="clFileSheet" aria-labelledby="clFileTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="clFileTitle">Present a file</h2>
+  <p class="hint">Everyone in the call sees it and follows your page. You can all write on it.</p>
+  <button type="button" class="btn soft-btn block" id="clUpload">⬆️ Upload from this device (PDF or photo)</button>
+  <input type="file" id="clUploadInput" accept="application/pdf,image/*" hidden>
+  <div class="stack" id="clMyFiles"></div>
+  <button type="button" class="btn ghost block" data-close="clFileSheet">Cancel</button>
+</div></dialog>
 <dialog id="pdfSheet" class="html-view" aria-labelledby="pvTitle">
   <div class="hv-bar">
     <b id="pvTitle">PDF</b>
@@ -1170,6 +1233,7 @@
 <script src="/js/fun.js"></script>
 <script src="/js/house.js"></script>
 <script src="/js/fc.js"></script>
+<script src="/js/call.js"></script>
 <script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
 <script src="/js/boot.js"></script>

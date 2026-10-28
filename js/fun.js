@@ -44,9 +44,12 @@
     return r.round ? "Between rounds" : "Waiting to start";
   }
   function roomCard(r) {
+    if (r.kind === "call" || r.kind === "teach") return '<div class="room-card call"><span class="ava sm">' + F.avatar(profiles()[r.host_id] || { id: r.host_id }) + '</span><span class="grow"><b>' + (r.kind === "teach" ? "✏️ " : "🎥 ") + esc(r.name) + "</b><span>" +
+      esc(nameOf(r.host_id)) + (r.module_code ? " · " + esc(r.module_code) : "") + " · " + r.inside + " in the call" + (r.meet_url ? " · has a meeting link" : "") + "</span></span>" +
+      '<button type="button" class="btn primary small" data-join="' + esc(r.id) + '" data-kind="' + esc(r.kind) + '">' + (r.mine ? "Open" : "Join call") + "</button></div>";
     return '<div class="room-card' + (isNight(r) ? " night" : "") + '"><span class="ava sm">' + F.avatar(profiles()[r.host_id] || { id: r.host_id }) + '</span><span class="grow"><b>' + esc(r.name) + "</b><span>" +
       esc(nameOf(r.host_id)) + (r.module_code ? " · " + esc(r.module_code) : "") + " · " + r.inside + " inside · " + esc(roomState(r)) + "</span></span>" +
-      '<button type="button" class="btn primary small" data-join="' + esc(r.id) + '">' + (r.mine ? "Open" : "Join") + "</button></div>";
+      '<button type="button" class="btn primary small" data-join="' + esc(r.id) + '" data-kind="' + esc(r.kind || "study") + '">' + (r.mine ? "Open" : r.kind === "call" || r.kind === "teach" ? "Join call" : "Join") + "</button></div>";
   }
   async function renderRooms() {
     const { rooms, missing } = await listRooms();
@@ -62,20 +65,34 @@
     $("openRoomsBox").hidden = !rooms.length;
     $("openRooms").innerHTML = rooms.map(roomCard).join("");
   };
-  document.addEventListener("click", (e) => { const b = e.target.closest("[data-join]"); if (b) F.go("room:" + b.dataset.join); });
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-join]"); if (b) F.go((b.dataset.kind && b.dataset.kind !== "study" ? "call:" : "room:") + b.dataset.join); });
 
+  let roomKind = "study";
+  function setRoomKind(k) {
+    roomKind = k;
+    document.querySelectorAll("#roomKinds [data-rkind]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.rkind === k)));
+    $("roomTimes").hidden = k !== "study"; $("roomMeetBox").hidden = k === "study";
+    $("roomCreate").textContent = k === "call" ? "Start video call" : k === "teach" ? "Start teach session" : "Open room";
+  }
+  $("roomKinds").addEventListener("click", (e) => { const b = e.target.closest("[data-rkind]"); if (b) setRoomKind(b.dataset.rkind); });
   $("roomForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const mod = $("roomModule").value, name = $("roomName").value.trim() || (mod ? mod + " squad" : F.nameOf(S.profile || {}) + "'s room");
+    const mod = $("roomModule").value, name = $("roomName").value.trim() || (mod ? mod + (roomKind === "study" ? " squad" : roomKind === "call" ? " call" : " teach session") : F.nameOf(S.profile || {}) + "'s " + (roomKind === "study" ? "room" : "call"));
+    let meet = roomKind === "study" ? "" : $("roomMeet").value.trim();
+    if (meet && !/^https?:\/\//i.test(meet)) meet = "https://" + meet;
+    meet = meet.replace(/^http:\/\//i, "https://");
+    if (meet && !/^https:\/\/[^\s.]+\.[^\s]+$/i.test(meet)) return F.showError("roomError", "Paste the full meeting link, like https://meet.google.com/abc-defg-hij");
     const focus = Math.round(+$("roomFocus").value), brk = Math.round(+$("roomBreak").value);
     if (!(focus >= 1 && focus <= 240)) return F.showError("roomError", "Choose 1 to 240 focus minutes.");
     if (!(brk >= 1 && brk <= 60)) return F.showError("roomError", "Choose a break of 1 to 60 minutes.");
     F.showError("roomError", ""); $("roomCreate").disabled = true;
-    const { data, error } = await F.sb.from("study_rooms").insert({ host_id: F.me.id, name: name.slice(0, 40), module_code: mod || null, focus_minutes: focus, break_minutes: brk }).select().single();
+    const row = { host_id: F.me.id, name: name.slice(0, 40), module_code: mod || null, focus_minutes: focus, break_minutes: brk };
+    if (roomKind !== "study") { row.kind = roomKind; if (meet) row.meet_url = meet.slice(0, 500); }
+    const { data, error } = await F.sb.from("study_rooms").insert(row).select().single();
     $("roomCreate").disabled = false;
-    if (error) return F.showError("roomError", "Couldn't open the room: " + error.message);
-    $("roomName").value = "";
-    F.go("room:" + data.id);
+    if (error) return F.showError("roomError", /kind|meet_url/.test(error.message) ? "Calls aren't switched on yet. Run funi-v12-setup.sql in Supabase." : "Couldn't open the room: " + error.message);
+    $("roomName").value = ""; $("roomMeet").value = "";
+    F.go((data.kind && data.kind !== "study" ? "call:" : "room:") + data.id);
   });
 
   const isNight = (r) => /^cross night/i.test((r && r.name) || "");
@@ -92,6 +109,7 @@
     if (!room || room.id !== id) { stopRoom(); members = []; }
     const { data: r } = await F.sb.from("study_rooms").select("*").eq("id", id).maybeSingle();
     if (!r || r.is_open === false) { F.toast("That room has closed. Open a new one!"); F.go("rooms", { back: true }); return; }
+    if (r.kind === "call" || r.kind === "teach") { F.go("call:" + r.id); return; }
     room = r;
     const now = new Date().toISOString();
     const { error } = await F.sb.from("study_room_members").upsert({ room_id: id, user_id: F.me.id, left_at: null, last_seen: now }, { onConflict: "room_id,user_id" });
