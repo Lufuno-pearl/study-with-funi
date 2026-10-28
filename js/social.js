@@ -656,8 +656,12 @@
     if (draftAvatar == null) draftAvatar = p.avatar;
     $("profAva").innerHTML = F.avatar({ id: p.id, avatar: draftAvatar, feeling: p.feeling });
     $("profName").textContent = F.nameOf(p); $("profUser").textContent = "@" + p.username;
+    // females see girl avatars, males see guy avatars; older accounts that haven't said yet see all
+    const sx = ((F.me && F.me.user_metadata) || {}).sex, only = sx === "male" ? "Guys" : sx === "female" ? "Girls" : null;
+    $("avaTabs").hidden = !!only;
+    const tab = only || avTab;
     document.querySelectorAll("#avaTabs [data-avtab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.avtab === avTab)));
-    $("avaGrid").innerHTML = A.PRESETS.map((x, i) => ({ x, i })).filter((o) => avTab === "All" || o.x.kind === avTab).map((o) => {
+    $("avaGrid").innerHTML = A.PRESETS.map((x, i) => ({ x, i })).filter((o) => tab === "All" || o.x.kind === tab).map((o) => {
       const val = JSON.stringify(o.x.look), on = draftAvatar === val;
       return '<button type="button" class="ava-pick" data-preset="' + o.i + '" aria-pressed="' + on + '" aria-label="Avatar ' + (o.i + 1) + '">' + A.avatarSVG(o.x.look, "Happy", "preset" + o.i) + "</button>";
     }).join("");
@@ -690,12 +694,15 @@
   };
   F.on("view:profile", () => { draftAvatar = null; renderProfile(); renderSex(); });
   // I am: Female / Male (switches theme and avatar to match)
+  // only accounts from before Female/Male existed see this, once; after choosing it's gone
   function renderSex() {
     const sx = (F.me && F.me.user_metadata || {}).sex || "";
+    $("sexCard").hidden = !!sx;
     document.querySelectorAll("#profSex [data-psex]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.psex === sx)));
   }
   async function setSex(sx) {
     if (!F.START_LOOK[sx]) return;
+    if (!(await F.confirm(sx === "male" ? "You're male?" : "You're female?", "This sets your theme and avatars. You can't change it later, but you can still pick any theme.", "Yes, save"))) return;
     document.querySelectorAll("#profSex [data-psex]").forEach((b) => { b.disabled = true; b.setAttribute("aria-checked", String(b.dataset.psex === sx)); });
     const { data, error } = await F.sb.auth.updateUser({ data: { sex: sx } });
     document.querySelectorAll("#profSex [data-psex]").forEach((b) => { b.disabled = false; });
@@ -705,9 +712,9 @@
     F.store("funi.started." + F.me.id, true); F.store("funi.sexAsked." + F.me.id, true);
     F.applyTheme(F.START_THEME[sx]); renderThemes();
     const photo = S.profile && F.isPhoto(S.profile.avatar);
-    if (photo) { renderSex(); return F.toast("Theme switched. We kept your photo as your avatar.", { long: true }); }
-    await saveAvatarValue(JSON.stringify(F.startLookFor(sx, F.me.id)), sx === "male" ? "Done! Blue theme and a guy avatar. Change either one anytime below." : "Done! Lavender theme and a girl avatar. Change either one anytime below.");
-    renderSex();
+    if (photo) { renderSex(); renderProfile(); return F.toast("Theme switched. We kept your photo as your avatar.", { long: true }); }
+    await saveAvatarValue(JSON.stringify(F.startLookFor(sx, F.me.id)), sx === "male" ? "Done! Blue theme and a guy avatar." : "Done! Lavender theme and a girl avatar.");
+    renderSex(); renderProfile();
   }
   $("profSex").addEventListener("click", (e) => { const b = e.target.closest("[data-psex]"); if (b) setSex(b.dataset.psex); });
   document.querySelectorAll("#avaTabs [data-avtab]").forEach((b) => b.addEventListener("click", () => { avTab = b.dataset.avtab; renderProfile(); }));
