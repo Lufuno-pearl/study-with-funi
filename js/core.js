@@ -120,9 +120,9 @@
   const VIEWS = { dash: "vDash", hub: "vHub", study: "vStudy", plan: "vPlan", priorities: "vPriorities", marks: "vMarks",
     reminders: "vReminders", exams: "vExams", partners: "vPartners", invite: "vInvite", feeling: "vFeeling",
     messages: "vMessages", chat: "vChat", notifs: "vNotifs", profile: "vProfile", files: "vFiles", modfiles: "vModFiles",
-    share: "vShare", rooms: "vRooms", room: "vRoom", board: "vBoard", garden: "vGarden", decks: "vDecks", deck: "vDeck", flash: "vFlash", battle: "vBattle" };
+    share: "vShare", rooms: "vRooms", room: "vRoom", board: "vBoard", garden: "vGarden", decks: "vDecks", deck: "vDeck", flash: "vFlash", battle: "vBattle", house: "vHouse", fc: "vFc", call: "vCall" };
   const TAB_OF = { dash: "dash", notifs: "dash", hub: "hub", plan: "hub", priorities: "hub", marks: "hub", reminders: "hub", exams: "hub",
-    profile: "hub", files: "hub", modfiles: "hub", share: "hub", rooms: "partners", room: "partners", board: "partners", garden: "partners", decks: "partners", deck: "partners", flash: "partners", battle: "partners", study: "study", partners: "partners", invite: "partners", feeling: "partners", messages: "messages", chat: "messages" };
+    profile: "hub", files: "hub", modfiles: "hub", share: "hub", rooms: "partners", room: "partners", board: "partners", garden: "partners", decks: "partners", deck: "partners", flash: "partners", battle: "partners", house: "partners", fc: "partners", call: "partners", study: "study", partners: "partners", invite: "partners", feeling: "partners", messages: "messages", chat: "messages" };
   const history = [];
   F.go = (target, opts) => {
     const [view, sub] = String(target).split(":");
@@ -165,6 +165,9 @@
     else if (h.indexOf("deck-") === 0) F.go("deck:" + h.slice(5));
     else if (h === "decks") F.go("decks:shared");
     else if (h.indexOf("share-") === 0) F.go("share:" + h.slice(6));
+    else if (h.indexOf("house-") === 0) F.go("house:" + h.slice(6));
+    else if (h === "house") F.go("house");
+    else if (h === "fc") F.go("fc");
     try { window.history.replaceState(null, "", "/"); } catch (e) {}
   };
   window.addEventListener("hashchange", () => { if (F.me && location.hash.length > 1) F.openLink(location.href); });

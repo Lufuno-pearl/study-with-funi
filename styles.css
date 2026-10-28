@@ -957,3 +957,38 @@ dialog::backdrop { background: rgba(20, 14, 32, 0.55); }
   #vChat { max-width: 1100px !important; }
 }
 @media (min-width: 1000px) { .tiles:not(.fun-tiles) { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
+
+/* ---------- My House ---------- */
+.house-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 20px; border: 1px solid var(--line); background: linear-gradient(135deg, var(--accent-soft), var(--card)); color: var(--ink); font: inherit; cursor: pointer; box-shadow: var(--shadow); }
+.house-card .grow, .hs-invite .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.house-card b { font-family: var(--display); font-weight: 600; font-size: 18px; }
+.house-card .grow > span, .hs-invite .grow > span { font-size: 13px; font-weight: 700; color: var(--muted); }
+.hc-ic { width: 46px; height: 46px; border-radius: 15px; background: var(--card); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+.hc-go { font-size: 26px; font-weight: 800; color: var(--accent-soft-ink); }
+.hs-invite { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hs-intro p { margin: 0; }
+.hs-list { margin: 0; padding-left: 4px; list-style: none; display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
+.emoji-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.emoji-btn { width: 46px; height: 46px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); font-size: 22px; cursor: pointer; }
+.emoji-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.hs-people { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 18px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: 800 14px var(--body); cursor: pointer; text-align: left; }
+.hs-avas { display: flex; }
+.hs-avas .ava { margin-left: -8px; border: 2px solid var(--card); }
+.hs-avas .ava:first-child { margin-left: 0; }
+#hsSeg button { flex: 1 1 0; padding: 0 6px; }
+.note-title { font-family: var(--display); font-weight: 600; font-size: 19px; }
+#hsNoteBody { min-height: 260px; resize: vertical; line-height: 1.55; font: 600 15px/1.55 var(--body); }
+.act-row { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+.act-row time { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pick-row.as-btn { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px; background: var(--card); color: var(--ink); font: inherit; cursor: pointer; text-align: left; }
+.pick-row.as-btn.on { border: 2px solid var(--accent); background: var(--accent-soft); }
+#hsMineList { max-height: 260px; overflow-y: auto; }
+.file-row > .pill { flex-shrink: 0; }
+@media (min-width: 1000px) {
+  #hsFileList, #hsExams, #hsMemberList { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; align-items: start; }
+  #hsFileList > .empty, #hsExams > .empty, #hsExams > .hint { grid-column: 1 / -1; }
+  #hsBody .ptabs { max-width: 640px; }
+  .house-card { max-width: 760px; }
+}
+.hs-invite .grow { flex: 1 1 200px; }
+.hs-invite .person-actions { margin-left: auto; }

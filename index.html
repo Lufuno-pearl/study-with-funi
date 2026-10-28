@@ -194,6 +194,7 @@
         <button class="tile" data-go="reminders"><i class="t-pink"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></i>Reminders</button>
         <button class="tile" data-go="marks"><i class="t-butter"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></i>What do I need?</button>
         <button class="tile" data-go="decks"><i class="t-pink"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="13" rx="3"/><path d="M7 4h11a3 3 0 0 1 3 3v10"/></svg></i>Flashcards</button>
+        <button class="tile" data-go="house"><i class="t-lav"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></i>My House</button>
         <button class="tile" data-go="files"><i class="t-mint"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></i>My files</button>
         <button class="tile" data-go="exams"><i class="t-sky"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4M9 2h6"/></svg></i>Tests &amp; exams</button>
       </div>
@@ -596,6 +597,7 @@
       <h1>Study partners</h1>
       <button type="button" class="btn soft-btn small" data-go="invite"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Invite</button>
     </div>
+    <button type="button" class="house-card" data-go="house" id="houseCard"><span class="hc-ic">🏠</span><span class="grow"><b id="houseCardName">My House</b><span id="houseCardSub">Your inner circle: files, notes and exam dates shared both ways</span></span><span class="hc-go" aria-hidden="true">›</span></button>
     <div class="seg two-seg ptabs" role="tablist" id="partnerSeg">
       <button type="button" role="tab" data-pseg="circle" aria-selected="true" aria-controls="psCirclePane">My circle</button>
       <button type="button" role="tab" data-pseg="fun" aria-selected="false" aria-controls="psFun">Fun with friends</button>
@@ -627,6 +629,62 @@
       <span><b>Study together. Feel better. Achieve more.</b><span>Your partners are here with good vibes, help and a little fun.</span></span>
     </button>
   </section>
+
+  <!-- ---------- MY HOUSE ---------- -->
+  <section class="view" id="vHouse" hidden>
+    <header class="page-head">
+      <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="grow"><h1 id="hsTitle">My House</h1><p class="hint" id="hsSub">Your inner circle</p></div>
+      <button type="button" class="icon-btn" id="hsSettings" aria-label="House settings and people" hidden><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+    </header>
+    <div class="chips" id="hsSwitch" role="tablist" aria-label="Your houses" hidden></div>
+    <div class="stack" id="hsInvites"></div>
+    <div class="stack" id="hsStart" hidden>
+      <section class="card stack hs-intro">
+        <h2>Make a house for your people</h2>
+        <p>Your study partners are everyone you study with. Your house is your inner circle, like family. Everything in it is shared both ways: when you add or change something, they have it too, and when they do, you have it.</p>
+        <ul class="hs-list"><li>📁 Files and links, in folders per module</li><li>📝 Notes anyone in the house can edit</li><li>📅 Everyone's exam dates in one calendar</li><li>⚽ Your house can play in Study FC</li></ul>
+      </section>
+      <form class="card stack" id="hsCreateForm" novalidate>
+        <label for="hsName" style="margin-top:0">House name</label>
+        <input id="hsName" maxlength="40" placeholder="e.g. The Moyo House" autocomplete="off">
+        <span class="label">Pick an emoji</span>
+        <div class="emoji-row" id="hsEmoji"></div>
+        <p class="form-error" id="hsError" hidden></p>
+        <button type="submit" class="btn primary block" id="hsCreate">Create my house</button>
+      </form>
+    </div>
+    <div class="stack" id="hsBody" hidden>
+      <button type="button" class="hs-people" id="hsPeople"><span class="hs-avas" id="hsAvas"></span><span class="grow" id="hsPeopleTxt"></span><span class="pill lav">+ Invite</span></button>
+      <div class="seg two-seg ptabs" role="tablist" id="hsSeg">
+        <button type="button" role="tab" data-hseg="files" aria-selected="true">Files</button>
+        <button type="button" role="tab" data-hseg="notes" aria-selected="false">Notes</button>
+        <button type="button" role="tab" data-hseg="exams" aria-selected="false">Exams</button>
+        <button type="button" role="tab" data-hseg="activity" aria-selected="false">Activity</button>
+      </div>
+      <div class="stack" id="hsFiles">
+        <div class="chips" id="hsFolders" role="tablist" aria-label="Folders"></div>
+        <div class="stack" id="hsFileList"></div>
+        <button type="button" class="btn primary block" id="hsAddBtn">+ Add to the house</button>
+      </div>
+      <div class="stack" id="hsNotes" hidden>
+        <div class="chips" id="hsNoteTabs"></div>
+        <div class="card stack" id="hsNoteCard">
+          <input id="hsNoteTitle" maxlength="60" aria-label="Note title" class="note-title">
+          <textarea id="hsNoteBody" rows="12" maxlength="20000" aria-label="Note" placeholder="Write anything: who brings which past paper, where you meet, what to revise…"></textarea>
+          <div class="between"><span class="hint" id="hsNoteState">Everyone in the house can edit this.</span><button type="button" class="link" id="hsNoteDel">Delete note</button></div>
+        </div>
+      </div>
+      <div class="stack" id="hsExams" hidden></div>
+      <div class="stack" id="hsActivity" hidden></div>
+    </div>
+  </section>
+
+  <!-- ---------- STUDY FC ---------- -->
+  <section class="view" id="vFc" hidden></section>
+
+  <!-- ---------- CALL ROOM ---------- -->
+  <section class="view call-view" id="vCall" hidden></section>
 
   <!-- ---------- INVITE A FRIEND ---------- -->
   <section class="view" id="vInvite" hidden>
@@ -807,6 +865,7 @@
     <button type="button" data-go="reminders">Tasks &amp; reminders</button>
     <button type="button" data-go="priorities">Modules &amp; marks</button>
     <button type="button" data-go="files">My files</button>
+    <button type="button" data-go="house">My House</button>
     <button type="button" data-go="decks">Flashcards</button>
     <button type="button" data-go="rooms">Study rooms</button>
     <button type="button" data-go="board">Leaderboard</button>
@@ -1018,6 +1077,45 @@
   <p class="hv-note" id="hvNote" hidden><span id="hvNoteTxt"></span></p>
   <iframe id="hvFrame" title="Your HTML file" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
 </dialog>
+<dialog id="hsAddSheet" aria-labelledby="hsAddTitle"><form class="sheet" id="hsAddForm" novalidate>
+  <div class="sheet-grip"></div>
+  <h2 id="hsAddTitle">Add to the house</h2>
+  <div class="add-kinds">
+    <button type="button" class="add-kind c-lav" data-hadd="upload" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>Upload file</button>
+    <button type="button" class="add-kind c-mint" data-hadd="mine" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>From my files</button>
+    <button type="button" class="add-kind c-sky" data-hadd="link" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Save a link</button>
+  </div>
+  <input type="file" id="hsFileInput" hidden>
+  <p class="hint" id="hsPicked" hidden></p>
+  <div class="stack" id="hsMineList" hidden></div>
+  <div id="hsUrlBox" hidden><label for="hsUrl">Link</label><input id="hsUrl" type="url" inputmode="url" placeholder="https://drive.google.com/..." autocomplete="off"></div>
+  <div id="hsMetaBox" hidden>
+    <label for="hsFolder">Folder</label><select id="hsFolder"></select>
+    <label for="hsFileName">Name</label><input id="hsFileName" maxlength="120" autocomplete="off">
+  </div>
+  <p class="form-error" id="hsAddError" hidden></p>
+  <div class="btns">
+    <button type="button" class="btn ghost" data-close="hsAddSheet">Cancel</button>
+    <button type="submit" class="btn primary" id="hsAddSave">Add</button>
+  </div>
+</form></dialog>
+<dialog id="hsPeopleSheet" aria-labelledby="hsPeopleTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="hsPeopleTitle">People in the house</h2>
+  <div class="stack" id="hsMemberList"></div>
+  <h2>Invite your study partners</h2>
+  <div class="stack" id="hsInviteList"></div>
+  <div class="stack" id="hsOwnerBox">
+    <h2>Study FC ⚽</h2>
+    <label class="switch" for="hsFcOn"><span>Play in Study FC with this house</span><input type="checkbox" id="hsFcOn"></label>
+    <div class="add-row"><input id="hsFcName" maxlength="30" placeholder="Team name, e.g. Wits Ballers" aria-label="Team name"><button type="button" class="btn primary" id="hsFcSave">Save</button></div>
+    <h2>House</h2>
+    <div class="add-row"><input id="hsRename" maxlength="40" aria-label="House name"><button type="button" class="btn primary" id="hsRenameSave">Rename</button></div>
+    <button type="button" class="btn danger block" id="hsDelete">Delete this house</button>
+  </div>
+  <button type="button" class="btn ghost block" id="hsLeave">Leave this house</button>
+  <button type="button" class="btn ghost block" data-close="hsPeopleSheet">Close</button>
+</div></dialog>
 <dialog id="pdfSheet" class="html-view" aria-labelledby="pvTitle">
   <div class="hv-bar">
     <b id="pvTitle">PDF</b>
@@ -1051,6 +1149,7 @@
 <script src="/js/social.js"></script>
 <script src="/js/files.js"></script>
 <script src="/js/fun.js"></script>
+<script src="/js/house.js"></script>
 <script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
 <script src="/js/boot.js"></script>

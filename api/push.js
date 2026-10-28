@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
     notes.forEach((n) => {
       const url = n.kind === "message" || n.kind === "help" ? "/#chat-" + n.actor_id : n.kind === "invite" ? "/#invites"
         : n.kind === "room" && n.ref_id ? "/#room-" + n.ref_id : n.kind === "battle" && n.ref_id ? "/#battle-" + n.ref_id
-        : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : "/#partners";
+        : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" && n.ref_id ? "/#house-" + n.ref_id : "/#partners";
       messages.push({ user: n.user_id, payload: { title: n.title, body: n.body || "", url, tag: n.kind + "-" + (n.actor_id || n.id) } });
     });
 

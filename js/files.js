@@ -109,7 +109,7 @@
     if (goodCopy(blob, f)) return blob;
     if (blob && F.looksOffline()) return blob; // offline: the saved copy is all we have
     if (F.looksOffline()) throw new Error("offline");
-    const { data, error } = await F.sb.storage.from(BUCKET).download(f.path);
+    const { data, error } = await F.sb.storage.from(f.bucket || BUCKET).download(f.path);
     if (error || !data) throw new Error(error ? error.message : "download failed");
     if (goodCopy(data, f)) offPut(f.path, data, f.mime);
     return data;
@@ -220,8 +220,8 @@
 
   async function openFile(f) {
     const [k] = kindOf(f);
-    if (!F.looksOffline()) markOpened(f);
-    if (k === "HTML") return F.openHtml({ bucket: BUCKET, path: f.path, title: f.name, file: f });
+    if (!F.looksOffline() && !f.bucket) markOpened(f);
+    if (k === "HTML") return F.openHtml({ bucket: f.bucket || BUCKET, path: f.path, title: f.name, file: f });
     if (k === "PDF") return openPdf(f);
     F.toast("Opening " + f.name + "…");
     let blob;
@@ -232,6 +232,8 @@
     saveBlob(blob, f.name, f.mime); // Word, PowerPoint, Excel…: opens in your phone's own app
     $("toast").hidden = true;
   }
+  // shared with My House
+  F.shrinkImage = (file) => shrink(file); F.openFile = openFile; F.fileKind = kindOf; F.sizeTxt = sizeTxt; F.whenShort = when; F.fileBlob = fileBlob; F.saveBlob = (b, n, t) => saveBlob(b, n, t);
   function saveBlob(blob, name, type) {
     const u = URL.createObjectURL(type && !blob.type ? new Blob([blob], { type }) : blob), a = document.createElement("a");
     a.href = u; a.download = name || "file"; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
