@@ -122,7 +122,7 @@
     const q = norm($("circleSearch").value);
     $("circleSearchBox").hidden = !sorted.length;
     const shown = sorted.filter((p) => nameMatch(p.id, q));
-    $("psCircle").innerHTML = shown.length ? shown.map((p) => personCard(p.id, "", true)).join("")
+    $("psCircle").innerHTML = shown.length ? shown.map((p) => personCard(p.id, "", true)).join("") + '<p class="hint" style="text-align:center;margin:2px 0 0">Press and hold a partner (or right-click on a computer) to remove them.</p>'
       : sorted.length ? '<div class="empty"><b>No one called "' + esc(q) + '"</b><span>Check the spelling, or invite them.</span></div>'
       : '<div class="empty"><b>No study partners yet</b><span>Invite a friend by their Funi username.</span><button type="button" class="btn primary small" data-go="invite">Invite a friend</button></div>';
     let inv = "";
@@ -206,8 +206,35 @@
     const can = e.target.closest("[data-cancel]");
     if (can) { const { error } = await F.sb.from("study_partners").delete().eq("id", can.dataset.cancel); if (error) return F.toast("Couldn't cancel: " + error.message); await loadPartners(); renderPartners(); return; }
     const oc = e.target.closest("[data-open-chat]");
-    if (oc) openChat(oc.dataset.openChat);
+    if (oc) { if (Date.now() - pressFired < 600) return; openChat(oc.dataset.openChat); }
   });
+  // long-press (or right-click) a partner in My circle: message or remove them
+  let pressTimer = null, pressFired = 0, ptSel = null;
+  function openPartnerSheet(id) {
+    const p = profiles[id] || { id };
+    ptSel = id;
+    $("ptAva").innerHTML = F.avatar(p); $("ptName").textContent = F.nameOf(p); $("ptUser").textContent = "@" + (p.username || "");
+    $("ptSheet").showModal();
+  }
+  const circleRow = (e) => { const b = e.target.closest("#psCircle [data-open-chat]"); return b ? b.dataset.openChat : null; };
+  $("psCircle").addEventListener("pointerdown", (e) => {
+    const id = circleRow(e); if (!id) return;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => { pressFired = Date.now(); if (navigator.vibrate) navigator.vibrate(15); openPartnerSheet(id); }, 520);
+  });
+  ["pointerup", "pointercancel", "pointerleave", "scroll"].forEach((ev) => $("psCircle").addEventListener(ev, () => clearTimeout(pressTimer), true));
+  $("psCircle").addEventListener("contextmenu", (e) => { const id = circleRow(e); if (!id) return; e.preventDefault(); clearTimeout(pressTimer); pressFired = Date.now(); openPartnerSheet(id); });
+  $("ptChat").onclick = () => { $("ptSheet").close(); if (ptSel) openChat(ptSel); };
+  $("ptRemove").onclick = async () => {
+    const id = ptSel, row = (S.partners || []).find((x) => x.id === id); if (!row) return;
+    const name = F.nameOf(profiles[id] || {});
+    $("ptSheet").close();
+    if (!(await F.confirm("Remove " + name + "?", "You won't see each other's studying or share rooms any more, and they leave your Messages. They aren't told. You can invite them again later.", "Remove"))) return;
+    const { error } = await F.sb.from("study_partners").delete().eq("id", row.rowId);
+    if (error) return F.toast("Couldn't remove: " + error.message, { long: true });
+    await loadPartners(); renderPartners(); renderConvos(); F.emit("data");
+    F.toast(name + " was removed from your study partners.");
+  };
   $("shareLink").onclick = async () => {
     const me = S.profile ? S.profile.username : "";
     const data = { title: "Study with Funi", text: "Join me on Funi so we can study together! My username is " + me + ".", url: location.origin };

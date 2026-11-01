@@ -6,6 +6,22 @@
   const F = window.Funi, $ = F.$, esc = F.esc, S = F.s;
   const MAX_PEOPLE = 4;
   const ICE = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }];
+  let iceServers = ICE;
+  // relay servers for networks that block direct calls (mobile data, campus Wi-Fi)
+  async function loadIce() {
+    try {
+      const c = JSON.parse(sessionStorage.getItem("funi.ice") || "null");
+      if (c && c.until > Date.now()) { iceServers = c.servers; return; }
+    } catch (e) {}
+    try {
+      const r = await fetch("/api/turn", { cache: "no-store" });
+      const j = await r.json();
+      if (j && Array.isArray(j.iceServers) && j.iceServers.length) {
+        iceServers = j.iceServers;
+        try { sessionStorage.setItem("funi.ice", JSON.stringify({ servers: iceServers, until: Date.now() + 6 * 3600e3 })); } catch (e) {}
+      }
+    } catch (e) { iceServers = ICE; }
+  }
   const COLORS = [["#2B2540", "Black"], ["#7556DC", "Purple"], ["#C23B5C", "Red"], ["#1E7A4E", "Green"], ["#3550D4", "Blue"], ["#E08A00", "Orange"]];
   const TOOLS = [["pen", "✏️", "Pen"], ["mark", "🖍️", "Highlight"], ["text", "🔤", "Type"], ["arrow", "↗️", "Arrow"], ["box", "⬜", "Box"], ["laser", "🔴", "Pointer"], ["erase", "🧽", "Erase"]];
   const profiles = () => F.profiles || {};
@@ -85,6 +101,7 @@
   async function join() {
     if (!room || joined) return;
     $("clJoin").disabled = true;
+    await loadIce();
     const now = new Date().toISOString();
     await F.sb.from("study_room_members").upsert({ room_id: room.id, user_id: me(), left_at: null, last_seen: now }, { onConflict: "room_id,user_id" }).then(() => {}, () => {});
     chan = F.sb.channel("call-" + room.id, { config: { presence: { key: me() }, broadcast: { self: false } } });
@@ -119,7 +136,7 @@
 
   /* ---------- WebRTC with "perfect negotiation" (both sides can start, collisions sort themselves out) ---------- */
   function makePeer(uid) {
-    const pc = new RTCPeerConnection({ iceServers: ICE });
+    const pc = new RTCPeerConnection({ iceServers });
     const peer = peers[uid] = { pc, polite: me() > uid, makingOffer: false, ignoreOffer: false, stream: new MediaStream(), state: {}, restarted: false };
     const tracks = local ? local.getTracks() : [];
     tracks.forEach((t) => pc.addTrack(t, local));
@@ -132,7 +149,12 @@
       catch (e) { /* the other side will try */ } finally { peer.makingOffer = false; }
     };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed" && !peer.restarted) { peer.restarted = true; try { pc.restartIce(); } catch (e) {} }
+      // if the connection drops or fails, try again (through the relay) a few times before giving up
+      if ((pc.connectionState === "failed" || pc.connectionState === "disconnected") && (peer.restarts || 0) < 3) {
+        clearTimeout(peer.retry);
+        peer.retry = setTimeout(() => { if (pc.connectionState === "failed" || pc.connectionState === "disconnected") { peer.restarts = (peer.restarts || 0) + 1; try { pc.restartIce(); } catch (e) {} } }, pc.connectionState === "failed" ? 300 : 4000);
+      }
+      if (pc.connectionState === "connected") peer.restarts = 0;
       renderTiles();
     };
     return peer;
@@ -223,9 +245,10 @@
   function tileHtml(uid) {
     const isMe = uid === me(), p = peers[uid], st = isMe ? { mic: micOn, cam: camOn && !!camTrack, hand } : (p && p.state) || otherStates[uid] || {};
     const conn = isMe ? "connected" : p ? p.pc.connectionState : "new";
-    const status = conn === "failed" ? '<span class="tile-msg">Couldn\'t connect' + (room && room.meet_url ? ". Try the " + esc(meetName(room.meet_url)) + " link" : ". Some Wi-Fi blocks calls") + "</span>"
+    const status = conn === "failed" && p && (p.restarts || 0) >= 3 ? '<span class="tile-msg">Couldn\'t connect' + (room && room.meet_url ? ". Try the " + esc(meetName(room.meet_url)) + " link" : ". Leave and join again, or try other Wi-Fi") + "</span>"
+      : conn === "disconnected" || conn === "failed" ? '<span class="tile-msg">Reconnecting…</span>'
       : conn !== "connected" && !isMe ? '<span class="tile-msg">Connecting…</span>' : "";
-    return '<div class="tile' + (st.cam === false ? " cam-off" : "") + (stage.by === uid && stage.mode !== "faces" ? " presenting" : "") + '" data-tile="' + esc(uid) + '">' +
+    return '<div class="ctile' + (st.cam === false ? " cam-off" : "") + (stage.by === uid && stage.mode !== "faces" ? " presenting" : "") + '" data-tile="' + esc(uid) + '">' +
       '<video autoplay playsinline' + (isMe ? " muted" : "") + "></video>" +
       '<span class="tile-ava">' + F.avatar(profiles()[uid] || { id: uid }) + "</span>" + status +
       '<span class="tile-name">' + esc(nameOf(uid)) + (st.mic === false ? " 🔇" : "") + (st.hand ? " ✋" : "") + "</span></div>";
