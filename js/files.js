@@ -22,6 +22,7 @@
   function kindOf(f) {
     if (f.kind === "link") return ["LINK", "c-sky"];
     const m = (f.mime || "") + " " + (f.name || "") + " " + (f.path || "");
+    if (/funi\.note|\.funinote\b/i.test(m)) return ["NOTE", "c-lav"];
     if (/text\/html|\.html?\b/i.test(m)) return ["HTML", "c-sky"];
     if (/image\//.test(m) || /\.(jpe?g|png|gif|webp|heic)\b/i.test(m)) return ["IMG", "c-mint"];
     if (/pdf/i.test(m)) return ["PDF", "c-peach"];
@@ -139,7 +140,8 @@
       ? '<a class="file-open" href="' + esc(f.url) + '" target="_blank" rel="noopener" data-open="' + esc(f.id) + '">' + inner + "</a>"
       : '<button type="button" class="file-open" data-fopen="' + esc(f.id) + '">' + inner + "</button>";
     if (opts && opts.recent) return '<div class="file-row">' + open + "</div>";
-    return '<div class="file-row">' + open +
+    const writeOn = (k === "PDF" || k === "IMG") && f.kind === "file" ? '<button type="button" class="icon-btn" data-write-on="' + esc(f.id) + '" aria-label="Write notes on ' + esc(f.name) + '"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg></button>' : "";
+    return '<div class="file-row">' + open + writeOn +
       '<button type="button" class="icon-btn" data-send-file="' + esc(f.id) + '" aria-label="Send ' + esc(f.name) + ' to a study partner">' + ICON.send + "</button>" +
       '<button type="button" class="icon-btn" data-del-file="' + esc(f.id) + '" aria-label="Delete ' + esc(f.name) + '">' + ICON.del + "</button></div>";
   }
@@ -176,10 +178,14 @@
     const exTxt = ex ? (ex.kind || "Test") + (d === 0 ? " today" : d === 1 ? " tomorrow" : " in " + d + " days") : "";
     $("mfMeta").textContent = [exTxt, mine.length + " file" + (mine.length === 1 ? "" : "s")].filter(Boolean).join(" · ");
     $("mfChips").innerHTML = FILTERS.map((c) => '<button type="button" role="tab" class="chip' + (filter === c ? " on" : "") + '" aria-selected="' + (filter === c) + '" data-filter="' + esc(c) + '">' + esc(c) + "</button>").join("");
-    const list = mine.filter((f) => filter === "All" || (filter === "Links" ? f.kind === "link" : f.folder === filter && f.kind !== "link"));
+    // handwritten notebooks show as covers at the top
+    const books = mine.filter((f) => kindOf(f)[0] === "NOTE");
+    $("mfNoteBox").hidden = !books.length;
+    if (books.length && F.renderNoteCovers) F.renderNoteCovers($("mfNoteCovers"), books);
+    const list = mine.filter((f) => kindOf(f)[0] !== "NOTE").filter((f) => filter === "All" || (filter === "Links" ? f.kind === "link" : f.folder === filter && f.kind !== "link"));
     if (missing) { $("mfList").innerHTML = '<div class="empty"><b>Files aren\'t switched on yet</b><span>Run funi-v5-setup.sql in Supabase, then come back.</span></div>'; return; }
     if (!list.length) {
-      $("mfList").innerHTML = '<div class="empty"><b>' + (mine.length ? "Nothing in " + esc(filter) + " yet" : "No files yet") + '</b><span>Add lecture notes, past papers, photos of the board or a Google Drive link.</span><button type="button" class="btn primary small" data-add-file>Add a file</button></div>';
+      $("mfList").innerHTML = '<div class="empty"><b>' + (mine.length > books.length ? "Nothing in " + esc(filter) + " yet" : "No files yet") + '</b><span>Add lecture notes, past papers, photos of the board or a Google Drive link.</span><button type="button" class="btn primary small" data-add-file>Add a file</button></div>';
       return;
     }
     $("mfList").innerHTML = list.map((f) => fileRow(f)).join("");
@@ -221,6 +227,7 @@
   async function openFile(f) {
     const [k] = kindOf(f);
     if (!F.looksOffline() && !f.bucket) markOpened(f);
+    if (k === "NOTE" && F.openNote) return F.openNote(f);
     if (k === "HTML") return F.openHtml({ bucket: f.bucket || BUCKET, path: f.path, title: f.name, file: f });
     if (k === "PDF") return openPdf(f);
     F.toast("Opening " + f.name + "…");
@@ -233,7 +240,7 @@
     $("toast").hidden = true;
   }
   // shared with My House
-  F.shrinkImage = (file) => shrink(file); F.openFile = openFile; F.fileKind = kindOf; F.sizeTxt = sizeTxt; F.whenShort = when; F.fileBlob = fileBlob; F.saveBlob = (b, n, t) => saveBlob(b, n, t);
+  F.shrinkImage = (file) => shrink(file); F.curModule = () => curCode; F.renderModFiles = () => renderModFiles(); F.filesUsed = () => used(); F.openFile = openFile; F.fileKind = kindOf; F.sizeTxt = sizeTxt; F.whenShort = when; F.fileBlob = fileBlob; F.saveBlob = (b, n, t) => saveBlob(b, n, t);
   function saveBlob(blob, name, type) {
     const u = URL.createObjectURL(type && !blob.type ? new Blob([blob], { type }) : blob), a = document.createElement("a");
     a.href = u; a.download = name || "file"; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();

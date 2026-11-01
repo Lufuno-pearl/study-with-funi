@@ -238,6 +238,11 @@
       <div><b id="mfName"></b><span id="mfMeta"></span></div>
       <button type="button" class="btn small mf-study" id="mfStudy">Study this</button>
     </div>
+    <div class="two">
+      <button type="button" class="btn primary" id="mfNotes">✍️ Make notes</button>
+      <button type="button" class="btn soft-btn" data-add-file>⬆️ Add a file</button>
+    </div>
+    <div class="stack" id="mfNoteBox" hidden><h2>My handwritten notes</h2><div class="note-covers" id="mfNoteCovers"></div></div>
     <div class="chips" id="mfChips" role="tablist" aria-label="Show"></div>
     <div class="file-list" id="mfList"></div>
   </section>
@@ -1150,6 +1155,51 @@
   <p class="hv-note" id="hvNote" hidden><span id="hvNoteTxt"></span></p>
   <iframe id="hvFrame" title="Your HTML file" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
 </dialog>
+<dialog id="ntNewSheet" aria-labelledby="ntNewTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="ntNewTitle">Make notes</h2>
+  <p class="hint">Pick your paper. Write with an Apple Pencil, a stylus, your finger or a mouse.</p>
+  <div class="paper-picks" id="ntPapers">
+    <button type="button" data-paper="lined"><span class="pp pp-lined"></span>Lined</button>
+    <button type="button" data-paper="grid"><span class="pp pp-grid"></span>Grid</button>
+    <button type="button" data-paper="dots"><span class="pp pp-dots"></span>Dots</button>
+    <button type="button" data-paper="blank"><span class="pp"></span>Blank</button>
+  </div>
+  <h2>Write on a PDF or photo</h2>
+  <div class="stack" id="ntFromFiles"></div>
+  <button type="button" class="btn soft-btn block" id="ntUpload">⬆️ Upload a PDF or photo to write on</button>
+  <input type="file" id="ntUploadInput" accept="application/pdf,image/*" hidden>
+  <button type="button" class="btn ghost block" data-close="ntNewSheet">Cancel</button>
+</div></dialog>
+<dialog id="noteSheet" class="html-view note-view" aria-labelledby="ntTitle">
+  <div class="nt-bar">
+    <button type="button" class="icon-btn" id="ntClose" aria-label="Save and close"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <input id="ntTitle" class="nt-title" maxlength="80" aria-label="Note name">
+    <span class="nt-state" id="ntState">Saved</span>
+    <div class="seg nt-paper" id="ntPaperSeg" role="tablist" aria-label="Paper">
+      <button type="button" role="tab" data-npaper="lined">Lined</button><button type="button" role="tab" data-npaper="grid">Grid</button><button type="button" role="tab" data-npaper="dots">Dots</button><button type="button" role="tab" data-npaper="blank">Blank</button>
+    </div>
+  </div>
+  <div class="nt-main">
+    <div class="nt-tools" id="ntTools">
+      <div class="nt-group" id="ntToolBtns"></div>
+      <div class="nt-group" id="ntColors"></div>
+      <div class="nt-group" id="ntSizes"></div>
+      <div class="nt-group"><button type="button" class="nt-btn" id="ntUndo" aria-label="Undo">↶<b>Undo</b></button><button type="button" class="nt-btn" id="ntRedo" aria-label="Redo">↷<b>Redo</b></button></div>
+    </div>
+    <div class="nt-stage" id="ntStage">
+      <div class="nt-page" id="ntPage"><canvas id="ntBg"></canvas><canvas id="ntInk" aria-label="Note page. Write with your pen, finger or mouse."></canvas><input id="ntText" class="ink-text" maxlength="200" hidden aria-label="Type on the page"></div>
+    </div>
+    <div class="nt-pages" id="ntPageList"></div>
+  </div>
+  <div class="nt-foot">
+    <button type="button" class="icon-btn sm" id="ntPrev" aria-label="Previous page"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <span id="ntPageNo">Page 1 of 1</span>
+    <button type="button" class="icon-btn sm" id="ntNext" aria-label="Next page"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button type="button" class="btn soft-btn small" id="ntAddPage">+ Page</button>
+    <button type="button" class="btn ghost small" id="ntDelPage">Delete page</button>
+  </div>
+</dialog>
 <dialog id="ptSheet" aria-labelledby="ptName"><div class="sheet">
   <div class="sheet-grip"></div>
   <div class="pick-row" style="cursor:default"><span class="ava" id="ptAva"></span><span class="grow"><b id="ptName"></b><span id="ptUser"></span></span></div>
@@ -1241,6 +1291,7 @@
 <script src="/js/house.js"></script>
 <script src="/js/fc.js"></script>
 <script src="/js/call.js"></script>
+<script src="/js/notes.js"></script>
 <script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
 <script src="/js/boot.js"></script>
