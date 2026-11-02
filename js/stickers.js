@@ -71,9 +71,14 @@
     if (!mine) try { mine = JSON.parse(localStorage.getItem("funi.stk." + me()) || "null"); } catch (e) {}
     if (mine && !force && !loadMine.fresh) { loadMine.fresh = true; loadMine(true); return mine; }
     if (mine && !force) return mine;
-    if (F.looksOffline()) return mine || [];
+    if (F.looksOffline()) return (mine = mine || []);
     const { data, error } = await F.sb.from("stickers").select("id,path,hash,mime,size,created_at").order("created_at", { ascending: false }).limit(MAX);
-    if (error) { if (/stickers/.test(error.message) && /exist|schema/.test(error.message)) F.toast("Stickers need one setup step: run funi-v13-setup.sql in Supabase.", { long: true }); return mine || []; }
+    if (error) {
+      loadMine.err = error.message;
+      F.toast(/stickers/.test(error.message) && /exist|schema/.test(error.message) ? "Stickers need one setup step: run funi-v13-setup.sql in Supabase. (" + error.message + ")" : "Couldn't load your stickers: " + error.message, { long: true });
+      return (mine = mine || []);
+    }
+    loadMine.err = null;
     mine = data || [];
     try { localStorage.setItem("funi.stk." + me(), JSON.stringify(mine)); } catch (e) {}
     return mine;
@@ -235,6 +240,7 @@
         else note.other++;
       }
       await loadMine(true);
+      if (loadMine.err) throw new Error("Couldn't reach your sticker list: " + loadMine.err);
       // same sticker twice? keep one
       const seen = new Set(mine.map((s) => s.hash)), todo = [];
       let have = 0;

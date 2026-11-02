@@ -1243,3 +1243,6 @@ body.guy .for-girls { display: none !important; }
 .stk-result.ok { background: #DCF3E9; color: #1C6447; }
 .stk-result span { font-size: 13px; font-weight: 700; opacity: .9; }
 #stkImpTabs { margin-top: 8px; }
+#stkImportSheet .sheet > * { flex-shrink: 0; }
+#stkImpTabs { min-height: 50px; }
+.sheet > .seg { flex-shrink: 0; }
