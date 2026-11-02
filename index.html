@@ -17,7 +17,7 @@
   try { var t = localStorage.getItem("funi.theme"); if (t) document.documentElement.setAttribute("data-theme", JSON.parse(t)); } catch (e) {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=Patrick+Hand&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -747,7 +747,7 @@
       <div class="call-tools" id="clTools" hidden>
         <div class="tool-row" id="clToolBtns"></div>
         <div class="tool-row" id="clColors"></div>
-        <div class="tool-row"><button type="button" class="chip" id="clUndo">Undo</button><button type="button" class="chip" id="clClear">Clear</button><button type="button" class="chip" id="clSaveBoard">Save to my files</button></div>
+        <div class="tool-row"><button type="button" class="chip" id="clUndo">Undo</button><button type="button" class="chip" id="clClear">Clear</button><button type="button" class="chip" id="clNeat">✨ Neat handwriting</button><button type="button" class="chip" id="clSaveBoard">Save to my files</button><span class="nt-hint" id="clHint"></span></div>
       </div>
       <div class="call-tiles" id="clTiles"></div>
     </div>
@@ -1176,6 +1176,10 @@
     <button type="button" class="icon-btn" id="ntClose" aria-label="Save and close"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
     <input id="ntTitle" class="nt-title" maxlength="80" aria-label="Note name">
     <span class="nt-state" id="ntState">Saved</span>
+    <button type="button" class="btn soft-btn small" id="ntNeat">✨ Neat handwriting</button>
+    <button type="button" class="btn primary small" id="ntSaveBtn">Save</button>
+    <button type="button" class="btn ghost small" id="ntDone">Done</button>
+    <button type="button" class="btn primary small" id="ntEditBtn">✏️ Edit</button>
     <div class="seg nt-paper" id="ntPaperSeg" role="tablist" aria-label="Paper">
       <button type="button" role="tab" data-npaper="lined">Lined</button><button type="button" role="tab" data-npaper="grid">Grid</button><button type="button" role="tab" data-npaper="dots">Dots</button><button type="button" role="tab" data-npaper="blank">Blank</button>
     </div>
@@ -1186,7 +1190,9 @@
       <div class="nt-group" id="ntColors"></div>
       <div class="nt-group" id="ntSizes"></div>
       <div class="nt-group"><button type="button" class="nt-btn" id="ntUndo" aria-label="Undo">↶<b>Undo</b></button><button type="button" class="nt-btn" id="ntRedo" aria-label="Redo">↷<b>Redo</b></button></div>
+      <span class="nt-hint" id="ntHint"></span>
     </div>
+    <div class="nt-read" id="ntRead" aria-label="Your pages"></div>
     <div class="nt-stage" id="ntStage">
       <div class="nt-page" id="ntPage"><canvas id="ntBg"></canvas><canvas id="ntInk" aria-label="Note page. Write with your pen, finger or mouse."></canvas><input id="ntText" class="ink-text" maxlength="200" hidden aria-label="Type on the page"></div>
     </div>

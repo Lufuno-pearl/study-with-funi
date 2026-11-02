@@ -59,7 +59,7 @@
   }
 
   /* ---------- opening a saved notebook ---------- */
-  F.openNote = async (f) => {
+  F.openNote = async (f, edit) => {
     code = f.module_code;
     try {
       const blob = await F.fileBlob(f);
@@ -67,33 +67,65 @@
       // a version saved on this phone while offline wins if it's newer
       try { const d = JSON.parse(localStorage.getItem("funi.noteDraft." + f.id) || "null"); if (d && d.savedAt > (n.savedAt || 0)) n = d; } catch (e) {}
       if (!n || !Array.isArray(n.pages)) throw new Error("not a note");
-      start(n, f);
+      start(n, f, !edit);
     } catch (e) { F.toast(F.looksOffline(e) ? "This notebook isn't saved on this phone yet. Open it once with internet." : "Couldn't open these notes.", { long: true }); }
   };
   async function loadPdf(bg) { const blob = await F.fileBlob(bg); const lib = await F.loadPdfJs(); return lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise; }
   async function loadImg(bg) { const blob = await F.fileBlob(bg); const url = URL.createObjectURL(blob); return new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = bad; im.src = url; }); }
 
-  async function start(n, f) {
+  async function start(n, f, read) {
     note = n; row = f; pageIdx = 0; undo = []; redo = []; dirty = !f; bgDoc = null; bgImg = null;
     if (!code) code = (F.curModule && F.curModule()) || "Notes";
     $("ntTitle").value = note.title;
     $("ntPaperSeg").hidden = !!note.bg;
     $("noteSheet").showModal();
     if (note.bg) { try { if (note.bg.kind === "pdf") bgDoc = await loadPdf(note.bg); else bgImg = await loadImg(note.bg); } catch (e) { F.toast("The PDF or photo underneath couldn't load. Your writing is still here."); } }
-    renderTools(); renderPaperSeg(); showPage(0); setState(f ? "Saved" : "Not saved yet");
+    renderTools(); renderPaperSeg(); setState(f ? "Saved" : "Not saved yet");
+    setMode(read ? "read" : "edit");
     if (!f) scheduleSave();
   }
+  /* ---------- reading (scroll through pages) or editing ---------- */
+  let mode = "edit";
+  function setMode(m) {
+    mode = m;
+    $("noteSheet").classList.toggle("reading", m === "read");
+    $("ntTitle").readOnly = m === "read";
+    if (m === "read") renderRead(); else { $("ntRead").innerHTML = ""; showPage(pageIdx); }
+  }
+  let readJob = 0;
+  async function renderRead() {
+    const job = ++readJob, box = $("ntRead");
+    const w = Math.min(box.clientWidth - 24, 820), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    box.innerHTML = note.pages.map((p, i) => '<div class="nt-rpage" data-rp="' + i + '"><canvas width="' + Math.floor(w * dpr) + '" height="' + Math.floor(w * (p.ar || A4) * dpr) + '" style="width:' + w + "px;height:" + Math.floor(w * (p.ar || A4)) + 'px"></canvas><span>Page ' + (i + 1) + "</span></div>").join("");
+    if (document.fonts && document.fonts.load) await document.fonts.load('40px "Patrick Hand"').catch(() => {});
+    for (let i = 0; i < note.pages.length; i++) {
+      if (job !== readJob || mode !== "read") return;
+      const cv = box.querySelector('[data-rp="' + i + '"] canvas'); if (!cv) continue;
+      await paintBg(cv, note.pages[i]);
+      const x = cv.getContext("2d"); note.pages[i].strokes.forEach((st) => strokeOn(x, st, cv.width));
+    }
+  }
+  function visiblePage() {
+    const box = $("ntRead"), top = box.scrollTop + 40;
+    let best = 0; box.querySelectorAll("[data-rp]").forEach((el) => { if (el.offsetTop <= top) best = +el.dataset.rp; });
+    return best;
+  }
+  $("ntEditBtn").onclick = () => { pageIdx = visiblePage(); setMode("edit"); };
+  $("ntDone").onclick = async () => { commitText(); if (dirty) { setState("Saving…"); await save(); } setMode("read"); };
+  $("ntSaveBtn").onclick = async () => { commitText(); dirty = true; setState("Saving…"); await save(); if (!dirty) F.toast("Saved to " + code + " › Notes."); };
 
   /* ---------- tools ---------- */
   function renderTools() {
     $("ntToolBtns").innerHTML = TOOLS.map((t) => '<button type="button" class="nt-btn' + (tool === t[0] ? " on" : "") + '" data-ntool="' + t[0] + '" aria-pressed="' + (tool === t[0]) + '"><span aria-hidden="true">' + t[1] + "</span><b>" + t[2] + "</b></button>").join("");
     $("ntColors").innerHTML = COLORS.map((c) => '<button type="button" class="swatch' + (color === c[0] ? " on" : "") + '" data-ncolor="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (color === c[0]) + '" style="background:' + c[0] + '"></button>').join("");
     $("ntSizes").innerHTML = SIZES.map((z) => '<button type="button" class="nt-size' + (size === z[0] ? " on" : "") + '" data-nsize="' + z[0] + '" aria-label="' + z[1] + '" aria-pressed="' + (size === z[0]) + '"><i style="width:' + (z[0] * 3 + 3) + "px;height:" + (z[0] * 3 + 3) + 'px"></i></button>').join("");
-    $("ntInk").style.cursor = tool === "text" ? "text" : "crosshair";
+    $("ntInk").style.cursor = !tool ? "default" : tool === "text" ? "text" : "crosshair";
+    $("ntHint").textContent = tool ? "Tap " + TOOLS.find((t) => t[0] === tool)[2] + " again to put it down" : "✋ Pen down: nothing draws. Tap a tool to write.";
+    $("ntHint").classList.toggle("down", !tool);
   }
   $("ntTools").addEventListener("click", (e) => {
-    const t = e.target.closest("[data-ntool]"); if (t) { tool = t.dataset.ntool; renderTools(); return; }
-    const c = e.target.closest("[data-ncolor]"); if (c) { color = c.dataset.ncolor; if (tool === "erase") tool = "pen"; renderTools(); return; }
+    const t = e.target.closest("[data-ntool]"); if (t) { tool = tool === t.dataset.ntool ? null : t.dataset.ntool; renderTools(); return; }
+    const c = e.target.closest("[data-ncolor]"); if (c) { color = c.dataset.ncolor; if (!tool || tool === "erase") tool = "pen"; renderTools(); return; }
     const z = e.target.closest("[data-nsize]"); if (z) { size = +z.dataset.nsize; renderTools(); }
   });
   function renderPaperSeg() { document.querySelectorAll("#ntPaperSeg [data-npaper]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.npaper === note.paper))); }
@@ -112,11 +144,12 @@
     ["ntBg", "ntInk"].forEach((id) => { const c = $(id); c.width = Math.floor(W * dpr); c.height = Math.floor(H * dpr); c.style.width = W + "px"; c.style.height = H + "px"; });
   }
   let bgJob = 0;
-  async function drawBg() {
-    const c = $("ntBg"), x = c.getContext("2d"), cw = c.width, ch = c.height, job = ++bgJob, p = page();
+  function drawBg() { const job = ++bgJob; return paintBg($("ntBg"), page(), () => job !== bgJob); }
+  async function paintBg(c, p, stale) {
+    const x = c.getContext("2d"), cw = c.width, ch = c.height;
     x.fillStyle = "#FFFFFF"; x.fillRect(0, 0, cw, ch);
     if (p.bgPage && bgDoc && p.bgPage <= bgDoc.numPages) {
-      const pg = await bgDoc.getPage(p.bgPage); if (job !== bgJob) return;
+      const pg = await bgDoc.getPage(p.bgPage); if (stale && stale()) return;
       const v1 = pg.getViewport({ scale: 1 });
       await pg.render({ canvasContext: x, viewport: pg.getViewport({ scale: cw / v1.width }) }).promise;
       return;
@@ -159,13 +192,17 @@
     if (!(await F.confirm("Delete page " + (pageIdx + 1) + "?", "Everything written on it is removed.", "Delete"))) return;
     note.pages.splice(pageIdx, 1); undo = []; redo = []; showPage(pageIdx); changed();
   };
-  window.addEventListener("resize", () => { if ($("noteSheet").open) { layout(); drawBg(); drawInk(); } });
+  window.addEventListener("resize", () => { if (!$("noteSheet").open) return; if (mode === "read") renderRead(); else { layout(); drawBg(); drawInk(); } });
 
   /* ---------- drawing ---------- */
   function strokeOn(x, s, cw) {
     const k = cw; // points are stored as fractions of the page width
     x.save(); x.lineCap = "round"; x.lineJoin = "round"; x.strokeStyle = s.c; x.fillStyle = s.c;
-    if (s.t === "text") { x.font = "600 " + Math.round(s.w * k / 1000 * 9) + "px Nunito, system-ui, sans-serif"; x.textBaseline = "top"; String(s.text).split("\n").forEach((ln, i) => x.fillText(ln, s.p[0][0] * k, s.p[0][1] * k + i * s.w * k / 1000 * 11)); x.restore(); return; }
+    if (s.t === "text") {
+      const px = s.fs ? s.fs * k : s.w * k / 1000 * 9;
+      x.font = (s.font === "neat" ? "400 " + Math.round(px) + 'px "Patrick Hand", "Segoe Print", cursive' : "600 " + Math.round(px) + "px Nunito, system-ui, sans-serif");
+      x.textBaseline = "top"; String(s.text).split("\n").forEach((ln, i) => x.fillText(ln, s.p[0][0] * k, s.p[0][1] * k + i * px * 1.2)); x.restore(); return;
+    }
     const P = s.p;
     if (s.t === "mark" || s.t === "pencil" || P.length < 3) {
       x.globalAlpha = s.t === "mark" ? 0.33 : s.t === "pencil" ? 0.8 : 1;
@@ -201,9 +238,10 @@
   $("ntInk").addEventListener("pointerdown", (e) => {
     if (e.pointerType === "pen" && !penSeen) { penSeen = true; try { localStorage.setItem("funi.penSeen", "1"); } catch (x) {} }
     if (penSeen && e.pointerType === "touch") return; // your palm or finger while using a pen
+    if (!tool || mode !== "edit") return; // pen is down: just looking
     e.preventDefault();
     const p = pt(e);
-    if (tool === "text") { openText(p); return; }
+    if (tool === "text") { const hit = textAt(p); openText(hit ? hit.p[0] : p, hit); return; }
     try { $("ntInk").setPointerCapture(e.pointerId); } catch (x) {}
     if (tool === "erase") { drawing = { erase: true }; eraseAt(p); return; }
     drawing = { s: { t: tool, c: color, w: tool === "mark" ? size * 6 + 8 : tool === "pencil" ? Math.max(1.2, size * 0.75) : size, p: [p] } };
@@ -226,32 +264,53 @@
     drawing = null; drawInk();
   };
   $("ntInk").addEventListener("pointerup", endDraw); $("ntInk").addEventListener("pointercancel", endDraw);
-  let textAt = null;
-  function openText(p) {
-    textAt = p; const inp = $("ntText");
-    inp.style.left = (p[0] * 100) + "%"; inp.style.top = (p[1] / (page().ar || A4) * 100) + "%"; inp.style.color = color;
-    inp.value = ""; inp.hidden = false; inp.focus(); requestAnimationFrame(() => inp.focus());
+  let textPos = null, textEditing = null;
+  // which typed or neat text is under the finger (so you can fix a word)
+  function textAt(p) {
+    const list = page().strokes.filter((s) => s.t === "text");
+    for (let i = list.length - 1; i >= 0; i--) {
+      const s = list[i], fs = s.fs || s.w * 9 / 1000, w = String(s.text).length * fs * 0.5;
+      if (p[0] >= s.p[0][0] - 0.01 && p[0] <= s.p[0][0] + w + 0.01 && p[1] >= s.p[0][1] - 0.01 && p[1] <= s.p[0][1] + fs * 1.2) return s;
+    }
+    return null;
+  }
+  function openText(p, existing) {
+    textPos = p; textEditing = existing || null; const inp = $("ntText");
+    inp.style.left = (p[0] * 100) + "%"; inp.style.top = (p[1] / (page().ar || A4) * 100) + "%"; inp.style.color = existing ? existing.c : color;
+    inp.value = existing ? existing.text : ""; inp.hidden = false; inp.focus(); requestAnimationFrame(() => inp.focus());
   }
   function commitText() {
-    const inp = $("ntText"), t = inp.value.trim(); inp.hidden = true;
-    if (!t || !textAt) { textAt = null; return; }
-    const s = { t: "text", c: color, w: size * 1.2 + 1.6, p: [textAt], text: t.slice(0, 200) };
-    page().strokes.push(s); undo.push({ page: pageIdx, add: s }); redo = []; textAt = null; drawInk(); changed();
+    const inp = $("ntText"); if (inp.hidden) return;
+    const t = inp.value.trim(); inp.hidden = true;
+    const old = textEditing; textEditing = null;
+    if (!textPos) return;
+    if (old) {
+      if (t === old.text) { textPos = null; return; }
+      const s = t ? Object.assign({}, old, { text: t.slice(0, 200) }) : null;
+      page().strokes = page().strokes.filter((x) => x !== old).concat(s ? [s] : []);
+      undo.push({ page: pageIdx, del: [old], add: s ? [s] : [] }); redo = []; textPos = null; drawInk(); changed(); return;
+    }
+    if (!t) { textPos = null; return; }
+    const s = { t: "text", c: color, w: size * 1.2 + 1.6, p: [textPos], text: t.slice(0, 200) };
+    page().strokes.push(s); undo.push({ page: pageIdx, add: s }); redo = []; textPos = null; drawInk(); changed();
   }
-  $("ntText").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commitText(); } if (e.key === "Escape") { $("ntText").hidden = true; textAt = null; } });
+  $("ntText").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commitText(); } if (e.key === "Escape") { $("ntText").hidden = true; textPos = null; textEditing = null; } });
   $("ntText").addEventListener("blur", commitText);
+  const list = (v) => (v ? (Array.isArray(v) ? v : [v]) : []);
   function doUndo() {
     const a = undo.pop(); if (!a) return;
     if (a.page !== pageIdx) showPage(a.page);
     const p = note.pages[a.page];
-    if (a.add) p.strokes = p.strokes.filter((s) => s !== a.add); else p.strokes = p.strokes.concat(a.del);
+    const add = list(a.add), del = list(a.del);
+    p.strokes = p.strokes.filter((s) => !add.includes(s)).concat(del);
     redo.push(a); drawInk(); changed();
   }
   function doRedo() {
     const a = redo.pop(); if (!a) return;
     if (a.page !== pageIdx) showPage(a.page);
     const p = note.pages[a.page];
-    if (a.add) p.strokes.push(a.add); else p.strokes = p.strokes.filter((s) => !a.del.includes(s));
+    const add = list(a.add), del = list(a.del);
+    p.strokes = p.strokes.filter((s) => !del.includes(s)).concat(add);
     undo.push(a); drawInk(); changed();
   }
   $("ntUndo").onclick = doUndo; $("ntRedo").onclick = doRedo;
@@ -261,6 +320,34 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); }
   });
   $("ntTitle").addEventListener("input", () => { note.title = $("ntTitle").value.slice(0, 80) || "Notes"; changed(); });
+
+  /* ---------- neat handwriting: read your writing and redraw it neatly ---------- */
+  $("ntNeat").onclick = async () => {
+    if (!note) return;
+    if (F.looksOffline()) return F.toast("Neat handwriting needs internet. Your notes still save.");
+    const ink = page().strokes.filter((s) => s.t === "pen" || s.t === "pencil");
+    if (!ink.length) return F.toast("Write something with the pen first, then tap Neat handwriting.");
+    $("ntNeat").disabled = true; setState("Reading your writing…");
+    try {
+      const groups = F.groupInk(ink.map((s) => s.p));
+      const added = [], removed = [];
+      for (const g of groups) {
+        const strokes = g.idx.map((i) => ink[i]);
+        const text = await F.recognizeInk(strokes.map((s) => s.p.map((q) => [q[0] * 1000, q[1] * 1000])), 1000, 1000 * (page().ar || A4));
+        if (!text) continue;
+        removed.push(...strokes);
+        added.push({ t: "text", font: "neat", c: strokes[0].c, w: 3, fs: Math.max(0.025, (g.box[3] - g.box[1]) / 0.8), p: [[g.box[0], g.box[1] - (g.box[3] - g.box[1]) * 0.12]], text: text.slice(0, 200) });
+      }
+      if (!added.length) { setState(dirty ? "Saving…" : "Saved"); return F.toast("Funi couldn't read that. Try writing a bit bigger."); }
+      if (document.fonts && document.fonts.load) await document.fonts.load('40px "Patrick Hand"').catch(() => {});
+      page().strokes = page().strokes.filter((s) => !removed.includes(s)).concat(added);
+      undo.push({ page: pageIdx, del: removed, add: added }); redo = []; drawInk(); changed();
+      F.toast("✨ Neat! Use the Type tool to tap a word and fix it, or Undo to get your writing back.", { long: true });
+    } catch (err) {
+      setState(dirty ? "Saving…" : "Saved");
+      F.toast(F.looksOffline(err) ? "Neat handwriting needs internet." : "Couldn't read your writing right now. Try again in a moment.", { long: true });
+    } finally { $("ntNeat").disabled = false; }
+  };
 
   /* ---------- saving (as you write) ---------- */
   function setState(t) { $("ntState").textContent = t; }

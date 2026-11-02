@@ -1182,3 +1182,17 @@ body.guy .for-girls { display: none !important; }
   .call-controls { bottom: 6px; }
   .offline-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); }
 }
+/* reading mode: scroll through pages, nothing draws */
+.nt-read { display: none; }
+.note-view.reading .nt-read { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: 1; min-height: 0; overflow-y: auto; padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 24px); -webkit-overflow-scrolling: touch; }
+.nt-rpage { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.nt-rpage canvas { display: block; background: #FFFFFF; border-radius: 4px; box-shadow: 0 12px 30px -18px rgba(0,0,0,.5); }
+.nt-rpage span { font-size: 12px; font-weight: 800; color: var(--muted); }
+.note-view.reading .nt-tools, .note-view.reading .nt-stage, .note-view.reading .nt-pages, .note-view.reading .nt-foot,
+.note-view.reading #ntPaperSeg, .note-view.reading #ntSaveBtn, .note-view.reading #ntDone, .note-view.reading #ntNeat, .note-view.reading #ntState { display: none !important; }
+.note-view:not(.reading) #ntEditBtn { display: none; }
+.note-view.reading .nt-title { pointer-events: none; }
+.nt-hint { font-size: 11px; font-weight: 800; color: var(--muted); align-self: center; flex-shrink: 0; max-width: 150px; line-height: 1.3; }
+.nt-hint.down { color: var(--mint-ink); background: var(--mint); padding: 6px 8px; border-radius: 10px; }
+@media (min-width: 900px) { .nt-hint { max-width: 76px; text-align: center; } }
+.nt-bar .btn.small { min-height: 38px; }

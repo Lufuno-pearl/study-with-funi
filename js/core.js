@@ -116,6 +116,49 @@
   };
   F.currentTheme = () => document.documentElement.getAttribute("data-theme") || "lavender";
 
+  /* ---------- reading handwriting (Google's free handwriting reader, needs internet) ---------- */
+  // strokes: [[ [x, y], ... ], ...] in pixels of a w x h writing area. Resolves to the best guess, or "".
+  F.recognizeInk = async (strokes, w, h) => {
+    const ink = strokes.filter((s) => s.length).map((s) => [s.map((p) => Math.round(p[0])), s.map((p) => Math.round(p[1])), []]);
+    const body = JSON.stringify({ options: "enable_pre_space", requests: [{ writing_guide: { writing_area_width: Math.round(w), writing_area_height: Math.round(h) }, ink, language: "en" }] });
+    const url = "https://inputtools.google.com/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8";
+    let res;
+    try { res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body }); }
+    catch (e) { res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body }); }
+    const j = await res.json();
+    if (!j || j[0] !== "SUCCESS" || !j[1] || !j[1][0] || !j[1][0][1]) return "";
+    return String(j[1][0][1][0] || "").trim();
+  };
+  // split handwriting into lines, then into word groups (by big gaps), so each keeps its place on the page
+  F.groupInk = (strokes) => {
+    const items = strokes.map((pts, i) => {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      pts.forEach((p) => { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+      return { i, box: [x0, y0, x1, y1] };
+    }).sort((a, b) => (b.box[3] - b.box[1]) - (a.box[3] - a.box[1]));
+    // tall strokes start the lines first, so flat ones (=, -, the bar of an F) join the line they sit in
+    const lines = [];
+    items.forEach((it) => {
+      const cy = (it.box[1] + it.box[3]) / 2, hh = Math.max(it.box[3] - it.box[1], 0.004);
+      const line = lines.find((L) => { const lh = Math.max(L.box[3] - L.box[1], 0.004), m = lh * 0.25, ov = Math.min(L.box[3], it.box[3]) - Math.max(L.box[1], it.box[1]);
+        return ov > 0.3 * Math.min(lh, hh) || (cy >= L.box[1] - m && cy <= L.box[3] + m); });
+      if (line) { line.items.push(it); line.box = [Math.min(line.box[0], it.box[0]), Math.min(line.box[1], it.box[1]), Math.max(line.box[2], it.box[2]), Math.max(line.box[3], it.box[3])]; }
+      else lines.push({ items: [it], box: it.box.slice() });
+    });
+    const out = [];
+    lines.forEach((L) => {
+      const lh = Math.max(L.box[3] - L.box[1], 0.01), sorted = L.items.sort((a, b) => a.box[0] - b.box[0]);
+      let cur = null;
+      sorted.forEach((it) => {
+        if (cur && it.box[0] - cur.box[2] > lh * 1.6) { out.push(cur); cur = null; }
+        if (!cur) cur = { idx: [], box: it.box.slice() };
+        cur.idx.push(it.i); cur.box = [Math.min(cur.box[0], it.box[0]), Math.min(cur.box[1], it.box[1]), Math.max(cur.box[2], it.box[2]), Math.max(cur.box[3], it.box[3])];
+      });
+      if (cur) out.push(cur);
+    });
+    return out;
+  };
+
   /* ---------- scrolling: on phones the page scrolls inside .app (so the bottom bar can't move) ---------- */
   F.scroller = () => { const a = document.querySelector("#appScreen > .app"); return a && a.scrollHeight > a.clientHeight + 1 && getComputedStyle(a).overflowY !== "visible" ? a : null; };
   F.scrollTo = (y) => {
