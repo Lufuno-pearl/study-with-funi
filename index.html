@@ -905,11 +905,19 @@
       <button type="button" class="x-btn" id="attachClear" aria-label="Remove attachment">×</button>
     </div>
     <form id="chatForm">
+      <button type="button" class="icon-btn stk-btn" id="stkBtn" aria-label="Stickers" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9h4a5 5 0 0 0 5 5z"/><path d="M16 3v2a3 3 0 0 0 3 3h2"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6"/><circle cx="15" cy="10" r=".6"/></svg></button>
       <label for="chatInput" class="sr-only">Message</label>
       <textarea id="chatInput" rows="1" maxlength="4000" placeholder="Type a message…"></textarea>
       <button type="button" class="icon-btn mic" id="micBtn" aria-label="Record a voice note"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
       <button type="submit" class="icon-btn send" id="sendBtn" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
     </form>
+    <div class="stk-tray" id="stkTray" hidden>
+      <div class="stk-tabs" id="stkTabs" role="tablist" aria-label="Stickers">
+        <button type="button" role="tab" data-stab="funi">😊 Funi pack</button><button type="button" role="tab" data-stab="mine">⭐ My stickers</button><button type="button" role="tab" data-stab="recent">🕘 Recent</button>
+        <span class="stk-count" id="stkCount" hidden></span>
+      </div>
+      <div class="stk-grid" id="stkGrid"></div>
+    </div>
     <div class="recorder" id="recorder" hidden>
       <span class="rec-dot" aria-hidden="true"></span>
       <span class="rec-time" id="recTime" aria-live="polite">0:00</span>
@@ -1127,6 +1135,7 @@
   <div class="sheet-grip"></div>
   <p class="msg-quote" id="msqText"></p>
   <div class="stack msg-actions">
+    <button type="button" class="btn primary block" id="msqStk" hidden>⭐ Save to my stickers</button>
     <button type="button" class="btn primary block" id="msqReply">Reply</button>
     <button type="button" class="btn ghost block" id="msqCopy">Copy text</button>
     <button type="button" class="btn ghost block" id="msqMe">Delete for me</button>
@@ -1146,6 +1155,18 @@
     <button type="button" class="btn ghost" data-close="neatSheet">Cancel</button>
     <button type="button" class="btn primary" id="neatGo">Make it neat</button>
   </div>
+</div></dialog>
+<dialog id="stkImportSheet" aria-labelledby="stkImpTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="stkImpTitle">Bring your WhatsApp stickers</h2>
+  <div class="seg" id="stkImpTabs" role="tablist" aria-label="Your device"><button type="button" role="tab" data-itab="iphone">iPhone</button><button type="button" role="tab" data-itab="android">Android</button><button type="button" role="tab" data-itab="laptop">Laptop</button></div>
+  <ol class="stk-steps" id="stkImpSteps"></ol>
+  <p class="stk-prog" id="stkImpProg" hidden aria-live="polite"></p>
+  <p class="stk-result" id="stkImpResult" hidden aria-live="polite"></p>
+  <button type="button" class="btn primary block" id="stkImpPick">📦 Choose the WhatsApp export or sticker files</button>
+  <input type="file" id="stkImpInput" multiple accept=".zip,application/zip,application/x-zip-compressed,image/webp,image/png,image/gif,image/jpeg,image/*" hidden>
+  <p class="hint">Funi only keeps the stickers. Photos, videos and the chat messages in an export are skipped and never uploaded. Up to 400 stickers.</p>
+  <button type="button" class="btn ghost block" data-close="stkImportSheet">Close</button>
 </div></dialog>
 <dialog id="confirmSheet"><div class="sheet">
   <div class="sheet-grip"></div>
@@ -1311,6 +1332,7 @@
 <script src="/js/fc.js"></script>
 <script src="/js/call.js"></script>
 <script src="/js/notes.js"></script>
+<script src="/js/stickers.js"></script>
 <script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
 <script src="/js/boot.js"></script>

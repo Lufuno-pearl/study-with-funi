@@ -277,7 +277,7 @@
     });
   }
   const hiddenForMe = (m) => (m.hidden_for || []).includes(F.me.id);
-  const previewOf = (m) => !m ? "Say hi and plan your first study session" : m.deleted_at ? (m.sender_id === F.me.id ? "You deleted this message" : "This message was deleted") : (m.sender_id === F.me.id ? "You: " : "") + (m.is_help ? "Needs help · " : "") + (m.body || (m.file_name ? "Sent " + m.file_name : "Sent a file"));
+  const previewOf = (m) => !m ? "Say hi and plan your first study session" : m.deleted_at ? (m.sender_id === F.me.id ? "You deleted this message" : "This message was deleted") : (m.sender_id === F.me.id ? "You: " : "") + (m.is_help ? "Needs help · " : "") + (m.body || (m.file_type === "funi/sticker" ? "Sticker" : m.file_name ? "Sent " + m.file_name : "Sent a file"));
   // search by display name or @username, ignoring case and spaces
   const norm = (x) => String(x || "").toLowerCase().replace(/^@/, "").replace(/\s+/g, " ").trim();
   function nameMatch(id, q) {
@@ -344,11 +344,14 @@
   function bubbleHtml(m, isNew) {
     const mine = m.sender_id === F.me.id;
     if (m.deleted_at) return '<div class="bubble deleted' + (mine ? " me" : "") + '" data-mid="' + esc(m.id) + '"><span class="del-txt"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>' + (mine ? "You deleted this message" : "This message was deleted") + "</span><time>" + F.clockOf(m.created_at) + "</time></div>";
+    if (m.file_type === "funi/sticker" && m.file_path) {
+      return '<div class="bubble sticker' + (mine ? " me" : "") + (isNew ? " new" : "") + '" data-mid="' + esc(m.id) + '">' + (F.stickerHtml ? F.stickerHtml(m.file_path, "Sticker") : "Sticker") + "<time>" + F.clockOf(m.created_at) + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
+    }
     let inner = "";
     if (m.reply_to) {
       const q = chatMsgs.find((x) => x.id === m.reply_to);
       const qWho = q ? (q.sender_id === F.me.id ? "You" : F.nameOf(profiles[q.sender_id] || {})) : "";
-      const qTxt = !q ? "Original message isn't loaded" : q.deleted_at ? "This message was deleted" : (q.body || (q.file_type && q.file_type.startsWith("audio/") ? "Voice note" : q.file_name || "File"));
+      const qTxt = !q ? "Original message isn't loaded" : q.deleted_at ? "This message was deleted" : (q.body || (q.file_type === "funi/sticker" ? "Sticker" : q.file_type && q.file_type.startsWith("audio/") ? "Voice note" : q.file_name || "File"));
       inner += '<button type="button" class="quote" data-jump="' + esc(m.reply_to) + '"><b>' + esc(qWho) + "</b><span>" + esc(String(qTxt).slice(0, 120)) + "</span></button>";
     }
     if (m.is_help) inner += '<span class="help-tag">Help request</span><br>';
@@ -364,7 +367,7 @@
     return '<div class="bubble' + (mine ? " me" : "") + (m.is_help ? " help" : "") + (isNew ? " new" : "") + '" data-mid="' + esc(m.id) + '">' + inner + "<time>" + F.clockOf(m.created_at) + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
   }
   async function drawMsgs(newId) {
-    await Promise.all(chatMsgs.filter((m) => m.file_path && !signed[m.file_path]).map((m) => signUrl(m.file_path)));
+    await Promise.all(chatMsgs.filter((m) => m.file_path && m.file_type !== "funi/sticker" && !signed[m.file_path]).map((m) => signUrl(m.file_path)));
     if (!chatMsgs.length) { $("msgs").innerHTML = '<div class="empty"><b>Say hi to ' + esc(F.nameOf(profiles[S.chatWith])) + '</b><span>Send a photo of a question, a PDF, or ask for help.</span></div>'; return; }
     let html = "", lastDay = "";
     chatMsgs.filter((m) => !hiddenForMe(m)).forEach((m) => {
@@ -373,6 +376,7 @@
       html += bubbleHtml(m, m.id === newId);
     });
     $("msgs").innerHTML = html;
+    if (F.fillStickers) F.fillStickers($("msgs"));
     F.scrollTo("end");
   }
   async function markRead(id) {
@@ -425,6 +429,20 @@
     (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
     await drawMsgs(data.id);
   });
+
+  /* ---------- stickers ---------- */
+  F.sendSticker = async (ref) => {
+    const to = S.chatWith; if (!to || !ref) return;
+    if (F.looksOffline()) return F.toast("You're offline. Stickers send when you're back online.");
+    const row = { sender_id: F.me.id, recipient_id: to, body: "", is_help: false, file_path: ref, file_name: "Sticker", file_type: "funi/sticker", file_size: 0 };
+    if (replyTo) row.reply_to = replyTo.id;
+    const { data, error } = await F.sb.from("study_messages").insert(row).select().single();
+    if (error) return F.toast("Sticker wasn't sent: " + error.message, { long: true });
+    setReply(null);
+    chatMsgs.push(data);
+    (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
+    await drawMsgs(data.id);
+  };
 
   /* ---------- voice notes: up to 3 minutes, small files, deleted after 7 days ---------- */
   let rec = null, recChunks = [], recStart = 0, recTimer = null, recStream = null, recMime = "", recBlob = null;
@@ -590,13 +608,15 @@
     const mine = m.sender_id === F.me.id;
     $("msqText").textContent = m.deleted_at ? (mine ? "You deleted this message" : "This message was deleted") : (m.body || m.file_name || "File").slice(0, 140);
     $("msqCopy").hidden = !m.body || !!m.deleted_at;
+    $("msqStk").hidden = m.file_type !== "funi/sticker" || !!m.deleted_at;
+    if (m.file_type === "funi/sticker") $("msqText").textContent = mine ? "Your sticker" : "Sticker from " + F.nameOf(profiles[m.sender_id] || {});
     $("msqReply").hidden = !!m.deleted_at;
     $("msqAll").hidden = !mine || !!m.deleted_at;
     if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
     $("msgSheet").showModal();
   }
   $("msgs").addEventListener("pointerdown", (e) => {
-    const b = e.target.closest(".bubble[data-mid]"); if (!b || e.button > 0 || e.target.closest("audio, button, a, img")) return;
+    const b = e.target.closest(".bubble[data-mid]"); if (!b || e.button > 0 || e.target.closest("audio, button, a, img:not(.stk)")) return;
     pressAt = [e.clientX, e.clientY]; clearTimeout(pressT);
     pressT = setTimeout(() => { pressT = null; b.classList.add("pressed"); setTimeout(() => b.classList.remove("pressed"), 300); openMsgSheet(b.dataset.mid); }, 500);
   });
@@ -609,7 +629,7 @@
     $("replyBar").hidden = !m;
     if (!m) return;
     $("replyWho").textContent = m.sender_id === F.me.id ? "Replying to yourself" : "Replying to " + F.nameOf(profiles[m.sender_id] || {});
-    $("replyTxt").textContent = (m.body || (m.file_type && m.file_type.startsWith("audio/") ? "Voice note" : m.file_name || "File")).slice(0, 100);
+    $("replyTxt").textContent = (m.body || (m.file_type === "funi/sticker" ? "Sticker" : m.file_type && m.file_type.startsWith("audio/") ? "Voice note" : m.file_name || "File")).slice(0, 100);
   }
   F.clearReply = () => setReply(null);
   $("replyClear").onclick = () => setReply(null);
@@ -631,13 +651,14 @@
     const { error } = await F.sb.rpc("funi_delete_message", { p_id: m.id, p_for_all: forAll });
     if (error) return F.toast(/funi_delete_message|function/.test(error.message) ? "Deleting messages needs one setup step: run funi-v11-setup.sql in Supabase." : error.message, { long: true });
     if (forAll) {
-      if (path) F.sb.storage.from("chat-files").remove([path]).then(() => {}, () => {});
+      if (path && m.file_type !== "funi/sticker") F.sb.storage.from("chat-files").remove([path]).then(() => {}, () => {});
       Object.assign(m, { deleted_at: new Date().toISOString(), body: "This message was deleted", file_path: null, file_name: null, file_type: null, file_size: null, is_help: false });
     } else m.hidden_for = (m.hidden_for || []).concat(F.me.id);
     const c = S.convos[S.chatWith];
     if (c && c.last && c.last.id === m.id) { const vis = chatMsgs.filter((x) => !hiddenForMe(x)); c.last = vis[vis.length - 1] || null; renderConvos(); }
     await drawMsgs(); F.toast(forAll ? "Deleted for everyone." : "Deleted for you.");
   }
+  $("msqStk").onclick = () => { $("msgSheet").close(); if (msgSel && F.saveSticker) F.saveSticker(msgSel.file_path); };
   $("msqMe").onclick = () => deleteMsg(false);
   $("msqAll").onclick = () => deleteMsg(true);
   F.on("rt:notification", async (n) => {
