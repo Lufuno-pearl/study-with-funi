@@ -1139,7 +1139,9 @@
   <div class="sheet-grip"></div>
   <h2 id="neatTitle">✨ Neat handwriting</h2>
   <p class="muted">Check each line. Words become neat text. Maths (∫, Σ, fractions, powers) stays in <b>your own writing</b>, made small and placed neatly on the line, because the reader can't read maths symbols.</p>
+  <div class="neat-size"><b>Size</b><div class="seg" id="neatSize" role="tablist" aria-label="Size of the neat writing"><button type="button" role="tab" data-nsize="s">Small</button><button type="button" role="tab" data-nsize="m">Medium</button><button type="button" role="tab" data-nsize="l">Large</button></div></div>
   <div id="neatList" class="neat-list"></div>
+  <p class="hint">You can move or resize anything afterwards with the ⬚ Select tool.</p>
   <div class="btns">
     <button type="button" class="btn ghost" data-close="neatSheet">Cancel</button>
     <button type="button" class="btn primary" id="neatGo">Make it neat</button>
@@ -1204,7 +1206,8 @@
     </div>
     <div class="nt-read" id="ntRead" aria-label="Your pages"></div>
     <div class="nt-stage" id="ntStage">
-      <div class="nt-page" id="ntPage"><canvas id="ntBg"></canvas><canvas id="ntInk" aria-label="Note page. Write with your pen, finger or mouse."></canvas><input id="ntText" class="ink-text" maxlength="200" hidden aria-label="Type on the page"></div>
+      <div class="nt-page" id="ntPage"><canvas id="ntBg"></canvas><canvas id="ntInk" aria-label="Note page. Write with your pen, finger or mouse."></canvas><input id="ntText" class="ink-text" maxlength="200" hidden aria-label="Type on the page">
+        <div class="nt-selbar" id="ntSelBar" hidden><span id="ntSelCount"></span><button type="button" id="ntSelCopy">⧉ Copy</button><button type="button" id="ntSelDel">🗑 Delete</button><button type="button" id="ntSelDone">✓ Done</button></div></div>
     </div>
     <div class="nt-pages" id="ntPageList"></div>
   </div>

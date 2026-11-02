@@ -1205,3 +1205,12 @@ body.guy .for-girls { display: none !important; }
 .neat-seg button { flex: 1; min-height: 40px; border-radius: 10px; border: 1.5px solid var(--line, #E7E0F1); background: var(--card, #FFFFFF); color: var(--ink, #2B2540); font: 800 13px Nunito, system-ui, sans-serif; cursor: pointer; }
 .neat-seg button[aria-pressed="true"] { border-color: var(--accent, #7556DC); background: var(--accent-soft); color: var(--accent-soft-ink); }
 .neat-row input { min-height: 42px; font: 400 20px "Patrick Hand", "Segoe Print", cursive; }
+.neat-size { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.neat-size .seg { flex: 1; }
+/* ⬚ Select tool: the little bar above what you picked */
+.nt-selbar { position: absolute; transform: translateY(calc(-100% - 8px)); display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 14px; background: #2B2540; color: #FFFFFF; box-shadow: 0 10px 24px -12px rgba(0,0,0,.6); z-index: 3; white-space: nowrap; }
+.nt-selbar[hidden] { display: none; }
+.nt-selbar span { font-size: 12px; font-weight: 800; padding: 0 8px; color: #D9D2EE; }
+.nt-selbar button { min-height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: rgba(255,255,255,0.12); color: #FFFFFF; font: 800 13px Nunito, system-ui, sans-serif; cursor: pointer; }
+.nt-selbar button:hover { background: rgba(255,255,255,0.22); }
+.nt-selbar.below { transform: translateY(8px); }

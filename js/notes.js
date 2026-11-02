@@ -5,7 +5,7 @@
   "use strict";
   const F = window.Funi, $ = F.$, esc = F.esc, S = F.s;
   const BUCKET = "module-files", MIME = "application/vnd.funi.note+json", A4 = 1.4142;
-  const TOOLS = [["pen", "✒️", "Pen"], ["pencil", "✏️", "Pencil"], ["mark", "🖍️", "Highlight"], ["erase", "🧽", "Eraser"], ["text", "🔤", "Type"]];
+  const TOOLS = [["pen", "✒️", "Pen"], ["pencil", "✏️", "Pencil"], ["mark", "🖍️", "Highlight"], ["erase", "🧽", "Eraser"], ["text", "🔤", "Type"], ["select", "⬚", "Select"]];
   const COLORS = [["#1F1B2E", "Black"], ["#3550D4", "Blue"], ["#C23B5C", "Red"], ["#1E7A4E", "Green"], ["#7556DC", "Purple"], ["#E08A00", "Orange"]];
   const SIZES = [[1.6, "Thin"], [2.6, "Medium"], [4.5, "Thick"]];
   const me = () => (F.me ? F.me.id : "");
@@ -87,7 +87,7 @@
   /* ---------- reading (scroll through pages) or editing ---------- */
   let mode = "edit";
   function setMode(m) {
-    mode = m;
+    mode = m; clearSel();
     $("noteSheet").classList.toggle("reading", m === "read");
     $("ntTitle").readOnly = m === "read";
     if (m === "read") renderRead(); else { $("ntRead").innerHTML = ""; showPage(pageIdx); }
@@ -119,13 +119,17 @@
     $("ntToolBtns").innerHTML = TOOLS.map((t) => '<button type="button" class="nt-btn' + (tool === t[0] ? " on" : "") + '" data-ntool="' + t[0] + '" aria-pressed="' + (tool === t[0]) + '"><span aria-hidden="true">' + t[1] + "</span><b>" + t[2] + "</b></button>").join("");
     $("ntColors").innerHTML = COLORS.map((c) => '<button type="button" class="swatch' + (color === c[0] ? " on" : "") + '" data-ncolor="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (color === c[0]) + '" style="background:' + c[0] + '"></button>').join("");
     $("ntSizes").innerHTML = SIZES.map((z) => '<button type="button" class="nt-size' + (size === z[0] ? " on" : "") + '" data-nsize="' + z[0] + '" aria-label="' + z[1] + '" aria-pressed="' + (size === z[0]) + '"><i style="width:' + (z[0] * 3 + 3) + "px;height:" + (z[0] * 3 + 3) + 'px"></i></button>').join("");
-    $("ntInk").style.cursor = !tool ? "default" : tool === "text" ? "text" : "crosshair";
-    $("ntHint").textContent = tool ? "Tap " + TOOLS.find((t) => t[0] === tool)[2] + " again to put it down" : "✋ Pen down: nothing draws. Tap a tool to write.";
+    $("ntInk").style.cursor = !tool ? "default" : tool === "text" ? "text" : tool === "select" ? "pointer" : "crosshair";
+    $("ntHint").textContent = !tool ? "✋ Pen down: nothing draws. Tap a tool to write."
+      : tool === "select" ? "Circle things to pick them. Drag to move, pull the ◢ corner to resize."
+      : /pen|pencil|mark/.test(tool) ? "Hold still at the end of a line or shape to make it neat. Tap " + TOOLS.find((t) => t[0] === tool)[2] + " again to put it down."
+      : "Tap " + TOOLS.find((t) => t[0] === tool)[2] + " again to put it down";
+    if (tool !== "select") clearSel();
     $("ntHint").classList.toggle("down", !tool);
   }
   $("ntTools").addEventListener("click", (e) => {
     const t = e.target.closest("[data-ntool]"); if (t) { tool = tool === t.dataset.ntool ? null : t.dataset.ntool; renderTools(); return; }
-    const c = e.target.closest("[data-ncolor]"); if (c) { color = c.dataset.ncolor; if (!tool || tool === "erase") tool = "pen"; renderTools(); return; }
+    const c = e.target.closest("[data-ncolor]"); if (c) { color = c.dataset.ncolor; if (sel) { recolorSel(color); renderTools(); return; } if (!tool || tool === "erase") tool = "pen"; renderTools(); return; }
     const z = e.target.closest("[data-nsize]"); if (z) { size = +z.dataset.nsize; renderTools(); }
   });
   function renderPaperSeg() { document.querySelectorAll("#ntPaperSeg [data-npaper]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.npaper === note.paper))); }
@@ -172,7 +176,7 @@
     x.restore();
   }
   function showPage(i) {
-    pageIdx = Math.max(0, Math.min(note.pages.length - 1, i));
+    pageIdx = Math.max(0, Math.min(note.pages.length - 1, i)); clearSel();
     layout(); drawBg(); drawInk(); renderPageList();
     $("ntPageNo").textContent = "Page " + (pageIdx + 1) + " of " + note.pages.length;
     $("ntPrev").disabled = pageIdx === 0; $("ntNext").disabled = pageIdx >= note.pages.length - 1;
@@ -226,6 +230,7 @@
     x.clearRect(0, 0, c.width, c.height);
     page().strokes.forEach((s) => strokeOn(x, s, c.width));
     if (drawing && drawing.s) strokeOn(x, drawing.s, c.width);
+    drawSel(x, c.width);
   }
   let drawing = null, raf = 0;
   const pt = (e) => { const r = $("ntInk").getBoundingClientRect(); return [+( (e.clientX - r.left) / r.width).toFixed(4), +((e.clientY - r.top) / r.width).toFixed(4), e.pointerType === "pen" ? +(e.pressure || 0.5).toFixed(2) : 0.5]; };
@@ -243,9 +248,10 @@
     const p = pt(e);
     if (tool === "text") { const hit = textAt(p); openText(hit ? (hit.bl ? [hit.p[0][0], hit.p[0][1] - (hit.fs || 0.03) * 0.85] : hit.p[0]) : p, hit); return; }
     try { $("ntInk").setPointerCapture(e.pointerId); } catch (x) {}
+    if (tool === "select") { selDown(p); return; }
     if (tool === "erase") { drawing = { erase: true }; eraseAt(p); return; }
     drawing = { s: { t: tool, c: color, w: tool === "mark" ? size * 6 + 8 : tool === "pencil" ? Math.max(1.2, size * 0.75) : size, p: [p] } };
-    drawInk();
+    holdFrom(p); drawInk();
   });
   $("ntInk").addEventListener("pointermove", (e) => {
     if (!drawing) return;
@@ -253,17 +259,138 @@
     for (const ev of evs) {
       const p = pt(ev);
       if (drawing.erase) { eraseAt(p); continue; }
+      if (drawing.sel) { selMove(p); continue; }
+      if (drawing.snapped) { if (drawing.snapped === "line") drawing.s.p[1] = [p[0], p[1], 0.5]; continue; }
       const last = drawing.s.p[drawing.s.p.length - 1];
       if (Math.hypot(p[0] - last[0], p[1] - last[1]) > 0.0015) drawing.s.p.push(p);
+      if (Math.hypot(p[0] - holdAt[0], p[1] - holdAt[1]) > 0.004) holdFrom(p);
     }
     if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawInk(); });
   });
   const endDraw = () => {
+    clearTimeout(holdT);
     if (!drawing) return;
+    if (drawing.sel) { selUp(); drawing = null; drawInk(); return; }
     if (drawing.s && drawing.s.p.length) { page().strokes.push(drawing.s); undo.push({ page: pageIdx, add: drawing.s }); redo = []; changed(); }
     drawing = null; drawInk();
   };
   $("ntInk").addEventListener("pointerup", endDraw); $("ntInk").addEventListener("pointercancel", endDraw);
+  /* ---------- hold still to snap a line or shape ---------- */
+  let holdT = 0, holdAt = [0, 0];
+  function holdFrom(p) {
+    clearTimeout(holdT); holdAt = p;
+    holdT = setTimeout(() => {
+      if (!drawing || !drawing.s || drawing.snapped || drawing.s.p.length < 4) return;
+      const r = F.snapShape(drawing.s.p);
+      if (!r || (r.kind !== "line" && Math.hypot(...[0, 1].map((k) => Math.max(...drawing.s.p.map((q) => q[k])) - Math.min(...drawing.s.p.map((q) => q[k])))) < 0.05)) return;
+      drawing.snapped = r.kind; drawing.s.p = r.pts.map((q) => [+q[0].toFixed(4), +q[1].toFixed(4), 0.5]);
+      drawInk(); F.toast(F.SHAPE_NAMES[r.kind] + (r.kind === "line" ? ": keep holding and move to aim it" : ""));
+    }, 650);
+  }
+
+  /* ---------- ⬚ Select: circle things, then move, resize, recolour, copy or delete them ---------- */
+  let sel = null;
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  function itemBox(s) {
+    if (s.t === "text") {
+      const fs = s.fs || s.w * 9 / 1000, top = s.bl ? s.p[0][1] - fs * 0.85 : s.p[0][1], lines = String(s.text).split("\n");
+      return [s.p[0][0], top, s.p[0][0] + Math.max(...lines.map((l) => l.length)) * fs * 0.48, top + fs * 1.2 * lines.length];
+    }
+    const pad = (s.w || 2) / 2000; let b = [Infinity, Infinity, -Infinity, -Infinity];
+    s.p.forEach((q) => { b = [Math.min(b[0], q[0]), Math.min(b[1], q[1]), Math.max(b[2], q[0]), Math.max(b[3], q[1])]; });
+    return [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad];
+  }
+  function selBox() { let b = [Infinity, Infinity, -Infinity, -Infinity]; sel.items.forEach((s) => { const q = itemBox(s); b = [Math.min(b[0], q[0]), Math.min(b[1], q[1]), Math.max(b[2], q[2]), Math.max(b[3], q[3])]; }); return [b[0] - 0.008, b[1] - 0.008, b[2] + 0.008, b[3] + 0.008]; }
+  function clearSel() { if (!sel) return; sel = null; $("ntSelBar").hidden = true; if (note && mode === "edit") drawInk(); }
+  function setSel(items) {
+    sel = items.length ? { items } : null;
+    const bar = $("ntSelBar"); bar.hidden = !sel; drawInk();
+    if (!sel) return;
+    const b = selBox(), ar = page().ar || A4;
+    bar.style.left = Math.max(0, Math.min(b[0], 0.55)) * 100 + "%";
+    const below = b[1] < 0.07; bar.classList.toggle("below", below);
+    bar.style.top = Math.max(0, (below ? b[3] : b[1]) / ar * 100) + "%";
+    $("ntSelCount").textContent = items.length === 1 ? "1 thing" : items.length + " things";
+  }
+  function drawSel(x, k) {
+    if (drawing && drawing.lasso) {
+      x.save(); x.setLineDash([6, 5]); x.strokeStyle = "#7556DC"; x.lineWidth = 1.5; x.fillStyle = "rgba(117,86,220,0.06)";
+      x.beginPath(); drawing.lasso.forEach((q, i) => (i ? x.lineTo(q[0] * k, q[1] * k) : x.moveTo(q[0] * k, q[1] * k))); x.closePath(); x.fill(); x.stroke(); x.restore();
+    }
+    if (!sel) return;
+    const b = selBox();
+    x.save(); x.setLineDash([7, 5]); x.strokeStyle = "#7556DC"; x.lineWidth = 2; x.fillStyle = "rgba(117,86,220,0.05)";
+    x.fillRect(b[0] * k, b[1] * k, (b[2] - b[0]) * k, (b[3] - b[1]) * k); x.strokeRect(b[0] * k, b[1] * k, (b[2] - b[0]) * k, (b[3] - b[1]) * k);
+    x.setLineDash([]); x.fillStyle = "#7556DC"; x.strokeStyle = "#FFFFFF"; x.lineWidth = 2;
+    x.beginPath(); x.arc(b[2] * k, b[3] * k, Math.max(9, 0.016 * k), 0, 7); x.fill(); x.stroke();
+    x.fillStyle = "#FFFFFF"; x.font = "800 " + Math.round(Math.max(10, 0.016 * k)) + "px Nunito, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("⤡", b[2] * k, b[3] * k + 1);
+    x.restore();
+  }
+  const inPoly = (q, P) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > q[1]) !== (P[j][1] > q[1]) && q[0] < (P[j][0] - P[i][0]) * (q[1] - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) c = !c; return c; };
+  function hitAt(p) {
+    const t = textAt(p); if (t) return t;
+    const ss = page().strokes;
+    for (let i = ss.length - 1; i >= 0; i--) { const s = ss[i]; if (s.t !== "text" && s.p.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.014 + (s.w || 2) / 2000)) return s; }
+    return null;
+  }
+  function selDown(p) {
+    if (sel) {
+      const b = selBox(), hr = Math.max(0.03, 18 / ($("ntInk").getBoundingClientRect().width || 600));
+      const handle = Math.hypot(p[0] - b[2], p[1] - b[3]) < hr, inside = p[0] >= b[0] && p[0] <= b[2] && p[1] >= b[1] && p[1] <= b[3];
+      if (handle || inside) {
+        const orig = sel.items, copies = orig.map(clone), ss = page().strokes;
+        orig.forEach((o, i) => { const at = ss.indexOf(o); if (at >= 0) ss[at] = copies[i]; });
+        sel.items = copies;
+        drawing = { sel: handle ? "resize" : "move", start: p, orig, copies, anchor: [b[0], b[1]], moved: false };
+        $("ntSelBar").hidden = true; return;
+      }
+    }
+    sel = null; $("ntSelBar").hidden = true;
+    drawing = { sel: "lasso", lasso: [p] }; drawInk();
+  }
+  function placeCopies(fn, kf) {
+    drawing.copies.forEach((c, i) => {
+      const o = drawing.orig[i];
+      c.p = o.p.map((q) => { const r = fn(q); return q.length > 2 ? [+r[0].toFixed(4), +r[1].toFixed(4), q[2]] : [+r[0].toFixed(4), +r[1].toFixed(4)]; });
+      if (kf) { if (o.t === "text") { if (o.fs) c.fs = o.fs * kf; else c.w = o.w * kf; } else c.w = Math.max(0.6, Math.min(40, o.w * kf)); }
+    });
+  }
+  function selMove(p) {
+    const d = drawing;
+    if (d.sel === "lasso") { const l = d.lasso[d.lasso.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 0.003) d.lasso.push(p); }
+    else if (d.sel === "move") { const dx = p[0] - d.start[0], dy = p[1] - d.start[1]; d.moved = d.moved || Math.hypot(dx, dy) > 0.002; placeCopies((q) => [q[0] + dx, q[1] + dy]); }
+    else { const [ax, ay] = d.anchor, k = Math.max(0.15, Math.min(8, ((p[0] - ax) + (p[1] - ay)) / Math.max(0.01, (d.start[0] - ax) + (d.start[1] - ay)))); d.moved = d.moved || Math.abs(k - 1) > 0.01; placeCopies((q) => [ax + (q[0] - ax) * k, ay + (q[1] - ay) * k], k); }
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawInk(); });
+  }
+  function selUp() {
+    const d = drawing;
+    if (d.sel === "lasso") {
+      const L = d.lasso; let b = [Infinity, Infinity, -Infinity, -Infinity]; L.forEach((q) => { b = [Math.min(b[0], q[0]), Math.min(b[1], q[1]), Math.max(b[2], q[0]), Math.max(b[3], q[1])]; });
+      if (b[2] - b[0] < 0.015 && b[3] - b[1] < 0.015) { const h = hitAt(L[0]); setSel(h ? [h] : []); return; }
+      const got = page().strokes.filter((s) => {
+        if (s.t === "text") { const q = itemBox(s); return inPoly([(q[0] + q[2]) / 2, (q[1] + q[3]) / 2], L) || inPoly([q[0] + 0.005, (q[1] + q[3]) / 2], L); }
+        return s.p.filter((q) => inPoly(q, L)).length >= Math.max(1, s.p.length * 0.6);
+      });
+      setSel(got); if (!got.length) F.toast("Nothing inside. Draw a loop around what you want to move.");
+      return;
+    }
+    if (d.moved) { undo.push({ page: pageIdx, del: d.orig, add: d.copies }); redo = []; changed(); }
+    else { const ss = page().strokes; d.copies.forEach((c, i) => { const at = ss.indexOf(c); if (at >= 0) ss[at] = d.orig[i]; }); sel.items = d.orig; }
+    setSel(sel.items);
+  }
+  function recolorSel(c) {
+    const orig = sel.items, copies = orig.map((o) => Object.assign(clone(o), { c })), ss = page().strokes;
+    orig.forEach((o, i) => { const at = ss.indexOf(o); if (at >= 0) ss[at] = copies[i]; });
+    undo.push({ page: pageIdx, del: orig, add: copies }); redo = []; changed(); setSel(copies);
+  }
+  $("ntSelDel").onclick = () => { if (!sel) return; const del = sel.items; page().strokes = page().strokes.filter((s) => !del.includes(s)); undo.push({ page: pageIdx, del }); redo = []; changed(); clearSel(); };
+  $("ntSelCopy").onclick = () => {
+    if (!sel) return;
+    const copies = sel.items.map((o) => { const c = clone(o); c.p = c.p.map((q) => { const r = q.slice(); r[0] += 0.03; r[1] += 0.03; return r; }); return c; });
+    page().strokes.push(...copies); undo.push({ page: pageIdx, add: copies }); redo = []; changed(); setSel(copies);
+  };
+  $("ntSelDone").onclick = () => clearSel();
+
   let textPos = null, textEditing = null;
   // which typed or neat text is under the finger (so you can fix a word)
   function textAt(p) {
@@ -299,7 +426,7 @@
   $("ntText").addEventListener("blur", commitText);
   const list = (v) => (v ? (Array.isArray(v) ? v : [v]) : []);
   function doUndo() {
-    const a = undo.pop(); if (!a) return;
+    const a = undo.pop(); if (!a) return; clearSel();
     if (a.page !== pageIdx) showPage(a.page);
     const p = note.pages[a.page];
     const add = list(a.add), del = list(a.del);
@@ -307,7 +434,7 @@
     redo.push(a); drawInk(); changed();
   }
   function doRedo() {
-    const a = redo.pop(); if (!a) return;
+    const a = redo.pop(); if (!a) return; clearSel();
     if (a.page !== pageIdx) showPage(a.page);
     const p = note.pages[a.page];
     const add = list(a.add), del = list(a.del);
@@ -349,15 +476,15 @@
       setState(dirty ? "Saving…" : "Saved");
       const pick = await F.neatReview(items);
       if (!pick) return;
-      const P = paperLines(), place = F.neatLayout(lines, P), removed = [], added = [];
+      const P = paperLines(), K = pick.k, place = F.neatLayout(lines, Object.assign({}, P, { step: P.gap * (K > 1.5 ? 2 : 1), inkH: P.gap * K * 0.9 })), removed = [], added = [];
       if (document.fonts && document.fonts.load) await document.fonts.load('40px "Patrick Hand"').catch(() => {});
       lines.forEach((g, i) => {
         const ss = g.idx.map((k) => ink[k]), L = place[i];
         removed.push(...ss);
-        if (pick[i].mode === "neat") {
-          let fs = P.gap * 0.88; const maxW = 0.97 - L.x, est = pick[i].text.length * fs * 0.42;
+        if (pick.lines[i].mode === "neat") {
+          let fs = P.gap * K * 0.85; const maxW = 0.97 - L.x, est = pick.lines[i].text.length * fs * 0.42;
           if (est > maxW) fs = Math.max(0.012, fs * maxW / est);
-          added.push({ t: "text", font: "neat", bl: 1, c: ss[0].c, w: 3, fs, p: [[L.x, L.base]], text: pick[i].text.slice(0, 200) });
+          added.push({ t: "text", font: "neat", bl: 1, c: ss[0].c, w: 3, fs, p: [[L.x, L.base]], text: pick.lines[i].text.slice(0, 200) });
         } else ss.forEach((st) => added.push(Object.assign({}, st, { tidy: 1, p: F.moveInk(st.p, L) })));
       });
       pg.strokes = pg.strokes.filter((s) => !removed.includes(s)).concat(added);

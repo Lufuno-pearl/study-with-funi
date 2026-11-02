@@ -164,7 +164,7 @@
   // where each line of writing goes: a normal size, sitting on the paper lines, lines kept one under the other.
   // lines: [{box:[x0,y0,x1,y1]}] in page units (fractions of the width). opts: {gap, snap(y)->y|null, minX}
   F.neatLayout = (lines, opts) => {
-    const G = opts.gap, order = lines.map((l, i) => i).sort((a, b) => lines[a].box[1] - lines[b].box[1]), out = [];
+    const G = opts.step || opts.gap, order = lines.map((l, i) => i).sort((a, b) => lines[a].box[1] - lines[b].box[1]), out = [];
     let prev = null;
     order.forEach((i) => {
       const [x0, y0, x1, y1] = lines[i].box, h = Math.max(y1 - y0, 0.004), b = y1 - h * 0.18;
@@ -173,7 +173,7 @@
         const together = b - prev.b < 2.2 * Math.max(h, prev.h);
         if (together || base < prev.base + G * 0.99) base = prev.base + G;
       }
-      const scale = Math.min(1, (G * 0.85) / h);
+      const scale = Math.min(1.6, (opts.inkH || G * 0.85) / h);
       out[i] = { base, b, scale, x: Math.max(x0, opts.minX || 0), x0 };
       prev = { b, h, base };
     });
@@ -200,11 +200,52 @@
       inp.oninput = () => { state[i].text = inp.value; };
       paint();
     });
+    let size = "m"; try { size = localStorage.getItem("funi.neatSize") || "m"; } catch (e) {}
+    const paintSize = () => $("neatSize").querySelectorAll("[data-nsize]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.nsize === size)));
+    $("neatSize").onclick = (e) => { const b = e.target.closest("[data-nsize]"); if (!b) return; size = b.dataset.nsize; try { localStorage.setItem("funi.neatSize", size); } catch (x) {} paintSize(); };
+    paintSize();
     let done = false;
-    $("neatGo").onclick = () => { done = true; dlg.close(); resolve(state.map((s) => ({ mode: s.mode === "neat" && !s.text.trim() ? "ink" : s.mode, text: s.text.trim() }))); };
+    $("neatGo").onclick = () => { done = true; dlg.close(); resolve({ size, k: { s: 0.95, m: 1.3, l: 1.75 }[size] || 1.3, lines: state.map((s) => ({ mode: s.mode === "neat" && !s.text.trim() ? "ink" : s.mode, text: s.text.trim() })) }); };
     dlg.addEventListener("close", function once() { dlg.removeEventListener("close", once); if (!done) resolve(null); });
     dlg.showModal();
   });
+
+  // ✏️ hold at the end of a line or shape and it snaps neat: straight line, circle, rectangle or triangle.
+  // pts in units where x and y use the same scale. Returns { kind, pts } or null.
+  F.snapShape = (pts) => {
+    if (!pts || pts.length < 4) return null;
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    let len = 0, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    pts.forEach((q, i) => { if (i) len += d(pts[i - 1], q); x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); });
+    const D = Math.hypot(x1 - x0, y1 - y0); if (D < 0.02) return null;
+    const A = pts[0], B = pts[pts.length - 1], chord = d(A, B);
+    const off = (q, a, b) => { const L = d(a, b); if (L < 1e-6) return d(q, a); return Math.abs((b[0] - a[0]) * (a[1] - q[1]) - (a[0] - q[0]) * (b[1] - a[1])) / L; };
+    // straight line
+    if (chord > 0.5 * len && Math.max(...pts.map((q) => off(q, A, B))) < Math.max(0.006, chord * 0.07)) {
+      let b = B.slice(); const ang = Math.atan2(B[1] - A[1], B[0] - A[0]), deg = ang * 180 / Math.PI, snapDeg = Math.round(deg / 45) * 45;
+      if (Math.abs(deg - snapDeg) < 6) { const r = snapDeg * Math.PI / 180; b = [A[0] + Math.cos(r) * chord, A[1] + Math.sin(r) * chord]; }
+      return { kind: "line", pts: [A.slice(0, 2), b.slice(0, 2)] };
+    }
+    if (chord > 0.25 * D) return null; // not closed: leave it as written
+    // closed shape: start at the point furthest from the middle (a corner, if there is one), then find corners
+    const cx = pts.reduce((a, q) => a + q[0], 0) / pts.length, cy = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+    let far = 0; pts.forEach((q, i) => { if (Math.hypot(q[0] - cx, q[1] - cy) > Math.hypot(pts[far][0] - cx, pts[far][1] - cy)) far = i; });
+    const ring = pts.slice(far).concat(pts.slice(0, far)); ring.push(ring[0]);
+    const rdp = (P, eps) => { if (P.length < 3) return P; let m = 0, k = 0; for (let i = 1; i < P.length - 1; i++) { const o = off(P[i], P[0], P[P.length - 1]); if (o > m) { m = o; k = i; } }
+      return m > eps ? rdp(P.slice(0, k + 1), eps).slice(0, -1).concat(rdp(P.slice(k), eps)) : [P[0], P[P.length - 1]]; };
+    const corners = rdp(ring, D * 0.07).slice(0, -1).map((q) => q.slice(0, 2));
+    if (corners.length === 3) return { kind: "triangle", pts: corners.concat([corners[0]]) };
+    if (corners.length === 4) {
+      const axis = corners.every((q, i) => { const n = corners[(i + 1) % 4], a = Math.abs(Math.atan2(n[1] - q[1], n[0] - q[0]) * 180 / Math.PI) % 90; return a < 14 || a > 76; });
+      const c = axis ? [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] : corners;
+      return { kind: "rectangle", pts: c.concat([c[0]]) };
+    }
+    const rx = (x1 - x0) / 2, ry = (y1 - y0) / 2, mx = (x0 + x1) / 2, my = (y0 + y1) / 2, out = [];
+    const round = Math.abs(rx - ry) < 0.15 * Math.max(rx, ry) ? (rx + ry) / 2 : 0;
+    for (let i = 0; i <= 48; i++) { const t = i / 48 * Math.PI * 2; out.push([mx + (round || rx) * Math.cos(t), my + (round || ry) * Math.sin(t)]); }
+    return { kind: round ? "circle" : "oval", pts: out };
+  };
+  F.SHAPE_NAMES = { line: "📏 Straight line", triangle: "🔺 Triangle", rectangle: "▭ Rectangle", circle: "⭕ Circle", oval: "⬭ Oval" };
 
   /* ---------- scrolling: on phones the page scrolls inside .app (so the bottom bar can't move) ---------- */
   F.scroller = () => { const a = document.querySelector("#appScreen > .app"); return a && a.scrollHeight > a.clientHeight + 1 && getComputedStyle(a).overflowY !== "visible" ? a : null; };

@@ -344,7 +344,7 @@
     $("clToolBtns").innerHTML = TOOLS.map((t) => '<button type="button" class="tool' + (tool === t[0] ? " on" : "") + '" data-tool="' + t[0] + '" aria-pressed="' + (tool === t[0]) + '" aria-label="' + t[2] + '"><span aria-hidden="true">' + t[1] + "</span>" + t[2] + "</button>").join("");
     $("clColors").innerHTML = COLORS.map((c) => '<button type="button" class="swatch' + (color === c[0] ? " on" : "") + '" data-color="' + c[0] + '" aria-label="' + c[1] + '" aria-pressed="' + (color === c[0]) + '" style="background:' + c[0] + '"></button>').join("");
     paper.style.cursor = !tool ? "default" : tool === "text" ? "text" : tool === "laser" ? "pointer" : "crosshair";
-    $("clHint").textContent = tool ? "Tap " + TOOLS.find((t) => t[0] === tool)[2] + " again to put it down" : "✋ Pen down: nothing draws";
+    $("clHint").textContent = !tool ? "✋ Pen down: nothing draws" : (tool === "pen" ? "Hold still to snap a shape · tap Pen again to stop" : "Tap " + TOOLS.find((t) => t[0] === tool)[2] + " again to put it down");
     $("clHint").classList.toggle("down", !tool);
   }
   $("clToolBtns").addEventListener("click", (e) => { const b = e.target.closest("[data-tool]"); if (b) { tool = tool === b.dataset.tool ? null : b.dataset.tool; renderTools(); } });
@@ -421,21 +421,39 @@
     if (tool === "arrow" || tool === "box") { shapeStart = p; drawing = { preview: { id: "preview", by: me(), layer: layerNow(), tool, color, w: 3, pts: [p, p] } }; dirty(); return; }
     const pen = e.pointerType === "pen" && e.pressure ? 1.5 + e.pressure * 3 : 3;
     const s = { id: newId(), by: me(), layer: layerNow(), tool, color, w: tool === "mark" ? 16 : pen, pts: [p] };
-    strokes.push(s); drawing = { stroke: s }; pending = []; send({ t: "wb-add", s }); dirty();
+    strokes.push(s); drawing = { stroke: s }; pending = []; send({ t: "wb-add", s }); dirty(); holdFrom(p);
   });
+  // hold still at the end of a line or shape and it snaps neat (everyone sees the neat one when you let go)
+  let holdT = 0, holdAt = [0, 0];
+  function holdFrom(p) {
+    clearTimeout(holdT); holdAt = p;
+    holdT = setTimeout(() => {
+      const d = drawing; if (!d || !d.stroke || d.snapped || d.stroke.pts.length < 4) return;
+      const r = ink.height / ink.width, res = F.snapShape(d.stroke.pts.map((q) => [q[0], q[1] * r]));
+      if (!res) return;
+      const old = d.stroke, ns = Object.assign({}, old, { id: newId(), pts: res.pts.map((q) => [q[0], q[1] / r]) });
+      strokes = strokes.filter((x) => x !== old).concat([ns]);
+      d.snapped = { kind: res.kind, old, s: ns }; dirty();
+      F.toast(F.SHAPE_NAMES[res.kind]);
+    }, 650);
+  }
   ink.addEventListener("pointermove", (e) => {
     if (!drawing) { if (tool === "laser" && e.pointerType === "mouse" && joined && Date.now() - lastSend > 80) { const p = at(e); lastSend = Date.now(); lasers[me()] = { x: p[0], y: p[1], at: Date.now() }; send({ t: "laser", x: p[0], y: p[1] }); dirty(); } return; }
     const p = at(e);
     if (drawing.erase) { eraseAt(p); return; }
     if (drawing.laser) { lasers[me()] = { x: p[0], y: p[1], at: Date.now() }; if (Date.now() - lastSend > 70) { lastSend = Date.now(); send({ t: "laser", x: p[0], y: p[1] }); } dirty(); return; }
     if (drawing.preview) { drawing.preview.pts = [shapeStart, p]; dirty(); return; }
+    if (drawing.snapped) { if (drawing.snapped.kind === "line") { drawing.snapped.s.pts[1] = p; dirty(); } return; }
     const s = drawing.stroke, last = s.pts[s.pts.length - 1];
     if (Math.hypot(p[0] - last[0], p[1] - last[1]) < 0.002) return;
     s.pts.push(p); pending.push(p); dirty();
+    if (Math.hypot(p[0] - holdAt[0], p[1] - holdAt[1]) > 0.004) holdFrom(p);
     if (Date.now() - lastSend > 60) { lastSend = Date.now(); send({ t: "wb-pts", id: s.id, pts: pending }); pending = []; }
   });
   const endStroke = () => {
+    clearTimeout(holdT);
     if (!drawing) return;
+    if (drawing.snapped) { const sn = drawing.snapped; send({ t: "wb-del", ids: [sn.old.id] }); send({ t: "wb-add", s: sn.s }); drawing = null; pending = []; dirty(); return; }
     if (drawing.stroke && pending.length) send({ t: "wb-pts", id: drawing.stroke.id, pts: pending });
     if (drawing.preview) { const pv = drawing.preview; if (Math.hypot(pv.pts[1][0] - pv.pts[0][0], pv.pts[1][1] - pv.pts[0][1]) > 0.01) { const s = Object.assign({}, pv, { id: newId() }); strokes.push(s); send({ t: "wb-add", s }); } }
     drawing = null; pending = []; shapeStart = null; dirty();
@@ -476,15 +494,15 @@
       }
       const pick = await F.neatReview(items);
       if (!pick) return;
-      const G = 0.045, place = F.neatLayout(lines, { gap: G, minX: 0.02, snap: null }), del = [], add = [];
+      const G = 0.04, K = pick.k, place = F.neatLayout(lines, { gap: G, step: G * K * 1.15, inkH: G * K * 0.9, minX: 0.02, snap: null }), del = [], add = [];
       if (document.fonts && document.fonts.load) await document.fonts.load('40px "Patrick Hand"').catch(() => {});
       lines.forEach((g, i) => {
         const ss = g.idx.map((k) => ink2[k]), P = place[i];
         del.push(...ss.map((s) => s.id));
-        if (pick[i].mode === "neat") {
-          let fs = G * 0.88; const maxW = 0.97 - P.x, est = pick[i].text.length * fs * 0.42;
+        if (pick.lines[i].mode === "neat") {
+          let fs = G * K * 0.85; const maxW = 0.97 - P.x, est = pick.lines[i].text.length * fs * 0.42;
           if (est > maxW) fs = Math.max(0.012, fs * maxW / est);
-          add.push({ id: newId(), by: me(), layer: L, tool: "text", font: "neat", bl: 1, color: ss[0].color, w: 3, fs, pts: [[P.x, P.base / r]], text: pick[i].text.slice(0, 120) });
+          add.push({ id: newId(), by: me(), layer: L, tool: "text", font: "neat", bl: 1, color: ss[0].color, w: 3, fs, pts: [[P.x, P.base / r]], text: pick.lines[i].text.slice(0, 120) });
         } else ss.forEach((st) => add.push(Object.assign({}, st, { id: newId(), tidy: 1, pts: F.moveInk(asW(st.pts), P).map((q) => [q[0], q[1] / r]) })));
       });
       strokes = strokes.filter((s) => !del.includes(s.id)).concat(add);
