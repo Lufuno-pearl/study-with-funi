@@ -201,7 +201,7 @@
     if (s.t === "text") {
       const px = s.fs ? s.fs * k : s.w * k / 1000 * 9;
       x.font = (s.font === "neat" ? "400 " + Math.round(px) + 'px "Patrick Hand", "Segoe Print", cursive' : "600 " + Math.round(px) + "px Nunito, system-ui, sans-serif");
-      x.textBaseline = "top"; String(s.text).split("\n").forEach((ln, i) => x.fillText(ln, s.p[0][0] * k, s.p[0][1] * k + i * px * 1.2)); x.restore(); return;
+      x.textBaseline = s.bl ? "alphabetic" : "top"; String(s.text).split("\n").forEach((ln, i) => x.fillText(ln, s.p[0][0] * k, s.p[0][1] * k + i * px * 1.2)); x.restore(); return;
     }
     const P = s.p;
     if (s.t === "mark" || s.t === "pencil" || P.length < 3) {
@@ -241,7 +241,7 @@
     if (!tool || mode !== "edit") return; // pen is down: just looking
     e.preventDefault();
     const p = pt(e);
-    if (tool === "text") { const hit = textAt(p); openText(hit ? hit.p[0] : p, hit); return; }
+    if (tool === "text") { const hit = textAt(p); openText(hit ? (hit.bl ? [hit.p[0][0], hit.p[0][1] - (hit.fs || 0.03) * 0.85] : hit.p[0]) : p, hit); return; }
     try { $("ntInk").setPointerCapture(e.pointerId); } catch (x) {}
     if (tool === "erase") { drawing = { erase: true }; eraseAt(p); return; }
     drawing = { s: { t: tool, c: color, w: tool === "mark" ? size * 6 + 8 : tool === "pencil" ? Math.max(1.2, size * 0.75) : size, p: [p] } };
@@ -270,7 +270,8 @@
     const list = page().strokes.filter((s) => s.t === "text");
     for (let i = list.length - 1; i >= 0; i--) {
       const s = list[i], fs = s.fs || s.w * 9 / 1000, w = String(s.text).length * fs * 0.5;
-      if (p[0] >= s.p[0][0] - 0.01 && p[0] <= s.p[0][0] + w + 0.01 && p[1] >= s.p[0][1] - 0.01 && p[1] <= s.p[0][1] + fs * 1.2) return s;
+      const top = s.bl ? s.p[0][1] - fs * 0.85 : s.p[0][1];
+      if (p[0] >= s.p[0][0] - 0.01 && p[0] <= s.p[0][0] + w + 0.01 && p[1] >= top - 0.01 && p[1] <= top + fs * 1.2) return s;
     }
     return null;
   }
@@ -322,27 +323,46 @@
   $("ntTitle").addEventListener("input", () => { note.title = $("ntTitle").value.slice(0, 80) || "Notes"; changed(); });
 
   /* ---------- neat handwriting: read your writing and redraw it neatly ---------- */
+  // where lines go on this paper (page units = fractions of the page width)
+  function paperLines() {
+    const pg = page(), paper = pg.bgPage ? "photo" : note.paper;
+    if (paper === "lined") return { gap: 0.034, minX: 0.1, snap: (y) => 0.06 + Math.max(0, Math.round((y - 0.06) / 0.034)) * 0.034 };
+    if (paper === "grid") return { gap: 0.03, minX: 0.02, snap: (y) => Math.max(1, Math.round(y / 0.03)) * 0.03 };
+    if (paper === "dots") return { gap: 0.03, minX: 0.02, snap: (y) => 0.03 + Math.max(0, Math.round((y - 0.03) / 0.03)) * 0.03 };
+    return { gap: 0.034, minX: 0.02, snap: null };
+  }
   $("ntNeat").onclick = async () => {
-    if (!note) return;
+    if (!note || mode !== "edit") return;
     if (F.looksOffline()) return F.toast("Neat handwriting needs internet. Your notes still save.");
-    const ink = page().strokes.filter((s) => s.t === "pen" || s.t === "pencil");
+    const pg = page(), ink = pg.strokes.filter((s) => (s.t === "pen" || s.t === "pencil") && !s.tidy);
     if (!ink.length) return F.toast("Write something with the pen first, then tap Neat handwriting.");
     $("ntNeat").disabled = true; setState("Reading your writing…");
     try {
-      const groups = F.groupInk(ink.map((s) => s.p));
-      const added = [], removed = [];
-      for (const g of groups) {
-        const strokes = g.idx.map((i) => ink[i]);
-        const text = await F.recognizeInk(strokes.map((s) => s.p.map((q) => [q[0] * 1000, q[1] * 1000])), 1000, 1000 * (page().ar || A4));
-        if (!text) continue;
-        removed.push(...strokes);
-        added.push({ t: "text", font: "neat", c: strokes[0].c, w: 3, fs: Math.max(0.025, (g.box[3] - g.box[1]) / 0.8), p: [[g.box[0], g.box[1] - (g.box[3] - g.box[1]) * 0.12]], text: text.slice(0, 200) });
+      const lines = F.groupInk(ink.map((s) => s.p), { lines: true });
+      const items = [];
+      for (const g of lines) {
+        const ss = g.idx.map((i) => ink[i]);
+        let text = "";
+        try { text = await F.recognizeInk(ss.map((s) => s.p.map((q) => [q[0] * 1000, q[1] * 1000])), 1000, 1000 * (pg.ar || A4)); } catch (e) { if (F.looksOffline(e)) throw e; }
+        items.push({ text, mathy: F.isMathy(text), strokes: ss.map((s) => s.p), color: ss[0].c });
       }
-      if (!added.length) { setState(dirty ? "Saving…" : "Saved"); return F.toast("Funi couldn't read that. Try writing a bit bigger."); }
+      setState(dirty ? "Saving…" : "Saved");
+      const pick = await F.neatReview(items);
+      if (!pick) return;
+      const P = paperLines(), place = F.neatLayout(lines, P), removed = [], added = [];
       if (document.fonts && document.fonts.load) await document.fonts.load('40px "Patrick Hand"').catch(() => {});
-      page().strokes = page().strokes.filter((s) => !removed.includes(s)).concat(added);
+      lines.forEach((g, i) => {
+        const ss = g.idx.map((k) => ink[k]), L = place[i];
+        removed.push(...ss);
+        if (pick[i].mode === "neat") {
+          let fs = P.gap * 0.88; const maxW = 0.97 - L.x, est = pick[i].text.length * fs * 0.42;
+          if (est > maxW) fs = Math.max(0.012, fs * maxW / est);
+          added.push({ t: "text", font: "neat", bl: 1, c: ss[0].c, w: 3, fs, p: [[L.x, L.base]], text: pick[i].text.slice(0, 200) });
+        } else ss.forEach((st) => added.push(Object.assign({}, st, { tidy: 1, p: F.moveInk(st.p, L) })));
+      });
+      pg.strokes = pg.strokes.filter((s) => !removed.includes(s)).concat(added);
       undo.push({ page: pageIdx, del: removed, add: added }); redo = []; drawInk(); changed();
-      F.toast("✨ Neat! Use the Type tool to tap a word and fix it, or Undo to get your writing back.", { long: true });
+      F.toast("✨ Neat! Undo brings your writing back. Tap a word with Type to fix it.", { long: true });
     } catch (err) {
       setState(dirty ? "Saving…" : "Saved");
       F.toast(F.looksOffline(err) ? "Neat handwriting needs internet." : "Couldn't read your writing right now. Try again in a moment.", { long: true });

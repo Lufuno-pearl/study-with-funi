@@ -1196,3 +1196,12 @@ body.guy .for-girls { display: none !important; }
 .nt-hint.down { color: var(--mint-ink); background: var(--mint); padding: 6px 8px; border-radius: 10px; }
 @media (min-width: 900px) { .nt-hint { max-width: 76px; text-align: center; } }
 .nt-bar .btn.small { min-height: 38px; }
+
+/* ✨ neat handwriting check screen */
+.neat-list { display: flex; flex-direction: column; gap: 12px; max-height: 55vh; overflow-y: auto; margin: 6px 0 12px; }
+.neat-row { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line, #E7E0F1); border-radius: 14px; background: var(--card, #FFFFFF); }
+.neat-row canvas { width: 100%; max-width: 420px; height: auto; aspect-ratio: 560 / 90; border-radius: 8px; border: 1px solid #ECE6F5; background: #FFFFFF; }
+.neat-seg { display: flex; gap: 6px; }
+.neat-seg button { flex: 1; min-height: 40px; border-radius: 10px; border: 1.5px solid var(--line, #E7E0F1); background: var(--card, #FFFFFF); color: var(--ink, #2B2540); font: 800 13px Nunito, system-ui, sans-serif; cursor: pointer; }
+.neat-seg button[aria-pressed="true"] { border-color: var(--accent, #7556DC); background: var(--accent-soft); color: var(--accent-soft-ink); }
+.neat-row input { min-height: 42px; font: 400 20px "Patrick Hand", "Segoe Print", cursive; }

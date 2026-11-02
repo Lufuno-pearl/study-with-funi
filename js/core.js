@@ -130,7 +130,7 @@
     return String(j[1][0][1][0] || "").trim();
   };
   // split handwriting into lines, then into word groups (by big gaps), so each keeps its place on the page
-  F.groupInk = (strokes) => {
+  F.groupInk = (strokes, opts) => {
     const items = strokes.map((pts, i) => {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       pts.forEach((p) => { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
@@ -150,7 +150,7 @@
       const lh = Math.max(L.box[3] - L.box[1], 0.01), sorted = L.items.sort((a, b) => a.box[0] - b.box[0]);
       let cur = null;
       sorted.forEach((it) => {
-        if (cur && it.box[0] - cur.box[2] > lh * 1.6) { out.push(cur); cur = null; }
+        if (cur && !(opts && opts.lines) && it.box[0] - cur.box[2] > lh * 1.6) { out.push(cur); cur = null; }
         if (!cur) cur = { idx: [], box: it.box.slice() };
         cur.idx.push(it.i); cur.box = [Math.min(cur.box[0], it.box[0]), Math.min(cur.box[1], it.box[1]), Math.max(cur.box[2], it.box[2]), Math.max(cur.box[3], it.box[3])];
       });
@@ -158,6 +158,53 @@
     });
     return out;
   };
+
+  // maths the reader can't read properly (∫, Σ, fractions, powers) stays in your own writing
+  F.isMathy = (t) => !t || /[0-9=+×÷*\/^()<>∫Σ√π∞≤≥≈]|\bd[xyt]\b|(^|\s)[a-zA-Z](\s|$)/.test(t);
+  // where each line of writing goes: a normal size, sitting on the paper lines, lines kept one under the other.
+  // lines: [{box:[x0,y0,x1,y1]}] in page units (fractions of the width). opts: {gap, snap(y)->y|null, minX}
+  F.neatLayout = (lines, opts) => {
+    const G = opts.gap, order = lines.map((l, i) => i).sort((a, b) => lines[a].box[1] - lines[b].box[1]), out = [];
+    let prev = null;
+    order.forEach((i) => {
+      const [x0, y0, x1, y1] = lines[i].box, h = Math.max(y1 - y0, 0.004), b = y1 - h * 0.18;
+      let base = opts.snap ? opts.snap(b) : b;
+      if (prev) {
+        const together = b - prev.b < 2.2 * Math.max(h, prev.h);
+        if (together || base < prev.base + G * 0.99) base = prev.base + G;
+      }
+      const scale = Math.min(1, (G * 0.85) / h);
+      out[i] = { base, b, scale, x: Math.max(x0, opts.minX || 0), x0 };
+      prev = { b, h, base };
+    });
+    return out;
+  };
+  F.moveInk = (pts, L) => pts.map((q) => { const r = q.slice(); r[0] = L.x + (q[0] - L.x0) * L.scale; r[1] = L.base + (q[1] - L.b) * L.scale; return r; });
+  // the check screen: each line shows your writing, what Funi read, and a choice: neat text or your own writing
+  F.neatReview = (items) => new Promise((resolve) => {
+    const dlg = $("neatSheet"), list = $("neatList");
+    list.innerHTML = items.map((it, i) => '<div class="neat-row" data-nr="' + i + '"><canvas width="560" height="90" aria-label="Your writing, line ' + (i + 1) + '"></canvas>' +
+      '<div class="seg neat-seg" role="group" aria-label="How to keep line ' + (i + 1) + '"><button type="button" data-nmode="neat">Aa Neat text</button><button type="button" data-nmode="ink">✍️ My writing</button></div>' +
+      '<input type="text" maxlength="200" aria-label="Neat text for line ' + (i + 1) + '" placeholder="Type what it says"></div>').join("");
+    const state = items.map((it) => ({ mode: it.mathy ? "ink" : "neat", text: it.text || "" }));
+    items.forEach((it, i) => {
+      const row = list.querySelector('[data-nr="' + i + '"]'), cv = row.querySelector("canvas"), x = cv.getContext("2d");
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      it.strokes.forEach((pts) => pts.forEach((q) => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }));
+      const k = Math.min((cv.width - 20) / Math.max(x1 - x0, 1e-4), (cv.height - 16) / Math.max(y1 - y0, 1e-4));
+      x.fillStyle = "#FFFFFF"; x.fillRect(0, 0, cv.width, cv.height); x.strokeStyle = it.color || "#1F1B2E"; x.lineWidth = 3; x.lineCap = "round"; x.lineJoin = "round";
+      it.strokes.forEach((pts) => { x.beginPath(); pts.forEach((q, j) => { const X = 10 + (q[0] - x0) * k, Y = 8 + (q[1] - y0) * k; j ? x.lineTo(X, Y) : x.moveTo(X, Y); }); if (pts.length === 1) x.lineTo(10 + (pts[0][0] - x0) * k + 0.5, 8 + (pts[0][1] - y0) * k); x.stroke(); });
+      const inp = row.querySelector("input"); inp.value = state[i].text;
+      const paint = () => { row.querySelectorAll("[data-nmode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.nmode === state[i].mode))); inp.hidden = state[i].mode !== "neat"; };
+      row.querySelectorAll("[data-nmode]").forEach((b) => (b.onclick = () => { state[i].mode = b.dataset.nmode; paint(); if (state[i].mode === "neat" && !inp.value) inp.focus(); }));
+      inp.oninput = () => { state[i].text = inp.value; };
+      paint();
+    });
+    let done = false;
+    $("neatGo").onclick = () => { done = true; dlg.close(); resolve(state.map((s) => ({ mode: s.mode === "neat" && !s.text.trim() ? "ink" : s.mode, text: s.text.trim() }))); };
+    dlg.addEventListener("close", function once() { dlg.removeEventListener("close", once); if (!done) resolve(null); });
+    dlg.showModal();
+  });
 
   /* ---------- scrolling: on phones the page scrolls inside .app (so the bottom bar can't move) ---------- */
   F.scroller = () => { const a = document.querySelector("#appScreen > .app"); return a && a.scrollHeight > a.clientHeight + 1 && getComputedStyle(a).overflowY !== "visible" ? a : null; };

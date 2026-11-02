@@ -377,7 +377,7 @@
       c.globalAlpha = s.tool === "mark" ? 0.35 : 1;
       c.lineWidth = (s.w || 3) * unit;
       const P = s.pts.map(([x, y]) => [x * W, y * H]);
-      if (s.tool === "text") { const px = s.fs ? s.fs * W : 22 * unit; c.font = s.font === "neat" ? Math.round(px) + 'px "Patrick Hand", "Segoe Print", cursive' : "700 " + Math.round(px) + "px Nunito, system-ui, sans-serif"; c.textBaseline = "top"; c.fillText(s.text || "", P[0][0], P[0][1]); }
+      if (s.tool === "text") { const px = s.fs ? s.fs * W : 22 * unit; c.font = s.font === "neat" ? Math.round(px) + 'px "Patrick Hand", "Segoe Print", cursive' : "700 " + Math.round(px) + "px Nunito, system-ui, sans-serif"; c.textBaseline = s.bl ? "alphabetic" : "top"; c.fillText(s.text || "", P[0][0], P[0][1]); }
       else if (s.tool === "box" && P.length > 1) c.strokeRect(P[0][0], P[0][1], P[1][0] - P[0][0], P[1][1] - P[0][1]);
       else if (s.tool === "arrow" && P.length > 1) {
         const [a, b] = [P[0], P[P.length - 1]], ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = 14 * unit;
@@ -460,29 +460,37 @@
   // ✨ neat handwriting on the board: everyone sees the neat version
   $("clNeat").onclick = async () => {
     if (F.looksOffline()) return F.toast("Neat handwriting needs internet.");
-    const L = layerNow(), ink2 = strokes.filter((s) => s.layer === L && (s.tool === "pen") && s.pts.length > 1);
+    const L = layerNow(), ink2 = strokes.filter((s) => s.layer === L && s.tool === "pen" && !s.tidy && s.pts.length > 0);
     if (!ink2.length) return F.toast("Write something with the pen first.");
-    const W2 = ink.width, H2 = ink.height;
+    const W2 = ink.width, H2 = ink.height, r = H2 / W2;
     $("clNeat").disabled = true; F.toast("Reading the handwriting…");
     try {
-      // group using page-shaped coordinates (y as a fraction of the width) so lines are found correctly
-      const asW = (pts) => pts.map(([x, y]) => [x, y * H2 / W2]);
-      const groups = F.groupInk(ink2.map((s) => asW(s.pts)));
-      const del = [], add = [];
-      for (const g of groups) {
+      // work in page units (y as a fraction of the width) so sizes are the same across and down
+      const asW = (pts) => pts.map((q) => [q[0], q[1] * r]);
+      const lines = F.groupInk(ink2.map((s) => asW(s.pts)), { lines: true }), items = [];
+      for (const g of lines) {
         const ss = g.idx.map((i) => ink2[i]);
-        const text = await F.recognizeInk(ss.map((s) => s.pts.map(([x, y]) => [x * W2, y * H2])), W2, H2);
-        if (!text) continue;
-        del.push(...ss.map((s) => s.id));
-        const hW = g.box[3] - g.box[1]; // height as a fraction of the width
-        add.push({ id: newId(), by: me(), layer: L, tool: "text", font: "neat", color: ss[0].color, w: 3, fs: Math.max(0.02, hW / 0.8), pts: [[g.box[0], (g.box[1] - hW * 0.12) * W2 / H2]], text: text.slice(0, 120) });
+        let text = "";
+        try { text = await F.recognizeInk(ss.map((s) => s.pts.map(([x, y]) => [x * W2, y * H2])), W2, H2); } catch (e) { if (F.looksOffline(e)) throw e; }
+        items.push({ text, mathy: F.isMathy(text), strokes: ss.map((s) => asW(s.pts)), color: ss[0].color });
       }
-      if (!add.length) return F.toast("Couldn't read that. Try writing a bit bigger.");
+      const pick = await F.neatReview(items);
+      if (!pick) return;
+      const G = 0.045, place = F.neatLayout(lines, { gap: G, minX: 0.02, snap: null }), del = [], add = [];
       if (document.fonts && document.fonts.load) await document.fonts.load('40px "Patrick Hand"').catch(() => {});
+      lines.forEach((g, i) => {
+        const ss = g.idx.map((k) => ink2[k]), P = place[i];
+        del.push(...ss.map((s) => s.id));
+        if (pick[i].mode === "neat") {
+          let fs = G * 0.88; const maxW = 0.97 - P.x, est = pick[i].text.length * fs * 0.42;
+          if (est > maxW) fs = Math.max(0.012, fs * maxW / est);
+          add.push({ id: newId(), by: me(), layer: L, tool: "text", font: "neat", bl: 1, color: ss[0].color, w: 3, fs, pts: [[P.x, P.base / r]], text: pick[i].text.slice(0, 120) });
+        } else ss.forEach((st) => add.push(Object.assign({}, st, { id: newId(), tidy: 1, pts: F.moveInk(asW(st.pts), P).map((q) => [q[0], q[1] / r]) })));
+      });
       strokes = strokes.filter((s) => !del.includes(s.id)).concat(add);
       send({ t: "wb-del", ids: del }); add.forEach((s) => send({ t: "wb-add", s })); dirty();
       F.toast("✨ Neat! Everyone in the call sees it.");
-    } catch (err) { F.toast("Couldn't read the handwriting right now. Try again in a moment.", { long: true }); }
+    } catch (err) { F.toast(F.looksOffline(err) ? "Neat handwriting needs internet." : "Couldn't read the handwriting right now. Try again in a moment.", { long: true }); }
     finally { $("clNeat").disabled = false; }
   };
 
