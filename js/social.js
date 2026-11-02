@@ -76,7 +76,8 @@
   const otherId = (row) => (row.requester_id === F.me.id ? row.addressee_id : row.requester_id);
   async function loadPartners() {
     const { data, error } = await F.sb.from("study_partners").select("*").or("requester_id.eq." + F.me.id + ",addressee_id.eq." + F.me.id).order("created_at", { ascending: false });
-    if (error) { S.socialMissing = true; return; }
+    if (error) { S.socialMissing = true; S.partnersLoaded = true; return; }
+    S.partnersLoaded = true;
     const rows = data || [], ids = [...new Set(rows.map(otherId))];
     if (ids.length) { const { data: ps } = await F.sb.from("study_profiles").select("*").in("id", ids); (ps || []).forEach((p) => { profiles[p.id] = p; }); }
     S.partnerRows = rows;
@@ -289,6 +290,7 @@
     const unreadTotal = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
     $("msgBadge").hidden = !unreadTotal; $("msgBadge").textContent = unreadTotal;
     if (S.view !== "messages") return;
+    if (!S.partnersLoaded) { $("convoList").innerHTML = '<p class="status-line">Loading your chats…</p>'; return; }
     if (!S.partners.length) { $("convoList").innerHTML = '<div class="empty"><b>No chats yet</b><span>Add a study partner first, then you can message each other and send files.</span><button type="button" class="btn primary small" data-go="invite">Invite a friend</button></div>'; return; }
     const lastAt = (id) => (S.convos[id] && S.convos[id].last ? S.convos[id].last.created_at : "");
     const q = norm($("convoSearch").value);
@@ -305,21 +307,26 @@
   F.on("view:messages", () => renderConvos());
   $("convoSearch").addEventListener("input", () => renderConvos());
 
-  let chatMsgs = [], attachFile = null, helpOn = false;
+  let chatMsgs = [], chatFor = null, attachFile = null, helpOn = false;
   const signed = {};
-  async function openChat(id) {
-    F.go("chat"); S.chatWith = id;
+  // quiet = refresh the chat you're already in (coming back to the app) without blanking it
+  async function openChat(id, quiet) {
+    quiet = quiet === true && S.view === "chat" && S.chatWith === id && chatMsgs.length;
+    if (!quiet) F.go("chat");
+    S.chatWith = id;
     const p = profiles[id] || { id, username: "partner" };
     $("chatAva").innerHTML = F.avatar(p); $("chatName").textContent = F.nameOf(p);
     drawChatStatus();
-    $("msgs").innerHTML = '<p class="status-line">Loading messages…</p>';
-    clearAttach(); setHelp(false); setReply(null);
+    if (!quiet) {
+      if (chatFor !== id) $("msgs").innerHTML = '<p class="status-line">Loading messages…</p>';
+      clearAttach(); setHelp(false); setReply(null);
+    }
     const { data, error } = await F.sb.from("study_messages").select("*")
       .or("and(sender_id.eq." + F.me.id + ",recipient_id.eq." + id + "),and(sender_id.eq." + id + ",recipient_id.eq." + F.me.id + ")")
       .order("created_at", { ascending: false }).limit(200);
     if (S.chatWith !== id) return;
     if (error) { $("msgs").innerHTML = '<p class="status-line">Couldn\'t load messages: ' + esc(error.message) + "</p>"; return; }
-    chatMsgs = (data || []).reverse();
+    chatMsgs = (data || []).reverse(); chatFor = id;
     await drawMsgs(); markRead(id);
   }
   F.openChat = openChat;
@@ -692,7 +699,7 @@
   F.on("resume", async () => {
     await Promise.all([loadPartners(), loadConvos(), loadNotifs()]);
     renderPartners(); renderConvos(); F.emit("data");
-    if (S.view === "chat" && S.chatWith) openChat(S.chatWith);
+    if (S.view === "chat" && S.chatWith) openChat(S.chatWith, true);
   });
 
   /* =====================================================================

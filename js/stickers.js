@@ -133,6 +133,22 @@
     } catch (e) { F.toast("Couldn't save that sticker: " + e.message, { long: true }); }
   };
 
+  // tap a sticker in a chat: see it big, and add it to My stickers in one tap
+  let viewRef = null;
+  $("msgs").addEventListener("click", (e) => {
+    const img = e.target.closest(".bubble.sticker img.stk"); if (!img || $("msgSheet").open) return;
+    const ref = img.dataset.stk || (img.closest("[data-mid]") && img.closest("[data-mid]").dataset.ref) || "";
+    const pack = PACK.find((x) => x.src === img.getAttribute("src"));
+    viewRef = pack ? pack.ref : ref;
+    $("stkViewImg").innerHTML = '<img src="' + img.getAttribute("src") + '" alt="Sticker">';
+    const own = viewRef.startsWith(me() + "/") && (mine || []).some((x) => x.path === viewRef);
+    $("stkViewAdd").hidden = !!pack || own;
+    $("stkViewNote").textContent = pack ? "This one is in the 😊 Funi pack." : own ? "⭐ It's in My stickers." : "";
+    $("stkViewNote").hidden = !pack && !own;
+    $("stkViewSheet").showModal();
+  });
+  $("stkViewAdd").onclick = async () => { $("stkViewAdd").disabled = true; await F.saveSticker(viewRef); $("stkViewAdd").disabled = false; $("stkViewSheet").close(); };
+
   /* ---------- the sticker tray in a chat ---------- */
   let tab = "funi";
   try { tab = localStorage.getItem("funi.stkTab") || "funi"; } catch (e) {}
@@ -163,6 +179,8 @@
   };
   $("stkBtn").onclick = () => F.toggleStickers();
   F.on("view", () => { if (!$("stkTray").hidden) F.toggleStickers(false); });
+  // tap anywhere outside the message box and the sticker tray closes
+  document.addEventListener("pointerdown", (e) => { if (!$("stkTray").hidden && !e.target.closest("#composer") && !e.target.closest("dialog")) F.toggleStickers(false); });
   $("chatInput").addEventListener("focus", () => { if (!$("stkTray").hidden) F.toggleStickers(false); });
   $("stkTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-stab]"); if (!b) return; tab = b.dataset.stab; try { localStorage.setItem("funi.stkTab", tab); } catch (x) {} renderTray(); });
   let pressT = null, pressed = false;

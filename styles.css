@@ -1246,3 +1246,7 @@ body.guy .for-girls { display: none !important; }
 #stkImportSheet .sheet > * { flex-shrink: 0; }
 #stkImpTabs { min-height: 50px; }
 .sheet > .seg { flex-shrink: 0; }
+.stk-view { align-items: stretch; }
+.stk-view-img { display: flex; justify-content: center; padding: 8px 0 4px; }
+.stk-view-img img { width: 200px; height: 200px; object-fit: contain; }
+.bubble.sticker img.stk { cursor: pointer; }
