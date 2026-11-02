@@ -689,7 +689,7 @@
   $("sesBig").onclick = () => {
     const on = document.body.classList.toggle("bigclock-mode");
     $("sesBig").textContent = on ? "Exit big timer" : "Big timer";
-    window.scrollTo(0, 0);
+    F.scrollTo(0);
   };
   $("sesEnd").onclick = async () => {
     const t0 = F.timerState(); if (!live(t0)) return;

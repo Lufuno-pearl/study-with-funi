@@ -373,7 +373,7 @@
       html += bubbleHtml(m, m.id === newId);
     });
     $("msgs").innerHTML = html;
-    window.scrollTo(0, document.body.scrollHeight);
+    F.scrollTo("end");
   }
   async function markRead(id) {
     const unread = chatMsgs.filter((m) => m.recipient_id === F.me.id && !m.read_at);

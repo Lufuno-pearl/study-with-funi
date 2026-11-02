@@ -116,6 +116,14 @@
   };
   F.currentTheme = () => document.documentElement.getAttribute("data-theme") || "lavender";
 
+  /* ---------- scrolling: on phones the page scrolls inside .app (so the bottom bar can't move) ---------- */
+  F.scroller = () => { const a = document.querySelector("#appScreen > .app"); return a && a.scrollHeight > a.clientHeight + 1 && getComputedStyle(a).overflowY !== "visible" ? a : null; };
+  F.scrollTo = (y) => {
+    const a = document.querySelector("#appScreen > .app");
+    if (a && getComputedStyle(a).overflowY !== "visible") a.scrollTop = y === "end" ? a.scrollHeight : y;
+    window.scrollTo(0, y === "end" ? document.body.scrollHeight : y);
+  };
+
   /* ---------- navigation ---------- */
   const VIEWS = { dash: "vDash", hub: "vHub", study: "vStudy", plan: "vPlan", priorities: "vPriorities", marks: "vMarks",
     reminders: "vReminders", exams: "vExams", partners: "vPartners", invite: "vInvite", feeling: "vFeeling",
@@ -138,7 +146,7 @@
     });
     $("composer").hidden = view !== "chat";
     document.body.classList.toggle("in-chat", view === "chat");
-    if (view !== "chat") window.scrollTo(0, 0);
+    if (view !== "chat") F.scrollTo(0);
     F.emit("view", view);
     F.emit("view:" + view, sub);
   };

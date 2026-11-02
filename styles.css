@@ -1165,3 +1165,20 @@ body.guy .for-girls { display: none !important; }
   .nt-thumb.add { border: 2px dashed var(--lav-mid); min-height: 44px; justify-content: center; }
   #ntAddPage { display: none; }
 }
+
+/* ---------- Phones and small tablets: the page scrolls inside the app, the bottom bar never moves ---------- */
+@media (max-width: 999px) {
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  #appScreen:not([hidden]) { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  #appScreen > .app {
+    flex: 1 1 auto; min-height: 0; width: 100%; max-width: none; margin: 0; box-sizing: border-box;
+    overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+    padding-left: max(16px, env(safe-area-inset-left, 0px), calc((100% - 600px) / 2));
+    padding-right: max(16px, env(safe-area-inset-right, 0px), calc((100% - 600px) / 2));
+    padding-bottom: 28px;
+  }
+  #appScreen > .composer { position: relative; bottom: auto; flex-shrink: 0; }
+  #appScreen > .tabbar { position: relative; bottom: auto; flex-shrink: 0; }
+  .call-controls { bottom: 6px; }
+  .offline-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); }
+}
