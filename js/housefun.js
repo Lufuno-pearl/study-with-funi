@@ -21,6 +21,7 @@
   let H = null, missing = false, loadJob = 0;
   let quiz = null, dares = [], reacts = [], goals = [], exams = [], wishes = [], moods = [], sprints = [], spPeople = [], spPages = [], spVotes = [];
   let exQ = [], exA = [], exRate = [], mistakes = [], mSaves = [];
+  let myQs = [], qDraft = null, editQ = null; // your own quiz questions, the one you're writing, and the one you're editing
   let sheet = null; // { kind, ...view state }
   let chan = null;
 
@@ -36,7 +37,7 @@
     missing = false;
     const today = jhbToday(), since = new Date(Date.now() - 21 * DAY).toISOString();
     const ids = c.members.map((m) => m.user_id);
-    const [q, d, g, ex, w, mo, sp, eq, mi] = await Promise.all([
+    const [q, d, g, ex, w, mo, sp, eq, mi, mq] = await Promise.all([
       F.sb.rpc("funi_quiz_state", { h }),
       F.sb.from("house_dares").select("*").eq("house_id", h).neq("status", "none").order("week_start", { ascending: false }).limit(3),
       ids.length ? F.sb.from("member_goals").select("*").eq("day", today).in("user_id", ids) : Promise.resolve({ data: [] }),
@@ -45,11 +46,12 @@
       F.sb.from("house_moods").select("*").eq("house_id", h).gte("exam_date", addDays(today, -3)),
       F.sb.from("house_sprints").select("*").eq("house_id", h).gte("starts_at", since).order("starts_at", { ascending: false }).limit(10),
       F.sb.from("house_explain_q").select("*").eq("house_id", h).order("created_at", { ascending: false }).limit(40),
-      F.sb.from("house_mistakes").select("*").eq("house_id", h).order("created_at", { ascending: false }).limit(100)
+      F.sb.from("house_mistakes").select("*").eq("house_id", h).order("created_at", { ascending: false }).limit(100),
+      F.sb.from("house_quiz_q").select("*").eq("house_id", h).eq("author", me()).gte("day", today).order("created_at")
     ]);
     if (job !== loadJob) return;
     quiz = q.data || null; dares = d.data || []; goals = g.data || []; exams = ex.data || []; wishes = w.data || []; moods = mo.data || [];
-    sprints = sp.data || []; exQ = eq.data || []; mistakes = mi.data || [];
+    sprints = sp.data || []; exQ = eq.data || []; mistakes = mi.data || []; myQs = mq.data || [];
     const sIds = sprints.map((s) => s.id), dIds = dares.map((x) => x.id), qIds = exQ.map((x) => x.id), mIds = mistakes.map((x) => x.id);
     const [sp2, sp3, sp4, dr, ea, ms] = await Promise.all([
       sIds.length ? F.sb.from("house_sprint_people").select("*").in("sprint_id", sIds) : Promise.resolve({ data: [] }),
@@ -158,10 +160,10 @@
     const open = now >= st && now < en;
     const mine = (q.questions || []).filter((x) => !x.mine), todo = mine.filter((x) => !x.answered).length;
     let line, btn;
-    if (!open && now < st) { line = 'Opens in <span class="hf-count" data-until="' + esc(q.start) + '"></span> · ' + q.drops_total + " question" + (q.drops_total === 1 ? "" : "s") + " so far"; btn = "✍️ Add my questions (" + q.my_drops + "/3)"; }
+    if (!open && now < st) { line = 'Opens in <span class="hf-count" data-until="' + esc(q.start) + '"></span> · ' + q.drops_total + " question" + (q.drops_total === 1 ? "" : "s") + " so far"; btn = "✍️ Add my questions (" + q.my_drops + "/" + (q.max_drops || 3) + ")"; }
     else if (open && todo) { line = todo + " question" + (todo === 1 ? "" : "s") + " waiting for you · play by midnight"; btn = "▶ Play now"; }
     else if (open && mine.length) { const me1 = (q.tonight || []).find((r) => r.user_id === me()); line = "You scored " + (me1 ? me1.points : 0) + " tonight · add questions for tomorrow"; btn = "See tonight's results"; }
-    else { line = open ? "No questions tonight. Add some for tomorrow!" : "Closed for today · next quiz tomorrow at " + q.quiz_time; btn = "✍️ Add my questions (" + q.my_drops + "/3)"; }
+    else { line = open ? "No questions tonight. Add some for tomorrow!" : "Closed for today · next quiz tomorrow at " + q.quiz_time; btn = "✍️ Add my questions (" + q.my_drops + "/" + (q.max_drops || 3) + ")"; }
     const crown = q.crown ? '<span class="pill butter">👑 ' + esc(nameOf(q.crown)) + "</span>" : "";
     return '<button type="button" class="card hf-quiz" data-hf="quiz"><span class="hf-row"><b>🧠 House Quiz · ' + esc(q.quiz_time) + "</b>" + crown + '</span><span class="hf-sub">' + line + '</span><span class="hf-btn">' + esc(btn) + "</span></button>";
   }
@@ -257,16 +259,20 @@
         else body = '<div class="empty"><b>No questions tonight</b><span>Only your own questions are in, or nobody added any. Add some for tomorrow!</span><button type="button" class="btn primary small" data-hq-tab="add">✍️ Add questions</button></div>';
       }
     } else if (tab === "add") {
-      const dd = q.drop_day, left3 = 3 - q.my_drops;
-      body = '<p class="hint">Your questions go into <b>' + (dd === jhbToday() ? "tonight's" : "tomorrow's") + "</b> quiz (" + esc(q.quiz_time) + "). Up to 3 each. Writing a question is revision too!</p>" +
-        (left3 > 0 ? '<form class="stack" id="hqForm" novalidate>' +
-          '<label for="hqMod">Module (optional)</label><input id="hqMod" maxlength="30" list="hqMods" placeholder="e.g. APPM2023A"><datalist id="hqMods">' + (S.modules || []).map((m) => '<option value="' + esc(m.code || m.module_code || m) + '">').join("") + "</datalist>" +
-          '<label for="hqQ">Question</label><textarea id="hqQ" rows="3" maxlength="300" placeholder="e.g. A rod of mass m and length L spins about one end. What is its moment of inertia?"></textarea>' +
+      const dd = q.drop_day, mineNext = myQs.filter((x) => x.day === dd), max = q.max_drops || 3;
+      const canAdd = editQ || mineNext.length < max, d0 = qDraft || {};
+      const v = (k) => esc(d0[k] || ""), opt = (i) => esc((d0.opts || [])[i] || ""), right = d0.c == null ? 0 : d0.c;
+      body = '<p class="hint">' + (editQ ? "✏️ You're editing a question for " + (editQ.day === jhbToday() ? "tonight's" : "tomorrow's") + " quiz." : "Your questions go into <b>" + (dd === jhbToday() ? "tonight's" : "tomorrow's") + "</b> quiz (" + esc(q.quiz_time) + "). Up to " + max + " each. Writing a question is revision too!") + "</p>" + (editQ ? "" : myQuestionsList()) +
+        (canAdd ? '<form class="stack" id="hqForm" novalidate>' +
+          '<label for="hqMod">Module (optional)</label><input id="hqMod" maxlength="30" list="hqMods" placeholder="e.g. APPM2023A" value="' + v("mod") + '"><datalist id="hqMods">' + (S.modules || []).map((m) => '<option value="' + esc(m.code || m.module_code || m) + '">').join("") + "</datalist>" +
+          '<label for="hqQ">Question</label><textarea id="hqQ" rows="3" maxlength="300" placeholder="e.g. A rod of mass m and length L spins about one end. What is its moment of inertia?">' + v("q") + "</textarea>" +
           '<span class="label">Answers (tap the circle next to the right one)</span>' +
-          [0, 1, 2, 3].map((i) => '<div class="hf-ans"><input type="radio" name="hqC" id="hqC' + i + '" value="' + i + '"' + (i === 0 ? " checked" : "") + ' aria-label="Answer ' + (i + 1) + ' is right"><input id="hqO' + i + '" maxlength="120" placeholder="' + (i < 2 ? "Answer " + (i + 1) : "Answer " + (i + 1) + " (optional)") + '"></div>').join("") +
-          '<label for="hqTip">Tip for people who get it wrong (optional)</label><input id="hqTip" maxlength="300" placeholder="e.g. Use I = ∫ r² dm from 0 to L">' +
-          '<p class="form-error" id="hqErr" hidden></p><button type="submit" class="btn primary block">Add my question (' + (q.my_drops + 1) + "/3)</button></form>"
-          : '<div class="empty"><b>You\'ve added 3 questions ✓</b><span>That\'s the most for one quiz. Thank you!</span></div>') +
+          [0, 1, 2, 3].map((i) => '<div class="hf-ans"><input type="radio" name="hqC" id="hqC' + i + '" value="' + i + '"' + (i === right ? " checked" : "") + ' aria-label="Answer ' + (i + 1) + ' is right"><input id="hqO' + i + '" maxlength="120" placeholder="' + (i < 2 ? "Answer " + (i + 1) : "Answer " + (i + 1) + " (optional)") + '" value="' + opt(i) + '"></div>').join("") +
+          '<label for="hqTip">Tip for people who get it wrong (optional)</label><input id="hqTip" maxlength="300" placeholder="e.g. Use I = ∫ r² dm from 0 to L" value="' + v("tip") + '">' +
+          '<p class="form-error" id="hqErr" hidden></p>' +
+          (editQ ? '<div class="two"><button type="button" class="btn ghost" data-hq-cancel>Cancel</button><button type="submit" class="btn primary">Save changes</button></div>'
+            : '<button type="submit" class="btn primary block">Add my question (' + (mineNext.length + 1) + "/" + max + ")</button>") + "</form>"
+          : '<div class="empty"><b>You\'ve added ' + max + " questions ✓</b><span>That's the most for one quiz. You can still edit or delete them above.</span></div>") +
         '<p class="hint">' + q.drops_total + " question" + (q.drops_total === 1 ? "" : "s") + " in so far from the house.</p>";
     } else if (tab === "tonight") {
       const crownAt = new Date(q.crown_until).getTime(), rows = (q.tonight || []).slice().sort((a, b) => b.points - a.points);
@@ -300,6 +306,33 @@
     sheet.result = { q: qq, pick: i, correct: data.correct, points: data.points, right: data.right, tip: data.tip };
     renderSheet();
   }
+  // your questions: edit or delete them until that quiz starts
+  function myQuestionsList() {
+    if (!myQs.length) return "";
+    const byDay = {}; myQs.forEach((x) => { (byDay[x.day] = byDay[x.day] || []).push(x); });
+    return Object.keys(byDay).sort().map((day) => {
+      const started = Date.now() >= quizStartFor(day);
+      return '<div class="card stack hf-myqs"><b>Your questions for ' + (day === jhbToday() ? "tonight" : day === addDays(jhbToday(), 1) ? "tomorrow" : F.niceDate(day)) + (started ? " · 🔒 locked, the quiz has started" : "") + "</b>" +
+        byDay[day].map((x) => '<div class="hf-myq' + (editQ && editQ.id === x.id ? " editing" : "") + '"><span class="hf-qtext">' + esc(x.question) + "</span>" + (x.module ? '<span class="hint">' + esc(x.module) + "</span>" : "") +
+          '<ul class="hf-myopts">' + x.options.map((o, i) => '<li class="' + (i === x.correct ? "right" : "") + '">' + (i === x.correct ? "✓ " : "") + esc(o) + "</li>").join("") + "</ul>" + (x.tip ? '<span class="hint">Tip: ' + esc(x.tip) + "</span>" : "") +
+          (started ? "" : '<div class="hf-row"><button type="button" class="btn ghost small" data-hq-edit="' + esc(x.id) + '">✏️ Edit</button><button type="button" class="btn ghost small danger-text" data-hq-del="' + esc(x.id) + '">🗑 Delete</button></div>') + "</div>").join("") + "</div>";
+    }).join("");
+  }
+  function quizStartFor(day) {
+    // the quiz time (Johannesburg, UTC+2) on that day
+    const t = (quiz && quiz.quiz_time) || "19:00";
+    return new Date(day + "T" + t + ":00+02:00").getTime();
+  }
+  function readDraft() {
+    if (!$("hqForm")) return qDraft;
+    const c = document.querySelector('input[name="hqC"]:checked');
+    qDraft = { mod: $("hqMod").value, q: $("hqQ").value, opts: [0, 1, 2, 3].map((i) => $("hqO" + i).value), c: c ? +c.value : 0, tip: $("hqTip").value };
+    return qDraft;
+  }
+  async function refreshQuiz() {
+    const [st, mq] = await Promise.all([F.sb.rpc("funi_quiz_state", { h: H.id }), F.sb.from("house_quiz_q").select("*").eq("house_id", H.id).eq("author", me()).gte("day", jhbToday()).order("created_at")]);
+    if (st.data) quiz = st.data; myQs = mq.data || [];
+  }
   async function addQuestion() {
     const opts = [0, 1, 2, 3].map((i) => $("hqO" + i).value.trim());
     const pick = +((document.querySelector('input[name="hqC"]:checked') || {}).value || 0);
@@ -309,10 +342,22 @@
     if (filled.length < 2) return err("Add at least 2 answers.");
     if (!opts[pick]) return err("Tap the circle next to the right answer.");
     const options = filled.map((x) => x[0]), correct = filled.findIndex((x) => x[1] === pick);
-    const { error } = await F.sb.from("house_quiz_q").insert({ house_id: H.id, author: me(), day: quiz.drop_day, module: $("hqMod").value.trim() || null, question: qText, options, correct, tip: $("hqTip").value.trim() || null });
-    if (error) return err(error.message);
-    F.toast("Question added ✓");
-    const { data } = await F.sb.rpc("funi_quiz_state", { h: H.id }); if (data) quiz = data;
+    const row = { house_id: H.id, author: me(), day: editQ ? editQ.day : quiz.drop_day, module: $("hqMod").value.trim() || null, question: qText, options, correct, tip: $("hqTip").value.trim() || null };
+    if (editQ) {
+      // saving an edit: the new version replaces the old one (only before that quiz starts)
+      const old = editQ;
+      const del = await F.sb.from("house_quiz_q").delete().eq("id", old.id);
+      if (del.error) return err(del.error.message);
+      const { error } = await F.sb.from("house_quiz_q").insert(row);
+      if (error) { const o = Object.assign({}, old); delete o.id; await F.sb.from("house_quiz_q").insert(o); return err(error.message); }
+      F.toast("Changes saved ✓");
+    } else {
+      const { error } = await F.sb.from("house_quiz_q").insert(row);
+      if (error) return err(error.message);
+      F.toast("Question added ✓");
+    }
+    qDraft = null; editQ = null;
+    await refreshQuiz();
     sheet.noRerender = false; render();
   }
 
@@ -731,7 +776,8 @@
     if (e.target.id === "exForm") return askExplain();
     if (e.target.id === "miForm") return addMistake();
   });
-  $("hfSheet").addEventListener("input", (e) => { if (!sheet) return; if (e.target.id === "hdText" || e.target.id === "hwText") sheet.text = e.target.value; });
+  $("hfSheet").addEventListener("input", (e) => { if (!sheet) return; if (e.target.id === "hdText" || e.target.id === "hwText") sheet.text = e.target.value; if (e.target.closest("#hqForm")) readDraft(); });
+  $("hfSheet").addEventListener("change", (e) => { if (e.target.closest && e.target.closest("#hqForm")) readDraft(); });
   $("hfSheet").addEventListener("change", async (e) => {
     if (e.target.id === "hqTime") { const v = e.target.value; const { error } = await F.sb.from("houses").update({ quiz_time: v }).eq("id", H.id); if (error) return F.toast(error.message); F.toast("The quiz is now at " + v + " for everyone."); load(); }
     if (e.target.id === "hdFile" && e.target.files[0]) postProof(e.target.files[0], e.target.files[0].type);
@@ -742,7 +788,18 @@
     if (!sheet) return;
     let b;
     // quiz
-    if ((b = at("[data-hq-tab]"))) { sheet.tab = b.dataset.hqTab; sheet.result = null; sheet.noRerender = false; renderSheet(); return; }
+    if ((b = at("[data-hq-tab]"))) { readDraft(); sheet.tab = b.dataset.hqTab; sheet.result = null; sheet.noRerender = false; renderSheet(); return; }
+    if ((b = at("[data-hq-edit]"))) { const x = myQs.find((y) => y.id === b.dataset.hqEdit); if (!x) return;
+      editQ = x; qDraft = { mod: x.module || "", q: x.question, opts: [0, 1, 2, 3].map((i) => x.options[i] || ""), c: x.correct, tip: x.tip || "" };
+      sheet.noRerender = false; renderSheet(); $("hfBody").scrollIntoView({ block: "start" }); const f = $("hqQ"); if (f) f.focus(); return; }
+    if (at("[data-hq-cancel]")) { editQ = null; qDraft = null; sheet.noRerender = false; renderSheet(); return; }
+    if ((b = at("[data-hq-del]"))) { const x = myQs.find((y) => y.id === b.dataset.hqDel); if (!x) return;
+      if (!(await F.confirm("Delete this question?", "“" + x.question.slice(0, 80) + "”", "Delete"))) return;
+      readDraft();
+      const { error } = await F.sb.from("house_quiz_q").delete().eq("id", x.id);
+      if (error) return F.toast(error.message, { long: true });
+      if (editQ && editQ.id === x.id) { editQ = null; qDraft = null; }
+      await refreshQuiz(); F.toast("Question deleted"); sheet.noRerender = false; renderSheet(); render(); return; }
     if ((b = at("[data-hq-pick]"))) return quizPick(+b.dataset.hqPick);
     if (at("[data-hq-next]")) { const todo = (quiz.questions || []).filter((x) => !x.mine && !x.answered); sheet.result = null; if (!todo.length) { sheet.tab = "tonight"; const { data } = await F.sb.rpc("funi_quiz_state", { h: H.id }); if (data) quiz = data; } renderSheet(); return; }
     // dare

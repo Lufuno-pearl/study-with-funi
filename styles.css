@@ -1408,3 +1408,10 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
   body.in-chat .chat-head { top: 0; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px), calc((100vw - 600px) / 2))); padding: calc(env(safe-area-inset-top, 0px) + 8px) max(12px, env(safe-area-inset-right, 0px), calc((100vw - 600px) / 2 + 8px)) 10px max(8px, env(safe-area-inset-left, 0px), calc((100vw - 600px) / 2)); box-shadow: 0 6px 16px -14px rgba(0,0,0,.4); }
   body.in-chat #appScreen > .composer { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
 }
+.hf-myqs { gap: 10px; }
+.hf-myq { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 14px; background: var(--card-2); }
+.hf-myq.editing { outline: 2px solid var(--accent); }
+.hf-myq .hf-qtext { font-size: 15px; font-weight: 800; }
+.hf-myopts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: 14px; font-weight: 700; color: var(--muted); }
+.hf-myopts li.right { color: var(--ok); font-weight: 800; }
+.btn.danger-text { color: var(--danger); }
