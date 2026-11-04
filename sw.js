@@ -1,5 +1,5 @@
 // Service worker: keeps Funi opening offline and shows notifications (also when the app is closed).
-const CACHE = "funi-v56";
+const CACHE = "funi-v57";
 const DATA = "funi-data"; // last copy of your Funi data, so pages still show when you're offline
 const SHELL = [
   "/", "/index.html", "/styles.css", "/manifest.json",
@@ -69,11 +69,16 @@ self.addEventListener("push", (e) => {
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const url = (e.notification.data && e.notification.data.url) || "/";
-  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-    if (list.length) {
-      list[0].postMessage({ type: "open", url });
-      return list[0].focus();
+  e.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    // Funi is already open: bring it to the front and open the right chat or page
+    const c = list.find((x) => x.focused) || list.find((x) => x.visibilityState === "visible") || list[0];
+    if (c) {
+      try { await c.focus(); } catch (err) {}
+      c.postMessage({ type: "open", url });
+      return;
     }
+    // Funi was closed: open it straight on that chat or page
     return self.clients.openWindow(url);
-  }));
+  })());
 });

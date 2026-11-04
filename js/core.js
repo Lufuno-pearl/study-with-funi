@@ -294,7 +294,8 @@
   // links from phone notifications: /#reminders, /#invites, /#partners, /#chat-<id>
   F.openLink = (url) => {
     const h = String(url || "").split("#")[1] || "";
-    if (!h || !F.me) return;
+    if (!h) return;
+    if (!F.me) { F.pendingLink = url; return; } // still starting up: open it once you're signed in
     if (h.indexOf("chat-") === 0 && F.openChat) F.openChat(h.slice(5));
     else if (h === "invites") F.go("partners:invites");
     else if (h === "reminders") F.go("reminders");
@@ -571,11 +572,15 @@
     F.emit("notifperm", p);
     return p === "granted";
   };
-  F.systemNotify = async (title, body, tag) => {
+  // where tapping a notification takes you (the same links phone notifications use)
+  F.notifUrl = (n) => !n ? "/" : (n.kind === "message" || n.kind === "help" || n.kind === "accepted") && n.actor_id ? "/#chat-" + n.actor_id : n.kind === "invite" ? "/#invites"
+    : n.kind === "room" && n.ref_id ? "/#room-" + n.ref_id : n.kind === "battle" && n.ref_id ? "/#battle-" + n.ref_id : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id
+    : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" ? (n.ref_id ? "/#house-" + n.ref_id : "/#house") : "/#partners";
+  F.systemNotify = async (title, body, tag, url) => {
     if (!F.canNotify() || Notification.permission !== "granted") return;
     try {
       const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification(title, { body: body || "", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", tag: tag || undefined });
+      await reg.showNotification(title, { body: body || "", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", tag: tag || undefined, data: { url: url || "/" } });
     } catch (e) {}
   };
 

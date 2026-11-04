@@ -14,7 +14,8 @@
       sessionStorage.setItem("funi.emailNudge", "1");
       setTimeout(() => F.toast("Add your email in Profile so you can reset your password yourself.", { long: true, onClick: () => F.go("profile") }), 1500);
     }
-    F.openLink(location.href);
+    const link = F.pendingLink || location.href; F.pendingLink = null;
+    F.openLink(link);
   });
 
   async function start() {

@@ -714,7 +714,7 @@
     if (inThatChat) { F.sb.from("notifications").update({ read_at: n.read_at }).eq("id", n.id); return; }
     const actor = n.actor_id && profiles[n.actor_id];
     F.toast(n.title + (n.body ? ": " + n.body : ""), { long: true, icon: actor ? F.avatar(actor) : null, onClick: () => openNotif(n) });
-    if (document.visibilityState !== "visible" && !F.pushOn) F.systemNotify(n.title, n.body || "", n.kind + "-" + (n.actor_id || ""));
+    if (document.visibilityState !== "visible" && !F.pushOn) F.systemNotify(n.title, n.body || "", n.kind + "-" + (n.actor_id || ""), F.notifUrl(n));
     if (n.kind === "invite" || n.kind === "accepted") { await loadPartners(); renderPartners(); renderConvos(); F.emit("data"); }
   });
   F.on("rt:partners", async () => { await loadPartners(); renderPartners(); renderConvos(); F.emit("data"); });
