@@ -289,6 +289,9 @@
   function renderConvos() {
     const unreadTotal = Object.values(S.convos).reduce((n, c) => n + c.unread, 0);
     $("msgBadge").hidden = !unreadTotal; $("msgBadge").textContent = unreadTotal;
+    const others = Object.entries(S.convos).reduce((n, [id, c]) => n + (id === S.chatWith && S.view === "chat" ? 0 : c.unread), 0);
+    $("chatBackCount").hidden = !others; $("chatBackCount").textContent = others > 99 ? "99+" : others;
+    $("chatBack").setAttribute("aria-label", others ? "Back to messages, " + others + " unread" : "Back to messages");
     if (S.view !== "messages") return;
     if (!S.partnersLoaded) { $("convoList").innerHTML = '<p class="status-line">Loading your chats…</p>'; return; }
     if (!S.partners.length) { $("convoList").innerHTML = '<div class="empty"><b>No chats yet</b><span>Add a study partner first, then you can message each other and send files.</span><button type="button" class="btn primary small" data-go="invite">Invite a friend</button></div>'; return; }
@@ -401,15 +404,23 @@
   $("msgs").addEventListener("click", (e) => { const hc = e.target.closest("[data-chat-html]"); if (hc) { F.openHtml({ bucket: "chat-files", path: hc.dataset.chatHtml, title: hc.dataset.title }); return; } });
   $("msgs").addEventListener("click", (e) => { const img = e.target.closest("img[data-full]"); if (img) { $("imgFull").src = img.dataset.full; $("imgSheet").showModal(); } });
   $("chatBack").onclick = () => F.go("messages");
-  function setHelp(on) { helpOn = on; $("helpToggle").setAttribute("aria-pressed", String(on)); $("helpToggle").textContent = on ? "Help request on" : "Ask for help"; $("chatInput").placeholder = on ? "What do you need help with?" : "Type a message…"; }
-  $("helpToggle").onclick = () => setHelp(!helpOn);
-  $("attachBtn").onclick = () => $("fileInput").click();
+  function setHelp(on) { helpOn = on; $("helpToggle").setAttribute("aria-pressed", String(on)); $("helpToggle").textContent = on ? "🙋 Help request on" : "🙋 Ask for help"; $("chatInput").placeholder = on ? "What do you need help with?" : "Type a message…"; $("helpPill").hidden = !on; syncSend(); }
+  $("helpToggle").onclick = () => { setHelp(!helpOn); showPlus(false); $("chatInput").focus(); };
+  $("helpOff").onclick = () => setHelp(false);
+  $("attachBtn").onclick = () => { showPlus(false); $("fileInput").click(); };
+  // ＋ opens "Attach question" and "Ask for help" (like WhatsApp's +)
+  function showPlus(on) { $("plusMenu").hidden = !on; $("plusBtn").setAttribute("aria-expanded", String(on)); $("plusBtn").classList.toggle("on", on); if (on && F.toggleStickers) F.toggleStickers(false); }
+  $("plusBtn").onclick = () => showPlus($("plusMenu").hidden);
+  document.addEventListener("pointerdown", (e) => { if (!$("plusMenu").hidden && !e.target.closest("#plusMenu, #plusBtn")) showPlus(false); });
+  // the mic shows while the box is empty, the send arrow once you type (like WhatsApp)
+  function syncSend() { $("chatForm").classList.toggle("has-text", !!($("chatInput").value.trim() || attachFile)); }
+  $("chatInput").addEventListener("input", syncSend);
   $("fileInput").onchange = () => {
     const f = $("fileInput").files[0]; if (!f) return;
     if (f.size > MAX_FILE) { F.toast("That file is bigger than 10 MB. Try a smaller photo or PDF."); $("fileInput").value = ""; return; }
-    attachFile = f; $("attachName").textContent = f.name + " · " + Math.max(1, Math.round(f.size / 1024)) + " KB"; $("attachPreview").hidden = false;
+    attachFile = f; $("attachName").textContent = f.name + " · " + Math.max(1, Math.round(f.size / 1024)) + " KB"; $("attachPreview").hidden = false; syncSend();
   };
-  function clearAttach() { attachFile = null; $("fileInput").value = ""; $("attachPreview").hidden = true; }
+  function clearAttach() { attachFile = null; $("fileInput").value = ""; $("attachPreview").hidden = true; syncSend(); }
   $("attachClear").onclick = clearAttach;
   $("chatInput").addEventListener("input", () => { const t = $("chatInput"); t.style.height = "auto"; t.style.height = Math.min(120, t.scrollHeight) + "px"; });
   $("chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer: fine)").matches) { e.preventDefault(); $("chatForm").requestSubmit(); } });
@@ -433,7 +444,7 @@
     $("sendBtn").disabled = false;
     if (error && /reply_to/.test(error.message)) return F.toast("Replies need one setup step: run funi-v11-setup.sql in Supabase.", { long: true });
     if (error) return F.toast("Message wasn't sent: " + error.message, { long: true });
-    $("chatInput").value = ""; $("chatInput").style.height = "auto"; clearAttach(); setHelp(false); setReply(null);
+    $("chatInput").value = ""; $("chatInput").style.height = "auto"; clearAttach(); setHelp(false); setReply(null); syncSend();
     chatMsgs.push(data);
     (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
     await drawMsgs(data.id);
@@ -869,3 +880,36 @@
   };
 })();
 
+
+/* ---------- chat wallpapers: built into Funi, so they use no storage ---------- */
+(function () {
+  "use strict";
+  const F = window.Funi, $ = F.$, esc = F.esc;
+  const svg = (inner, bg) => "url(\"data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">' + inner + "</svg>") + "\")" + (bg ? ", " + bg : "");
+  const WALLS = [
+    ["none", "Plain", ""],
+    ["lavender", "Lavender", "linear-gradient(165deg, #EFE6FF, #F9F4FF 55%, #FFE9F3)"],
+    ["doodles", "Study doodles", svg('<g fill="none" stroke="#CDBDF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="14" width="22" height="28" rx="3"/><path d="M17 22h12M17 28h9"/><path d="M78 18l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z"/><circle cx="30" cy="88" r="9"/><path d="M27 88h6M30 85v6"/><path d="M76 78c6-6 14-6 20 0M80 86c4-3 8-3 12 0"/><path d="M52 52l8-8 8 8-8 8z"/></g>', "#F7F2FF")],
+    ["hearts", "Hearts", svg('<g fill="#F7C9D8"><path d="M30 40c-8-6-14-11-14-17a7 7 0 0 1 14-2 7 7 0 0 1 14 2c0 6-6 11-14 17z"/><path d="M88 96c-6-4-10-8-10-12a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 4-4 8-10 12z"/></g><circle cx="90" cy="30" r="3" fill="#E9D3FF"/><circle cx="28" cy="92" r="3" fill="#E9D3FF"/>', "#FFF4F8")],
+    ["ocean", "Ocean", "linear-gradient(180deg, #D7E8FF, #EEF6FF 60%, #E4F7F3)"],
+    ["sunset", "Sunset", "linear-gradient(170deg, #FFE1D0, #FFD3E2 55%, #E7DBFF)"],
+    ["mint", "Mint", "linear-gradient(170deg, #DDF5EA, #F2FBF6 60%, #E8F0FF)"],
+    ["grid", "Grid paper", "linear-gradient(#E6E0F0 1px, transparent 1px) 0 0 / 24px 24px, linear-gradient(90deg, #E6E0F0 1px, transparent 1px) 0 0 / 24px 24px, #FFFFFF"],
+    ["night", "Night", "linear-gradient(180deg, #1F1B3B, #2E2453)"],
+    ["stars", "Starry", svg('<g fill="#FFFFFF"><circle cx="14" cy="20" r="1.4"/><circle cx="70" cy="12" r="1"/><circle cx="104" cy="44" r="1.6"/><circle cx="40" cy="64" r="1"/><circle cx="88" cy="92" r="1.3"/><circle cx="20" cy="104" r="1"/></g><path d="M60 40l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#FFE59A"/>', "linear-gradient(180deg, #151B3D, #24204A)")]
+  ];
+  let wp = "none"; try { wp = localStorage.getItem("funi.wallpaper") || "none"; } catch (e) {}
+  function apply() {
+    const w = WALLS.find((x) => x[0] === wp) || WALLS[0];
+    document.body.style.setProperty("--chat-wall", w[2] || "var(--bg)");
+    document.body.dataset.wall = w[0];
+    document.body.classList.toggle("wall-dark", w[0] === "night" || w[0] === "stars");
+  }
+  function render() {
+    $("wpGrid").innerHTML = WALLS.map((w) => '<button type="button" class="wp-cell' + (w[0] === wp ? " on" : "") + '" data-wall="' + w[0] + '" aria-pressed="' + (w[0] === wp) + '"><span class="wp-swatch"><i></i><i></i></span><b>' + esc(w[1]) + "</b></button>").join("");
+    $("wpGrid").querySelectorAll("[data-wall]").forEach((b) => { const w = WALLS.find((x) => x[0] === b.dataset.wall); b.querySelector(".wp-swatch").style.background = w[2] || "var(--bg)"; });
+  }
+  $("wpBtn").onclick = () => { render(); $("wpSheet").showModal(); };
+  $("wpGrid").addEventListener("click", (e) => { const b = e.target.closest("[data-wall]"); if (!b) return; wp = b.dataset.wall; try { localStorage.setItem("funi.wallpaper", wp); } catch (x) {} apply(); render(); });
+  apply();
+})();

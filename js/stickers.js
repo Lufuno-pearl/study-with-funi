@@ -175,6 +175,7 @@
   F.toggleStickers = (show) => {
     const t = $("stkTray"), on = show == null ? t.hidden : show;
     t.hidden = !on; $("stkBtn").setAttribute("aria-pressed", String(on));
+    if (on && $("plusMenu")) { $("plusMenu").hidden = true; $("plusBtn").classList.remove("on"); }
     if (on) { document.activeElement && document.activeElement.blur && document.activeElement === $("chatInput") && $("chatInput").blur(); renderTray(); F.scrollTo("end"); }
   };
   $("stkBtn").onclick = () => F.toggleStickers();

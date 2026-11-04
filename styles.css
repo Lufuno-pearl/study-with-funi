@@ -1367,3 +1367,44 @@ body.guy .for-girls { display: none !important; }
 .sc-stage canvas { max-width: 100%; touch-action: none; border-radius: 10px; }
 .sc-preview img { display: block; width: 100%; max-width: 420px; margin: 0 auto; border-radius: 6px; border: 1px solid var(--line); box-shadow: var(--shadow); background: #FFFFFF; }
 #hsSeg button { padding: 0 6px; }
+
+/* ---------- chat: like WhatsApp (name stays on top, no bottom bar while chatting, ＋ menu, wallpapers) ---------- */
+.chat-back { position: relative; width: auto; min-width: 44px; padding: 0 8px; gap: 2px; }
+.chat-back b { font-size: 14px; font-weight: 800; color: var(--accent-soft-ink); }
+.chat-head { background: var(--card); }
+#wpBtn { flex-shrink: 0; }
+#wpBtn svg, .plus-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.plus-btn { flex-shrink: 0; border-radius: 23px; width: 46px; height: 46px; color: var(--accent-soft-ink); }
+.plus-btn svg { transition: transform .15s; }
+.plus-btn.on { background: var(--accent-soft); }
+.plus-btn.on svg { transform: rotate(45deg); }
+.plus-menu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.plus-menu[hidden] { display: none; }
+.help-pill { display: flex; align-items: center; gap: 8px; background: var(--peach); color: var(--peach-ink); border: 1.5px solid var(--peach-mid); border-radius: 14px; padding: 4px 6px 4px 12px; font-size: 13px; font-weight: 800; }
+.help-pill[hidden] { display: none; }
+.help-pill span { flex: 1; }
+#chatForm.has-text .mic { display: none; }
+#chatForm:not(.has-text) .send { display: none; }
+.wp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin: 8px 0 12px; }
+.wp-cell { display: flex; flex-direction: column; gap: 6px; align-items: stretch; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; color: var(--ink); text-align: center; }
+.wp-cell b { font-size: 13px; }
+.wp-swatch { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 120px; padding: 10px; box-sizing: border-box; border-radius: 16px; border: 2px solid var(--line); }
+.wp-swatch i { display: block; height: 16px; border-radius: 8px; width: 62%; background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.wp-swatch i:last-child { align-self: flex-end; background: var(--bubble-me); }
+.wp-cell.on .wp-swatch { border: 3px solid var(--accent); }
+/* the wallpaper sits behind the messages */
+body.in-chat #vChat { background: var(--chat-wall, var(--bg)); background-attachment: local; }
+body.wall-dark.in-chat .day-sep, body.wall-dark.in-chat .status-line { background: rgba(255,255,255,.88); color: #2B2540; border-radius: 999px; padding: 3px 10px; }
+body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
+@media (min-width: 1000px) {
+  body.in-chat #vChat { border-radius: 24px; }
+  body.in-chat #vChat .msgs { padding: 0 16px 16px; }
+}
+@media (max-width: 999px) {
+  /* a chat is its own full screen: no bottom bar, the name stays fixed at the very top */
+  body.in-chat #appScreen > .tabbar { display: none; }
+  body.in-chat #appScreen > .app { padding-top: 0; padding-bottom: 12px; background: var(--chat-wall, var(--bg)); }
+  body.in-chat #vChat { background: none; }
+  body.in-chat .chat-head { top: 0; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px), calc((100vw - 600px) / 2))); padding: calc(env(safe-area-inset-top, 0px) + 8px) max(12px, env(safe-area-inset-right, 0px), calc((100vw - 600px) / 2 + 8px)) 10px max(8px, env(safe-area-inset-left, 0px), calc((100vw - 600px) / 2)); box-shadow: 0 6px 16px -14px rgba(0,0,0,.4); }
+  body.in-chat #appScreen > .composer { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
+}
