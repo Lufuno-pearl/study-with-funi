@@ -111,6 +111,7 @@
     box.innerHTML = rulesCard() + dareBanner() + goalsCard() + quizCard() + warCard() + sprintCard() + learnCard();
     tick();
     if (sheet) renderSheet();
+    if (F.pendingQuiz && H && F.pendingQuiz === H.id) { F.pendingQuiz = null; openSheet("quiz"); } // tapped a quiz reminder
   }
 
   const removeRule = (d) => quiz && quiz.dare_miss === "remove" && d && d.loser !== (quiz.owner || (H && H.owner_id));
@@ -146,21 +147,23 @@
     if (!owner) return ["📜 House rules", '<div class="card hf-rules-text">' + (q.rules_text ? esc(q.rules_text) : "No written rules yet.") + "</div>" +
       '<div class="card stack"><b>Dares</b><span>' + (q.dares_on ? "On. Every Sunday the player with the lowest quiz average gets a dare." : "Off in this house.") + "</span>" +
       (q.dares_on ? "<span>" + (q.dare_miss === "remove" ? "⚠️ If the dare isn't done within 1 day, that person is removed from the house automatically (the owner gets the 🐔 instead)." : "🐔 If the dare isn't done within 1 day, that person gets the chicken badge for a week.") + "</span>" : "") +
-      "<span>Quiz every day at " + esc(q.quiz_time) + " · up to 10 questions each.</span></div>"];
+      "<span>Quiz every day at " + esc(q.quiz_time) + " · up to 10 questions each.</span>" +
+      "<span>" + ((H && H.quiz_pings) === "one" ? "🔔 One reminder when the quiz opens." : "🔔 Reminders 5 minutes before, 2 minutes before, and when the quiz opens.") + "</span></div>"];
     sheet.noRerender = true;
-    const r = sheet.rules || (sheet.rules = { on: q.dares_on, miss: q.dare_miss, time: q.quiz_time, text: q.rules_text || "" });
+    const r = sheet.rules || (sheet.rules = { on: q.dares_on, miss: q.dare_miss, time: q.quiz_time, text: q.rules_text || "", pings: (H && H.quiz_pings) || "all" });
     return ["📜 House rules", '<p class="hint">Only you (the owner) can change these. Everyone in the house can read them, and new people must agree before joining.</p>' +
       '<div class="card stack"><div class="hf-row"><span class="grow"><b>Weekly dares</b><span class="hint">Off = just the quiz and the crown</span></span><button type="button" class="hf-switch' + (r.on ? " on" : "") + '" data-hr-dares aria-pressed="' + r.on + '" aria-label="Weekly dares"><i></i></button></div>' +
       '<b>If the dare isn\'t done in time</b>' + [["remove", "🚪 Removed from the house automatically"], ["chicken", "🐔 Chicken badge for a week"]].map((x) => '<button type="button" class="hf-pick' + (r.miss === x[0] ? " on" : "") + '" data-hr-miss="' + x[0] + '" aria-pressed="' + (r.miss === x[0]) + '">' + x[1] + "</button>").join("") +
       '<label for="hrTime">Quiz time</label><select id="hrTime">' + ["17:00", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"].map((t) => "<option" + (t === r.time ? " selected" : "") + ">" + t + "</option>").join("") + "</select>" +
+      '<b>Quiz reminders</b>' + [["all", "🔔 5 min before, 2 min before, and when it opens"], ["one", "🔕 Just one, when it opens"]].map((x) => '<button type="button" class="hf-pick' + (r.pings === x[0] ? " on" : "") + '" data-hr-pings="' + x[0] + '" aria-pressed="' + (r.pings === x[0]) + '">' + x[1] + "</button>").join("") +
       '<label for="hrText">Written rules (everyone sees these)</label><textarea id="hrText" rows="5" maxlength="600" placeholder="e.g. 1. Play the quiz every night you can.\n2. No phones during sprints.\n3. Do your dare in time, or you\'re out!">' + esc(r.text) + "</textarea>" +
       '<button type="button" class="btn primary block" data-hr-save>Save the rules</button></div>'];
   }
   async function saveRules() {
     const r = sheet.rules; r.text = $("hrText").value.trim(); r.time = $("hrTime").value;
-    const { error } = await F.sb.from("houses").update({ dares_on: r.on, dare_miss: r.miss, quiz_time: r.time, rules_text: r.text || null }).eq("id", H.id);
-    if (error) return F.toast(/dares_on|dare_miss|rules_text|schema/i.test(error.message) ? "House rules need one setup step: run funi-v15-setup.sql in Supabase." : error.message, { long: true });
-    Object.assign(H, { dares_on: r.on, dare_miss: r.miss, rules_text: r.text || null });
+    const { error } = await F.sb.from("houses").update(Object.assign({ dares_on: r.on, dare_miss: r.miss, quiz_time: r.time, rules_text: r.text || null }, r.pings !== ((H && H.quiz_pings) || "all") ? { quiz_pings: r.pings } : {})).eq("id", H.id);
+    if (error) return F.toast(/quiz_pings/i.test(error.message) ? "Reminder choices need one setup step: run funi-v16-setup.sql in Supabase." : /dares_on|dare_miss|rules_text|schema/i.test(error.message) ? "House rules need one setup step: run funi-v15-setup.sql in Supabase." : error.message, { long: true });
+    Object.assign(H, { dares_on: r.on, dare_miss: r.miss, rules_text: r.text || null, quiz_pings: r.pings });
     F.toast("Rules saved. Everyone in the house can see them."); sheet.rules = null; closeSheet(); load();
   }
   function myGoals() { return goals.find((g) => g.user_id === me() && g.day === jhbToday()) || null; }
@@ -828,6 +831,7 @@
     let b;
     // rules
     if (at("[data-hr-dares]")) { sheet.rules.text = $("hrText").value; sheet.rules.time = $("hrTime").value; sheet.rules.on = !sheet.rules.on; sheet.noRerender = false; renderSheet(); return; }
+    if ((b = at("[data-hr-pings]"))) { sheet.rules.text = $("hrText").value; sheet.rules.time = $("hrTime").value; sheet.rules.pings = b.dataset.hrPings; sheet.noRerender = false; renderSheet(); return; }
     if ((b = at("[data-hr-miss]"))) { sheet.rules.text = $("hrText").value; sheet.rules.time = $("hrTime").value; sheet.rules.miss = b.dataset.hrMiss; sheet.noRerender = false; renderSheet(); return; }
     if (at("[data-hr-save]")) return saveRules();
     // quiz

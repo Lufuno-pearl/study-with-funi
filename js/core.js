@@ -307,6 +307,7 @@
     else if (h === "decks") F.go("decks:shared");
     else if (h.indexOf("share-") === 0) F.go("share:" + h.slice(6));
     else if (h.indexOf("house-") === 0) F.go("house:" + h.slice(6));
+    else if (h.indexOf("quiz-") === 0) { F.pendingQuiz = h.slice(5); F.go("house:" + h.slice(5)); }
     else if (h === "house") F.go("house");
     else if (h === "fc") F.go("fc");
     try { window.history.replaceState(null, "", "/"); } catch (e) {}
@@ -575,7 +576,7 @@
   // where tapping a notification takes you (the same links phone notifications use)
   F.notifUrl = (n) => !n ? "/" : (n.kind === "message" || n.kind === "help" || n.kind === "accepted") && n.actor_id ? "/#chat-" + n.actor_id : n.kind === "invite" ? "/#invites"
     : n.kind === "room" && n.ref_id ? "/#room-" + n.ref_id : n.kind === "battle" && n.ref_id ? "/#battle-" + n.ref_id : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id
-    : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" ? (n.ref_id ? "/#house-" + n.ref_id : "/#house") : "/#partners";
+    : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" ? (n.ref_id ? "/#house-" + n.ref_id : "/#house") : n.kind === "quiz" && n.ref_id ? "/#quiz-" + n.ref_id : "/#partners";
   F.systemNotify = async (title, body, tag, url) => {
     if (!F.canNotify() || Notification.permission !== "granted") return;
     try {

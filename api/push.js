@@ -90,8 +90,8 @@ module.exports = async (req, res) => {
     notes.forEach((n) => {
       const url = n.kind === "message" || n.kind === "help" ? "/#chat-" + n.actor_id : n.kind === "invite" ? "/#invites"
         : n.kind === "room" && n.ref_id ? "/#room-" + n.ref_id : n.kind === "battle" && n.ref_id ? "/#battle-" + n.ref_id
-        : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" && n.ref_id ? "/#house-" + n.ref_id : "/#partners";
-      messages.push({ user: n.user_id, payload: { title: n.title, body: n.body || "", url, tag: n.kind + "-" + (n.actor_id || n.id) } });
+        : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" && n.ref_id ? "/#house-" + n.ref_id : n.kind === "quiz" && n.ref_id ? "/#quiz-" + n.ref_id : "/#partners";
+      messages.push({ user: n.user_id, payload: { title: n.title, body: n.body || "", url, tag: n.kind === "quiz" ? "quiz-" + n.ref_id : n.kind + "-" + (n.actor_id || n.id) } });
     });
 
     // 4. once an hour: voice notes older than 7 days are deleted to free up space
