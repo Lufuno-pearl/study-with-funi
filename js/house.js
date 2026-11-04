@@ -12,7 +12,7 @@
 
   S.houses = []; S.houseInvites = [];
   let cur = null, members = [], files = [], notes = [], activity = [], chan = null, missing = false;
-  let seg = "files", folder = "All", noteId = null, emoji = "🏠";
+  let seg = "today", folder = "All", noteId = null, emoji = "🏠";
 
   async function needProfiles(ids) {
     const miss = [...new Set(ids)].filter((id) => id && !profiles()[id]);
@@ -106,16 +106,19 @@
     activity = data || [];
     await needProfiles(activity.map((a) => a.user_id));
   }
-  function renderAll() { renderPeople(); renderSeg(); renderFiles(); renderNotes(); renderActivity(); if (seg === "exams") renderExams(); }
+  function renderAll() { renderPeople(); renderSeg(); renderFiles(); renderNotes(); renderActivity(); if (seg === "exams") renderExams(); F.emit("house:open", cur); }
+  // for the exam-season features (housefun.js)
+  F.houseFiles = () => files;
+  F.houseCtx = () => ({ cur, members: members.filter((m) => m.status === "joined"), seg, needProfiles, logActivity });
   function renderPeople() {
     const joined = members.filter((m) => m.status === "joined");
-    $("hsAvas").innerHTML = joined.slice(0, 5).map((m) => '<span class="ava sm">' + F.avatar(profiles()[m.user_id] || { id: m.user_id }) + "</span>").join("");
+    $("hsAvas").innerHTML = joined.slice(0, 5).map((m) => '<span class="ava sm">' + F.avatar(profiles()[m.user_id] || { id: m.user_id }) + "</span>" + (F.houseBadge ? F.houseBadge(m.user_id) : "")).join("");
     const invited = members.length - joined.length;
     $("hsPeopleTxt").textContent = joined.length + " in the house" + (invited ? " · " + invited + " invited" : "");
   }
   function renderSeg() {
     document.querySelectorAll("#hsSeg [data-hseg]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.hseg === seg)));
-    ["files", "notes", "exams", "activity"].forEach((k) => { $("hs" + k[0].toUpperCase() + k.slice(1)).hidden = k !== seg; });
+    ["today", "files", "notes", "exams", "activity"].forEach((k) => { $("hs" + k[0].toUpperCase() + k.slice(1)).hidden = k !== seg; });
   }
 
   /* ---------- files ---------- */
@@ -329,7 +332,7 @@
       await loadMembers(); renderPeople(); renderPeopleSheet(); return;
     }
   });
-  document.querySelectorAll("#hsSeg [data-hseg]").forEach((b) => b.addEventListener("click", () => { seg = b.dataset.hseg; renderSeg(); if (seg === "exams") renderExams(); if (seg === "notes") renderNotes(); if (seg === "activity") renderActivity(); if (seg === "files") renderFiles(); }));
+  document.querySelectorAll("#hsSeg [data-hseg]").forEach((b) => b.addEventListener("click", () => { seg = b.dataset.hseg; renderSeg(); if (seg === "exams") renderExams(); if (seg === "notes") renderNotes(); if (seg === "activity") renderActivity(); if (seg === "files") renderFiles(); if (seg === "today") F.emit("house:today", cur); }));
   $("hsNoteDel").onclick = async () => {
     const n = curNote(); if (!n) return;
     if (!(await F.confirm("Delete " + n.title + "?", "It's deleted for everyone in the house.", "Delete"))) return;
@@ -503,7 +506,8 @@
   };
 
   /* ---------- hooks ---------- */
-  F.on("view:house", (id) => { seg = seg || "files"; openHouse(id || (cur && cur.id)); });
+  F.F_renderPeople = () => renderPeople();
+  F.on("view:house", (id) => { seg = seg || "today"; openHouse(id || (cur && cur.id)); });
   F.on("view:partners", renderCard);
   F.on("login", loadHouses);
   F.on("resume", () => { if (S.view === "house" && cur) openHouse(cur.id); else loadHouses(); });

@@ -670,12 +670,14 @@
     <div class="stack" id="hsBody" hidden>
       <button type="button" class="hs-people" id="hsPeople"><span class="hs-avas" id="hsAvas"></span><span class="grow" id="hsPeopleTxt"></span><span class="pill lav">+ Invite</span></button>
       <div class="seg two-seg ptabs" role="tablist" id="hsSeg">
-        <button type="button" role="tab" data-hseg="files" aria-selected="true">Files</button>
+        <button type="button" role="tab" data-hseg="today" aria-selected="true">Today</button>
+        <button type="button" role="tab" data-hseg="files" aria-selected="false">Files</button>
         <button type="button" role="tab" data-hseg="notes" aria-selected="false">Notes</button>
         <button type="button" role="tab" data-hseg="exams" aria-selected="false">Exams</button>
         <button type="button" role="tab" data-hseg="activity" aria-selected="false">Activity</button>
       </div>
-      <div class="stack" id="hsFiles">
+      <div class="stack" id="hsToday"></div>
+      <div class="stack" id="hsFiles" hidden>
         <div class="chips" id="hsFolders" role="tablist" aria-label="Folders"></div>
         <div class="stack" id="hsFileList"></div>
         <button type="button" class="btn primary block" id="hsAddBtn">+ Add to the house</button>
@@ -813,7 +815,7 @@
   <section class="view" id="vChat" hidden>
     <header class="chat-head">
       <button type="button" class="icon-btn" id="chatBack" aria-label="Back to messages"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <span class="ava-wrap"><span class="ava sm" id="chatAva"></span><span class="live" id="chatLive" hidden></span></span>
+      <span class="ava-wrap"><span class="ava sm" id="chatAva"></span><span class="live" id="chatLive" hidden></span><span class="crown-mini" id="chatCrown" hidden aria-label="Won the house quiz">👑</span></span>
       <div class="txt"><b id="chatName"></b><span id="chatStatus"></span></div>
       <span class="face" id="chatFace"></span>
     </header>
@@ -1137,6 +1139,7 @@
   <div class="stack msg-actions">
     <button type="button" class="btn primary block" id="msqStk" hidden>⭐ Save to my stickers</button>
     <button type="button" class="btn primary block" id="msqReply">Reply</button>
+    <button type="button" class="btn ghost block" id="msqEdit" hidden>✏️ Edit</button>
     <button type="button" class="btn ghost block" id="msqCopy">Copy text</button>
     <button type="button" class="btn ghost block" id="msqMe">Delete for me</button>
     <button type="button" class="btn danger block" id="msqAll">Delete for everyone</button>
@@ -1144,6 +1147,15 @@
   </div>
 </div></dialog>
 
+<dialog id="hfSheet" aria-labelledby="hfTitle"><div class="sheet hf-sheet">
+  <div class="sheet-grip"></div>
+  <div class="hf-head"><h2 id="hfTitle">My House</h2><button type="button" class="x-btn" data-hf-close aria-label="Close">×</button></div>
+  <div class="stack" id="hfBody"></div>
+</div></dialog>
+<dialog id="scanSheet" class="html-view scan-view" aria-labelledby="scTitle">
+  <div class="hv-bar"><button type="button" class="icon-btn" data-sc-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><b class="grow" id="scTitle">Scan my answers</b></div>
+  <div class="stack sc-body" id="scBody"></div>
+</dialog>
 <dialog id="neatSheet" aria-labelledby="neatTitle"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2 id="neatTitle">✨ Neat handwriting</h2>
@@ -1338,6 +1350,7 @@
 <script src="/js/files.js"></script>
 <script src="/js/fun.js"></script>
 <script src="/js/house.js"></script>
+<script src="/js/housefun.js"></script>
 <script src="/js/fc.js"></script>
 <script src="/js/call.js"></script>
 <script src="/js/notes.js"></script>

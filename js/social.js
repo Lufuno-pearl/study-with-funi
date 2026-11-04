@@ -299,7 +299,7 @@
     if (!rows.length) { $("convoList").innerHTML = '<div class="empty"><b>No one called "' + esc($("convoSearch").value.trim()) + '"</b><span>Check the spelling. Only your study partners show here.</span></div>'; return; }
     $("convoList").innerHTML = '<div class="list">' + rows.map((p) => {
       const pr = profiles[p.id] || {}, c = S.convos[p.id] || { last: null, unread: 0 }, st = statusOf(p.id);
-      return '<button type="button" class="convo" data-open-chat="' + esc(p.id) + '"><span class="ava-wrap"><span class="ava">' + F.avatar(pr) + "</span>" + (st.live ? '<span class="live"></span>' : "") + "</span>" +
+      return '<button type="button" class="convo" data-open-chat="' + esc(p.id) + '"><span class="ava-wrap"><span class="ava">' + F.avatar(pr) + "</span>" + (st.live ? '<span class="live"></span>' : "") + (F.isCrowned && F.isCrowned(p.id) ? '<span class="crown-mini" aria-label="Won the house quiz">👑</span>' : "") + "</span>" +
         '<span class="txt"><b>' + esc(F.nameOf(pr)) + '</b><span class="prev">' + esc(previewOf(c.last)) + "</span></span>" +
         '<span class="meta">' + (c.last ? esc(F.timeAgo(c.last.created_at)) : "") + (c.unread ? '<span class="unread">' + c.unread + "</span>" : "") + "</span></button>";
     }).join("") + "</div>";
@@ -316,6 +316,7 @@
     S.chatWith = id;
     const p = profiles[id] || { id, username: "partner" };
     $("chatAva").innerHTML = F.avatar(p); $("chatName").textContent = F.nameOf(p);
+    $("chatCrown").hidden = !(F.isCrowned && F.isCrowned(id));
     drawChatStatus();
     if (!quiet) {
       if (chatFor !== id) $("msgs").innerHTML = '<p class="status-line">Loading messages…</p>';
@@ -371,7 +372,7 @@
     }
     if (m.file_path && !(m.file_type || "").startsWith("audio/")) inner += '<button type="button" class="save-file" data-save-msg="' + esc(m.id) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Save to my files</button>';
     if (m.body) inner += esc(m.body).replace(/https?:\/\/[^\s<]+/g, (u) => '<a href="' + u + '"' + (u.indexOf(location.origin) === 0 ? "" : ' target="_blank" rel="noopener"') + ">" + u + "</a>");
-    return '<div class="bubble' + (mine ? " me" : "") + (m.is_help ? " help" : "") + (isNew ? " new" : "") + '" data-mid="' + esc(m.id) + '">' + inner + "<time>" + F.clockOf(m.created_at) + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
+    return '<div class="bubble' + (mine ? " me" : "") + (m.is_help ? " help" : "") + (isNew ? " new" : "") + '" data-mid="' + esc(m.id) + '">' + inner + "<time>" + F.clockOf(m.created_at) + (m.edited_at ? " · edited" : "") + (mine && m.read_at ? " · Seen" : "") + "</time></div>";
   }
   async function drawMsgs(newId) {
     await Promise.all(chatMsgs.filter((m) => m.file_path && m.file_type !== "funi/sticker" && !signed[m.file_path]).map((m) => signUrl(m.file_path)));
@@ -414,6 +415,7 @@
   $("chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer: fine)").matches) { e.preventDefault(); $("chatForm").requestSubmit(); } });
   $("chatForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (editing) return saveEdit();
     const to = S.chatWith, body = $("chatInput").value.trim();
     if (!to || (!body && !attachFile)) return;
     $("sendBtn").disabled = true;
@@ -600,10 +602,11 @@
   });
   function applyMsgUpdate(m) {
     const local = chatMsgs.find((x) => x.id === m.id);
-    if (local) { const changed = local.read_at !== m.read_at || local.deleted_at !== m.deleted_at || (local.hidden_for || []).length !== (m.hidden_for || []).length; Object.assign(local, m); if (changed && S.view === "chat") drawMsgs(); }
+    if (local) { const changed = local.read_at !== m.read_at || local.deleted_at !== m.deleted_at || local.body !== m.body || (local.hidden_for || []).length !== (m.hidden_for || []).length; Object.assign(local, m); if (changed && S.view === "chat") drawMsgs(); }
     const other = m.sender_id === F.me.id ? m.recipient_id : m.sender_id, c = S.convos[other];
     if (c && c.last && c.last.id === m.id) { Object.assign(c.last, m); renderConvos(); }
   }
+  F.on("crowns", () => { if (S.view === "messages") renderConvos(); if (S.view === "chat" && S.chatWith) $("chatCrown").hidden = !F.isCrowned(S.chatWith); });
   F.on("rt:messageRead", applyMsgUpdate);
   F.on("rt:messageUpdate", applyMsgUpdate);
 
@@ -615,6 +618,7 @@
     const mine = m.sender_id === F.me.id;
     $("msqText").textContent = m.deleted_at ? (mine ? "You deleted this message" : "This message was deleted") : (m.body || m.file_name || "File").slice(0, 140);
     $("msqCopy").hidden = !m.body || !!m.deleted_at;
+    $("msqEdit").hidden = !(mine && m.body && !m.deleted_at && m.file_type !== "funi/sticker" && !(m.file_type || "").startsWith("audio/") && Date.now() - new Date(m.created_at).getTime() < 15 * 60000);
     $("msqStk").hidden = m.file_type !== "funi/sticker" || !!m.deleted_at;
     if (m.file_type === "funi/sticker") $("msqText").textContent = mine ? "Your sticker" : "Sticker from " + F.nameOf(profiles[m.sender_id] || {});
     $("msqReply").hidden = !!m.deleted_at;
@@ -639,7 +643,7 @@
     $("replyTxt").textContent = (m.body || (m.file_type === "funi/sticker" ? "Sticker" : m.file_type && m.file_type.startsWith("audio/") ? "Voice note" : m.file_name || "File")).slice(0, 100);
   }
   F.clearReply = () => setReply(null);
-  $("replyClear").onclick = () => setReply(null);
+  $("replyClear").onclick = () => { if (editing) { editing = null; $("chatInput").value = ""; } setReply(null); };
   $("msqReply").onclick = () => { $("msgSheet").close(); setReply(msgSel); $("chatInput").focus(); };
   $("msgs").addEventListener("click", (e) => {
     const j = e.target.closest("[data-jump]"); if (!j) return;
@@ -664,6 +668,28 @@
     const c = S.convos[S.chatWith];
     if (c && c.last && c.last.id === m.id) { const vis = chatMsgs.filter((x) => !hiddenForMe(x)); c.last = vis[vis.length - 1] || null; renderConvos(); }
     await drawMsgs(); F.toast(forAll ? "Deleted for everyone." : "Deleted for you.");
+  }
+  // ✏️ edit a message you sent (for 15 minutes)
+  let editing = null;
+  $("msqEdit").onclick = () => {
+    $("msgSheet").close(); if (!msgSel) return;
+    editing = msgSel; setReply(null);
+    $("replyBar").hidden = false; $("replyWho").textContent = "✏️ Editing your message"; $("replyTxt").textContent = editing.body.slice(0, 100);
+    $("chatInput").value = editing.body; $("chatInput").dispatchEvent(new Event("input")); $("chatInput").focus();
+  };
+  F.isEditingMsg = () => !!editing;
+  function stopEdit() { editing = null; $("replyBar").hidden = !replyTo; }
+  async function saveEdit() {
+    const body = $("chatInput").value.trim(), m = editing;
+    if (!body) return F.toast("The message can't be empty.");
+    if (body === m.body) { stopEdit(); $("chatInput").value = ""; return; }
+    $("sendBtn").disabled = true;
+    const { data, error } = await F.sb.rpc("funi_edit_message", { p_id: m.id, p_body: body });
+    $("sendBtn").disabled = false;
+    if (error) return F.toast(/funi_edit_message|function/.test(error.message) ? "Editing messages needs one setup step: run funi-v14-setup.sql in Supabase." : error.message, { long: true });
+    Object.assign(m, Array.isArray(data) ? data[0] : data || { body, edited_at: new Date().toISOString() });
+    stopEdit(); $("chatInput").value = ""; $("chatInput").style.height = "auto";
+    await drawMsgs();
   }
   $("msqStk").onclick = () => { $("msgSheet").close(); if (msgSel && F.saveSticker) F.saveSticker(msgSel.file_path); };
   $("msqMe").onclick = () => deleteMsg(false);
@@ -842,3 +868,4 @@
     F.startLive();
   };
 })();
+
