@@ -108,14 +108,16 @@
     const box = $("hsToday"); if (!box) return;
     if (missing) { box.innerHTML = '<div class="empty"><b>One setup step first</b><span>Run funi-v14-setup.sql in Supabase to switch on the House Quiz, dares, goals, sprints and more.</span></div>'; return; }
     if (!quiz) { box.innerHTML = '<p class="status-line">Loading…</p>'; return; }
-    box.innerHTML = dareBanner() + goalsCard() + quizCard() + warCard() + sprintCard() + learnCard();
+    box.innerHTML = rulesCard() + dareBanner() + goalsCard() + quizCard() + warCard() + sprintCard() + learnCard();
     tick();
     if (sheet) renderSheet();
   }
 
+  const removeRule = (d) => quiz && quiz.dare_miss === "remove" && d && d.loser !== (quiz.owner || (H && H.owner_id));
+  function dueText(iso) { return new Date(iso).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }); }
   function dareNow() {
     // the newest dare that still matters: being chosen, waiting for proof (or late), or done in the last 3 days
-    return dares.find((d) => d.status === "choosing" || d.status === "active" || (d.status === "done" && Date.now() - new Date(d.proof_at).getTime() < 3 * DAY)) || null;
+    return dares.find((d) => d.status === "choosing" || d.status === "active" || (d.status === "done" && Date.now() - new Date(d.proof_at).getTime() < 3 * DAY) || (d.status === "removed" && Date.now() - new Date(d.due_at).getTime() < 3 * DAY)) || null;
   }
   function dareBanner() {
     const d = dareNow(); if (!d) return "";
@@ -128,11 +130,39 @@
       const late = Date.now() > new Date(d.due_at).getTime();
       if (d.loser === me()) { txt = late ? "🐔 Your dare time ran out. Do it late to lose the chicken badge" : "😅 You have a dare from " + nameOf(d.picker); btn = "Post my proof"; cls = "go"; }
       else txt = late ? "🐔 " + nameOf(d.loser) + " didn't do the dare in time" : "⏳ " + nameOf(d.loser) + " has a dare from " + nameOf(d.picker);
-    } else { txt = "✅ " + nameOf(d.loser) + " did the dare!"; btn = "See it"; }
-    const due = d.status === "active" && Date.now() < new Date(d.due_at).getTime() ? '<span class="hf-count" data-until="' + esc(d.due_at) + '"></span> left' : "";
+    } else if (d.status === "removed") { txt = "🚪 " + nameOf(d.loser) + " was removed from the house: the dare wasn't done in time"; }
+    else { txt = "✅ " + nameOf(d.loser) + " did the dare!"; btn = "See it"; }
+    const due = d.status === "active" && Date.now() < new Date(d.due_at).getTime() ? '<span class="hf-count" data-until="' + esc(d.due_at) + '"></span> left' + (d.loser === me() && removeRule(d) ? " · ⚠️ post it in time or you'll be removed" : "") : "";
     return '<button type="button" class="card hf-dare ' + cls + '" data-hf="dare"><span class="grow"><b>' + esc(txt) + "</b>" + (d.body ? "<span>“" + esc(d.body) + "”</span>" : "") + (due ? "<span>" + due + "</span>" : "") + "</span>" + (btn ? '<span class="pill lav">' + esc(btn) + "</span>" : "") + "</button>";
   }
 
+  function rulesCard() {
+    const q = quiz, owner = H && H.owner_id === me();
+    if (!q || (!q.rules_text && !owner)) return "";
+    return '<button type="button" class="card hf-rules" data-hf="rules"><span aria-hidden="true">📜</span><span class="grow"><b>House rules</b><span>' + (q.rules_text ? esc(q.rules_text.split("\n")[0].slice(0, 80)) : "Set your house's rules") + " · dares " + (q.dares_on ? (q.dare_miss === "remove" ? "on, missed = removed" : "on, missed = 🐔") : "off") + "</span></span>" + (owner ? '<span class="pill lav">Edit</span>' : "") + "</button>";
+  }
+  function renderRules() {
+    const q = quiz, owner = H && H.owner_id === me();
+    if (!owner) return ["📜 House rules", '<div class="card hf-rules-text">' + (q.rules_text ? esc(q.rules_text) : "No written rules yet.") + "</div>" +
+      '<div class="card stack"><b>Dares</b><span>' + (q.dares_on ? "On. Every Sunday the player with the lowest quiz average gets a dare." : "Off in this house.") + "</span>" +
+      (q.dares_on ? "<span>" + (q.dare_miss === "remove" ? "⚠️ If the dare isn't done within 1 day, that person is removed from the house automatically (the owner gets the 🐔 instead)." : "🐔 If the dare isn't done within 1 day, that person gets the chicken badge for a week.") + "</span>" : "") +
+      "<span>Quiz every day at " + esc(q.quiz_time) + " · up to 10 questions each.</span></div>"];
+    sheet.noRerender = true;
+    const r = sheet.rules || (sheet.rules = { on: q.dares_on, miss: q.dare_miss, time: q.quiz_time, text: q.rules_text || "" });
+    return ["📜 House rules", '<p class="hint">Only you (the owner) can change these. Everyone in the house can read them, and new people must agree before joining.</p>' +
+      '<div class="card stack"><div class="hf-row"><span class="grow"><b>Weekly dares</b><span class="hint">Off = just the quiz and the crown</span></span><button type="button" class="hf-switch' + (r.on ? " on" : "") + '" data-hr-dares aria-pressed="' + r.on + '" aria-label="Weekly dares"><i></i></button></div>' +
+      '<b>If the dare isn\'t done in time</b>' + [["remove", "🚪 Removed from the house automatically"], ["chicken", "🐔 Chicken badge for a week"]].map((x) => '<button type="button" class="hf-pick' + (r.miss === x[0] ? " on" : "") + '" data-hr-miss="' + x[0] + '" aria-pressed="' + (r.miss === x[0]) + '">' + x[1] + "</button>").join("") +
+      '<label for="hrTime">Quiz time</label><select id="hrTime">' + ["17:00", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"].map((t) => "<option" + (t === r.time ? " selected" : "") + ">" + t + "</option>").join("") + "</select>" +
+      '<label for="hrText">Written rules (everyone sees these)</label><textarea id="hrText" rows="5" maxlength="600" placeholder="e.g. 1. Play the quiz every night you can.\n2. No phones during sprints.\n3. Do your dare in time, or you\'re out!">' + esc(r.text) + "</textarea>" +
+      '<button type="button" class="btn primary block" data-hr-save>Save the rules</button></div>'];
+  }
+  async function saveRules() {
+    const r = sheet.rules; r.text = $("hrText").value.trim(); r.time = $("hrTime").value;
+    const { error } = await F.sb.from("houses").update({ dares_on: r.on, dare_miss: r.miss, quiz_time: r.time, rules_text: r.text || null }).eq("id", H.id);
+    if (error) return F.toast(/dares_on|dare_miss|rules_text|schema/i.test(error.message) ? "House rules need one setup step: run funi-v15-setup.sql in Supabase." : error.message, { long: true });
+    Object.assign(H, { dares_on: r.on, dare_miss: r.miss, rules_text: r.text || null });
+    F.toast("Rules saved. Everyone in the house can see them."); sheet.rules = null; closeSheet(); load();
+  }
   function myGoals() { return goals.find((g) => g.user_id === me() && g.day === jhbToday()) || null; }
   let goalEdit = false;
   function goalsCard() {
@@ -222,7 +252,7 @@
   $("hfSheet").addEventListener("close", () => { sheet = null; stopRec(); });
   function renderSheet() {
     if (!sheet) return;
-    const R = { quiz: renderQuiz, dare: renderDare, war: renderWar, sprint: renderSprint, explain: renderExplain, mistakes: renderMistakes }[sheet.kind];
+    const R = { rules: renderRules, quiz: renderQuiz, dare: renderDare, war: renderWar, sprint: renderSprint, explain: renderExplain, mistakes: renderMistakes }[sheet.kind];
     if (!R) return;
     const keep = document.activeElement && document.activeElement.closest && document.activeElement.closest("#hfBody") && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (keep && sheet.noRerender) return; // don't wipe what you're typing when someone else's change comes in
@@ -251,7 +281,7 @@
             '<button type="button" class="btn primary block" data-hq-next>' + (todo.length ? "Next question →" : "See tonight's results") + "</button>";
         } else if (todo.length) {
           const qq = todo[0]; sheet.shownAt = sheet.shownFor === qq.id ? sheet.shownAt : Date.now(); sheet.shownFor = qq.id;
-          body = '<p class="hint">Question ' + (list.length - todo.length + 1) + " of " + list.length + ' · faster right answers score more</p><div class="hf-timer"><i data-hq-bar style="width:100%"></i></div>' +
+          body = '<p class="hint">Question ' + (list.length - todo.length + 1) + " of " + list.length + " · faster right answers score more" + (q.skipped ? " · " + q.skipped + " skipped (not your modules)" : "") + '</p><div class="hf-timer"><i data-hq-bar style="width:100%"></i></div>' +
             '<div class="card stack hf-q"><span class="hf-by">' + ava(qq.author, "xs") + esc(nameOf(qq.author)) + "'s question" + (qq.module ? " · " + esc(qq.module) : "") + '</span><b class="hf-qtext">' + esc(qq.question) + "</b>" +
             qq.options.map((o, i) => '<button type="button" class="hf-opt" data-hq-pick="' + i + '">' + esc(o) + "</button>").join("") + "</div>";
           startQuizTimer();
@@ -275,15 +305,18 @@
           : '<div class="empty"><b>You\'ve added ' + max + " questions ✓</b><span>That's the most for one quiz. You can still edit or delete them above.</span></div>") +
         '<p class="hint">' + q.drops_total + " question" + (q.drops_total === 1 ? "" : "s") + " in so far from the house.</p>";
     } else if (tab === "tonight") {
-      const crownAt = new Date(q.crown_until).getTime(), rows = (q.tonight || []).slice().sort((a, b) => b.points - a.points);
+      const crownAt = new Date(q.crown_until).getTime(), rows = (q.tonight || []).slice().sort((a, b) => (b.avg || 0) - (a.avg || 0) || b.answered - a.answered);
       const head = q.crown ? '<div class="card hf-crowncard">' + ava(q.crown, "lg") + '<span class="crown-big" aria-hidden="true">👑</span><b>' + esc(nameOf(q.crown)) + (Date.now() >= crownAt ? " won tonight!" : " has the crown") + "</b><span>The crown stays on " + (q.crown === me() ? "your" : esc(nameOf(q.crown)) + "'s") + " picture until the next quiz's first hour is over.</span></div>"
         : '<p class="hint">The 👑 goes to the top score in the first hour (until ' + new Date(crownAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + "). Playing later still counts for the week.</p>";
-      body = head + '<div class="card stack">' + rows.map((r, i) => '<div class="hf-rank">' + "<b>" + (i + 1) + "</b>" + ava(r.user_id) + '<span class="grow">' + esc(nameOf(r.user_id)) + (r.answered ? "" : ' <span class="hint">· not played</span>') + "</span><b>" + r.points + "</b></div>").join("") + "</div>";
+      body = head + '<div class="card stack">' + rows.map((r, i) => '<div class="hf-rank">' + "<b>" + (i + 1) + "</b>" + ava(r.user_id) + '<span class="grow">' + esc(nameOf(r.user_id)) + (r.answered ? ' <span class="hint">· ' + r.answered + " question" + (r.answered === 1 ? "" : "s") + "</span>" : ' <span class="hint">· not played</span>') + "</span><b>" + (r.answered ? (r.avg || 0) + " avg" : "–") + "</b></div>").join("") + "</div>" +
+        '<p class="hint">Ranked by average points per question, so people with fewer modules (and fewer questions) aren\'t left behind.</p>';
     } else {
-      const rows = (q.week || []).slice().sort((a, b) => b.points - a.points), owner = H && H.owner_id === me();
-      body = '<p class="hint">This week (Monday to Sunday). After Sunday\'s quiz hour, whoever has the fewest points gets a dare, and Funi picks someone at random to choose it.</p><div class="card stack">' +
-        rows.map((r, i) => '<div class="hf-rank' + (i === rows.length - 1 && rows.length > 1 ? " last" : "") + '"><b>' + (i + 1) + "</b>" + ava(r.user_id) + '<span class="grow">' + esc(nameOf(r.user_id)) + ' <span class="hint">· ' + r.played + " day" + (r.played === 1 ? "" : "s") + "</span></span><b>" + r.points + "</b></div>").join("") + "</div>" +
-        (owner ? '<label for="hqTime">Quiz time for this house</label><select id="hqTime">' + ["17:00", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"].map((t) => '<option' + (t === q.quiz_time ? " selected" : "") + ">" + t + "</option>").join("") + "</select>" : "");
+      const players = (q.week || []).filter((r) => r.answered).sort((a, b) => (b.avg || 0) - (a.avg || 0) || b.answered - a.answered), out = (q.week || []).filter((r) => !r.answered);
+      body = '<p class="hint">This week (Monday to Sunday), ranked by average points per question. ' + (q.dares_on ? "After Sunday's quiz hour, the <b>player</b> with the lowest average gets a dare, and Funi picks someone at random to choose it." : "Dares are switched off in this house.") + "</p>" +
+        '<div class="card stack">' + players.map((r, i) => '<div class="hf-rank' + (q.dares_on && i === players.length - 1 && players.length > 1 ? " last" : "") + '"><b>' + (i + 1) + "</b>" + ava(r.user_id) + '<span class="grow">' + esc(nameOf(r.user_id)) + ' <span class="hint">· ' + r.played + " night" + (r.played === 1 ? "" : "s") + " · " + r.answered + " q</span></span><b>" + (r.avg || 0) + " avg</b></div>").join("") +
+        out.map((r) => '<div class="hf-rank out"><b>–</b>' + ava(r.user_id) + '<span class="grow">' + esc(nameOf(r.user_id)) + ' <span class="hint">· didn\'t play' + (q.dares_on ? " · not in the dare draw" : "") + "</span></span><b>–</b></div>").join("") +
+        (players.length ? "" : '<p class="hint">Nobody has played yet this week.</p>') + "</div>" +
+        '<p class="hint">You\'re a player for the week once you answer at least one quiz. Not playing means no crown, but also no dare.</p>';
     }
     return ["🧠 House Quiz", tabs + body];
   }
@@ -342,7 +375,7 @@
     if (filled.length < 2) return err("Add at least 2 answers.");
     if (!opts[pick]) return err("Tap the circle next to the right answer.");
     const options = filled.map((x) => x[0]), correct = filled.findIndex((x) => x[1] === pick);
-    const row = { house_id: H.id, author: me(), day: editQ ? editQ.day : quiz.drop_day, module: $("hqMod").value.trim() || null, question: qText, options, correct, tip: $("hqTip").value.trim() || null };
+    const row = { house_id: H.id, author: me(), day: editQ ? editQ.day : quiz.drop_day, module: $("hqMod").value.trim().toUpperCase() || null, question: qText, options, correct, tip: $("hqTip").value.trim() || null };
     if (editQ) {
       // saving an edit: the new version replaces the old one (only before that quiz starts)
       const old = editQ;
@@ -383,15 +416,20 @@
           '<div class="stack">' + DARES.map((x, i) => '<button type="button" class="hf-pick' + (x[1] === txt ? " on" : "") + '" data-hd-sug="' + i + '">' + esc(x[1]) + "</button>").join("") + "</div>" +
           '<label for="hdText">' + esc(nameOf(d.loser)) + '\'s dare (you can edit it)</label><textarea id="hdText" rows="2" maxlength="200">' + esc(txt) + "</textarea>" +
           '<span class="label">How they show the proof</span><div class="seg hf-seg">' + Object.keys(PROOF).map((k) => '<button type="button" data-hd-proof="' + k + '" aria-selected="' + (k === kind) + '">' + PROOF[k] + "</button>").join("") + "</div>" +
+          (removeRule(d) ? '<p class="hint">⚠️ House rule: if ' + esc(nameOf(d.loser)) + " doesn't do it within 1 day, they're removed from the house.</p>" : "") +
           '<button type="button" class="btn primary block" data-hd-set>Give ' + esc(nameOf(d.loser)) + " this dare</button>";
       }
     } else if (d.status === "active") {
       sheet.noRerender = false;
       const late = Date.now() > new Date(d.due_at).getTime();
       body = '<div class="card hf-dare-box"><b>“' + esc(d.body) + "”</b><span>Proof: " + PROOF[d.proof_kind || "photo"] + "</span></div>" +
+        (!late && removeRule(d) ? '<div class="card hf-warn"><span aria-hidden="true">⚠️</span><span>House rule: if ' + (d.loser === me() ? "you don't" : esc(nameOf(d.loser)) + " doesn't") + " post the proof by <b>" + esc(dueText(d.due_at)) + "</b>, " + (d.loser === me() ? "you'll" : "they'll") + " be removed from the house automatically.</span></div>" : "") +
         (late ? '<div class="card hf-chicken"><span aria-hidden="true">🐔</span><span>Time ran out, so ' + (d.loser === me() ? "you get" : esc(nameOf(d.loser)) + " gets") + " the <b>chicken badge</b> for a week. Doing the dare late takes it off.</span></div>"
           : '<div class="hf-big"><span>' + (d.loser === me() ? "You have" : "Time left") + '</span><b data-until="' + esc(d.due_at) + '"></b></div>') +
         (d.loser === me() ? proofControls(d) : '<p class="hint">Everyone gets a ping when the proof is up.</p>');
+    } else if (d.status === "removed") {
+      sheet.noRerender = false;
+      body = '<div class="card hf-dare-box"><b>“' + esc(d.body || "") + '”</b><span>🚪 Not done in time · ' + esc(nameOf(d.loser)) + " was removed from the house (house rule)</span></div><p class=\"hint\">Anyone in the house can invite them again.</p>";
     } else {
       sheet.noRerender = false;
       body = '<div class="card hf-dare-box"><b>“' + esc(d.body) + "”</b><span>✅ Done " + esc(F.timeAgo(d.proof_at)) + "</span></div>" + '<div class="hf-proof" id="hdProof"><p class="status-line">Loading the proof…</p></div>' +
@@ -757,6 +795,7 @@
     const k = b.dataset.hf;
     if (k === "goals-edit") { goalEdit = true; render(); return; }
     if (k === "quiz") return openSheet("quiz");
+    if (k === "rules") return openSheet("rules");
     if (k === "dare") return openSheet("dare", { id: (dareNow() || {}).id });
     if (k === "war") return openSheet("war");
     if (k === "sprint") return openSheet("sprint", b.dataset.sprint ? { id: b.dataset.sprint } : { view: "list" });
@@ -787,6 +826,10 @@
     if (at("[data-hf-close]")) return closeSheet();
     if (!sheet) return;
     let b;
+    // rules
+    if (at("[data-hr-dares]")) { sheet.rules.text = $("hrText").value; sheet.rules.time = $("hrTime").value; sheet.rules.on = !sheet.rules.on; sheet.noRerender = false; renderSheet(); return; }
+    if ((b = at("[data-hr-miss]"))) { sheet.rules.text = $("hrText").value; sheet.rules.time = $("hrTime").value; sheet.rules.miss = b.dataset.hrMiss; sheet.noRerender = false; renderSheet(); return; }
+    if (at("[data-hr-save]")) return saveRules();
     // quiz
     if ((b = at("[data-hq-tab]"))) { readDraft(); sheet.tab = b.dataset.hqTab; sheet.result = null; sheet.noRerender = false; renderSheet(); return; }
     if ((b = at("[data-hq-edit]"))) { const x = myQs.find((y) => y.id === b.dataset.hqEdit); if (!x) return;

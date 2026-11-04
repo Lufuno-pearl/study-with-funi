@@ -1415,3 +1415,15 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
 .hf-myopts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: 14px; font-weight: 700; color: var(--muted); }
 .hf-myopts li.right { color: var(--ok); font-weight: 800; }
 .btn.danger-text { color: var(--danger); }
+#confirmText { white-space: pre-line; }
+.hf-rules { display: flex; flex-direction: row; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; color: var(--ink); cursor: pointer; }
+.hf-rules > span[aria-hidden] { font-size: 22px; }
+.hf-rules .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hf-rules .grow span { font-size: 13px; font-weight: 700; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hf-rules-text { white-space: pre-line; font-weight: 700; line-height: 1.6; }
+.hf-warn { display: flex; gap: 10px; align-items: flex-start; background: var(--peach); color: var(--peach-ink); border: 2px solid var(--peach-mid); font-weight: 800; line-height: 1.45; }
+.hf-warn > span[aria-hidden] { font-size: 20px; }
+.hf-rank.out { opacity: .65; }
+.hf-switch { width: 56px; height: 32px; flex-shrink: 0; border-radius: 16px; border: 0; padding: 3px; cursor: pointer; background: var(--line); display: flex; justify-content: flex-start; }
+.hf-switch.on { background: var(--accent); justify-content: flex-end; }
+.hf-switch i { width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; display: block; }

@@ -19,6 +19,7 @@ Live: https://study-with-funi.vercel.app
 12. New query again: paste **`funi-v12-setup.sql`** and **Run**. Adds My House (shared files, notes and exam calendar), Study FC, and call rooms (video, whiteboard, presenting files).
 14. New query again: paste **`funi-v13-setup.sql`** and **Run**. Adds stickers in chats (your own collection, saving stickers friends send, and bringing in WhatsApp stickers).
 15. New query again: paste **`funi-v14-setup.sql`** and **Run**. Adds the daily House Quiz (with the crown), weekly dares with fair turns, morning goals, the exam war room, past paper sprints with scanning, explain it back, the mistake bank, editing chat messages, and houses of up to 20 people.
+16. New query again: paste **`funi-v15-setup.sql`** and **Run**. Adds house rules (owner settings, agree before joining), quiz questions only from your modules, up to 10 questions each, ranking by average, dare warnings with automatic removal, and reminders (3 hours left on a dare, 30 minutes before the quiz).
 13. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.

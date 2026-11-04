@@ -280,8 +280,14 @@
     const t = e.target;
     const j = t.closest("[data-hjoin]");
     if (j) {
-      const id = j.dataset.hjoin; j.disabled = true;
-      const { error } = await F.sb.from("house_members").update({ status: "joined" }).eq("house_id", id).eq("user_id", me());
+      const id = j.dataset.hjoin, inv = S.houseInvites.find((x) => x.house_id === id), h = inv && inv.house;
+      if (h && (h.rules_text || h.dares_on)) {
+        const warn = h.dares_on && h.dare_miss !== "chicken" ? "\n\n⚠️ In this house, if you come last in the week's quiz and don't do your dare within 1 day, you're removed automatically." : h.dares_on ? "\n\n🐔 If you come last in the week's quiz and don't do your dare within 1 day, you get the chicken badge for a week." : "";
+        if (!(await F.confirm("Before you join " + h.name + ", read the house rules", (h.rules_text || "No written rules.") + warn, "I agree, join the house"))) return;
+      }
+      j.disabled = true;
+      let { error } = await F.sb.rpc("funi_house_join", { h: id });
+      if (error && /funi_house_join|function|schema cache/i.test(error.message)) ({ error } = await F.sb.from("house_members").update({ status: "joined" }).eq("house_id", id).eq("user_id", me()));
       if (error) { j.disabled = false; return F.toast("Couldn't join: " + error.message, { long: true }); }
       cur = { id };
       await openHouse(id); await logActivity("joined the house 🏠");
