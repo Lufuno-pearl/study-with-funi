@@ -191,6 +191,23 @@
     $("mfList").innerHTML = list.map((f) => fileRow(f)).join("");
   }
   $("mfChips").addEventListener("click", (e) => { const b = e.target.closest("[data-filter]"); if (!b) return; filter = b.dataset.filter; renderModFiles(); });
+  $("mfDelMod").onclick = async () => {
+    const code = curCode; if (!code) return;
+    const mine = S.files.filter((f) => sameCode(f.module_code, code)), size = mine.reduce((t, f) => t + (f.kind === "file" ? +f.size || 0 : 0), 0);
+    const mod = (S.modules || []).find((m) => sameCode(m.code, code));
+    const what = mine.length ? "All " + mine.length + " file" + (mine.length === 1 ? "" : "s") + " in it (notes, papers, photos, links and handwritten notes) are deleted" + (size ? " and " + sizeTxt(size) + " is freed" : "") + ". " : "";
+    if (!(await F.confirm("Delete " + code + "?", what + (mod ? "It's also removed from your modules, with its marks. Your tests for it stay. " : "") + "This can't be undone.", "Delete module"))) return;
+    const paths = mine.filter((f) => f.kind === "file" && f.path).map((f) => f.path);
+    for (let i = 0; i < paths.length; i += 100) await F.sb.storage.from(BUCKET).remove(paths.slice(i, i + 100)).catch(() => {});
+    if (mine.length) {
+      const { error } = await F.sb.from("module_files").delete().in("id", mine.map((f) => f.id));
+      if (error) return F.toast("Couldn't delete: " + error.message, { long: true });
+      S.files = S.files.filter((f) => !mine.includes(f));
+      for (const p of paths) if (offSet.has(p)) { offSet.delete(p); caches.open(cacheName()).then((c) => c.delete(offUrl(p))).catch(() => {}); }
+    }
+    if (mod && F.removeModule) { const r = await F.removeModule(mod); if (r.error) F.toast("Files deleted, but couldn't remove the module: " + r.error.message, { long: true }); }
+    F.toast(code + " deleted."); F.go("files");
+  };
   $("mfStudy").onclick = () => { F.go("study"); const sel = $("sesModule"); if (sel && [...sel.options].some((o) => o.value === curCode)) sel.value = curCode; };
 
   // open / send / delete (works on both pages)
@@ -360,29 +377,42 @@
       const { data, error } = await F.sb.from("module_files").insert(row).select().single();
       $("fsSave").disabled = false;
       if (error) return F.showError("fsError", "Couldn't save: " + error.message);
-      offPut(path, blob, type);
-    S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Link saved to " + curCode + ".");
+      S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Link saved to " + curCode + ".");
       return;
     }
     if (!picked) return F.showError("fsError", "Choose Upload file, Take photo or Save a link.");
     if (!name) return F.showError("fsError", "Give it a name.");
-    $("fsSave").disabled = true; F.showError("fsError", "");
-    let blob = picked, type = picked.type || "application/octet-stream", ext = (picked.name.match(/\.([\w]+)$/) || [])[1] || "";
-    if (/^image\//.test(type) || /\.(jpe?g|png|heic|webp)$/i.test(picked.name)) {
-      const r = await shrink(picked); blob = r.blob; if (r.ext) { type = r.type; ext = r.ext; }
-    }
-    if (blob.size > MAX_FILE) { $("fsSave").disabled = false; return F.showError("fsError", "That file is bigger than 10 MB. Save it in Google Drive and add the link instead."); }
-    if (used() + blob.size > MAX_SPACE) { $("fsSave").disabled = false; return F.showError("fsError", "Your 50 MB is full. Delete some files, or save a link instead."); }
-    const safe = (name.replace(/[^\w.\-]+/g, "_").slice(0, 60) || "file") + (ext ? "." + ext.toLowerCase() : "");
-    const path = F.me.id + "/" + curCode.replace(/[^\w\-]+/g, "_") + "/" + Date.now() + "-" + safe;
-    F.toast("Uploading " + name + "…");
-    const up = await F.sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: false });
-    if (up.error) { $("fsSave").disabled = false; return F.showError("fsError", "Couldn't upload: " + up.error.message); }
-    const { data, error } = await F.sb.from("module_files").insert({ user_id: F.me.id, module_code: curCode, folder, name, kind: "file", path, mime: type, size: blob.size }).select().single();
-    $("fsSave").disabled = false;
-    if (error) { await F.sb.storage.from(BUCKET).remove([path]); return F.showError("fsError", error.message); }
-    offPut(path, blob, type);
-    S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Saved to " + curCode + " › " + folder + ".");
+    const btn = $("fsSave"), label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Uploading…"; F.showError("fsError", "");
+    let path = null;
+    try {
+      let blob = picked, type = picked.type || "application/octet-stream", ext = (picked.name.match(/\.([\w]+)$/) || [])[1] || "";
+      if (/^image\//.test(type) || /\.(jpe?g|png|heic|webp)$/i.test(picked.name)) {
+        const r = await shrink(picked); blob = r.blob; if (r.ext) { type = r.type; ext = r.ext; }
+      }
+      if (!blob.size) throw new Error("That file came through empty. If it's on Google Drive, download it to your phone first, then upload it.");
+      if (blob.size > MAX_FILE) throw new Error("That file is bigger than 10 MB. Save it in Google Drive and add the link instead.");
+      if (used() + blob.size > MAX_SPACE) throw new Error("Your 50 MB is full (" + mb(used()) + " used). Delete some files, or save a link instead.");
+      if (F.looksOffline()) throw new Error("You're offline. Connect to Wi-Fi or data, then tap Save again.");
+      const safe = (name.replace(/[^\w.\-]+/g, "_").slice(0, 60) || "file") + (ext ? "." + ext.toLowerCase() : "");
+      path = F.me.id + "/" + curCode.replace(/[^\w\-]+/g, "_") + "/" + Date.now() + "-" + safe;
+      // a slow or dropped connection used to leave the button stuck with no message
+      const slow = setTimeout(() => F.showError("fsError", "Still uploading… a weak connection makes this slow. Keep this open."), 15000);
+      const up = await Promise.race([
+        F.sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: false }),
+        new Promise((_, no) => setTimeout(() => no(new Error("The upload took too long. Check your internet and try again.")), 120000))
+      ]).finally(() => clearTimeout(slow));
+      if (up.error) { path = null; throw new Error("Couldn't upload: " + up.error.message); }
+      const { data, error } = await F.sb.from("module_files").insert({ user_id: F.me.id, module_code: curCode, folder, name, kind: "file", path, mime: type, size: blob.size }).select().single();
+      if (error) throw new Error(/space|52428800/i.test(error.message) ? "Your 50 MB is full. Delete some files first." : "Couldn't save: " + error.message);
+      offPut(path, blob, type); path = null;
+      S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Saved to " + curCode + " › " + folder + ".");
+    } catch (err) {
+      if (path) F.sb.storage.from(BUCKET).remove([path]).then(() => {}, () => {});
+      const m = (err && err.message) || "";
+      F.showError("fsError", /failed to fetch|network|load failed/i.test(m) ? "Couldn't reach the internet, so it didn't upload. Check your Wi-Fi or data and tap Save again." : m || "Something went wrong. Try again.");
+      $("toast").hidden = true;
+    } finally { btn.disabled = false; btn.textContent = label; }
   });
 
   /* ---------- Send to a study partner ---------- */

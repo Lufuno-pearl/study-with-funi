@@ -248,12 +248,18 @@
     if (mk) { F.marksModule = m.id; F.go("marks"); return; }
     if (e.target.closest("[data-rm]")) {
       if (!(await F.confirm("Remove " + m.code + "?", "Its marks are removed too. Your tests for it stay.", "Remove"))) return;
-      const { error } = await F.sb.from("modules").delete().eq("id", m.id);
+      const { error } = await removeModule(m);
       if (error) return F.toast("Couldn't remove: " + error.message);
-      S.modules = S.modules.filter((x) => x.id !== m.id); F.store(key("mods"), S.modules);
-      renderPriorities(); syncMatchModules(); F.emit("data");
     }
   });
+  async function removeModule(m) {
+    const { error } = await F.sb.from("modules").delete().eq("id", m.id);
+    if (error) return { error };
+    S.modules = S.modules.filter((x) => x.id !== m.id); F.store(key("mods"), S.modules);
+    renderPriorities(); syncMatchModules(); F.emit("data");
+    return { error: null };
+  }
+  F.removeModule = removeModule;
   // drag to reorder (I'll choose). Phone: hold the handle. Computer: drag the handle or the card itself.
   let drag = null;
   $("modList").addEventListener("pointerdown", (e) => {
