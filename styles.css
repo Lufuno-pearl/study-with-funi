@@ -1250,3 +1250,10 @@ body.guy .for-girls { display: none !important; }
 .stk-view-img { display: flex; justify-content: center; padding: 8px 0 4px; }
 .stk-view-img img { width: 200px; height: 200px; object-fit: contain; }
 .bubble.sticker img.stk { cursor: pointer; }
+/* delete handwritten notes */
+.note-wrap { position: relative; }
+.note-wrap .note-cover { width: 100%; }
+.note-del { position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; border-radius: 17px; border: 1px solid var(--line); background: rgba(255,255,255,.94); color: #B3263E; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px -6px rgba(0,0,0,.5); }
+.note-del svg, .nt-del-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.note-del:hover { background: #FFE9EC; }
+.nt-del-btn { color: #B3263E; }

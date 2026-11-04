@@ -110,6 +110,23 @@
     let best = 0; box.querySelectorAll("[data-rp]").forEach((el) => { if (el.offsetTop <= top) best = +el.dataset.rp; });
     return best;
   }
+  // 🗑 delete the whole notebook
+  $("ntDelete").onclick = async () => {
+    if (!note) return;
+    if (!row) { if (!(await F.confirm("Throw away these notes?", "They haven't been saved yet.", "Throw away"))) return; dirty = false; clearTimeout(saveTimer); $("noteSheet").close(); return; }
+    if (!(await F.confirm("Delete “" + (row.name || "these notes") + "”?", "All " + note.pages.length + " page" + (note.pages.length === 1 ? "" : "s") + " are deleted. It can't be undone.", "Delete"))) return;
+    if (F.looksOffline()) return F.toast("You need internet to delete notes.");
+    clearTimeout(saveTimer); dirty = false;
+    const { error } = await F.sb.from("module_files").delete().eq("id", row.id);
+    if (error) return F.toast("Couldn't delete: " + error.message, { long: true });
+    F.sb.storage.from(BUCKET).remove([row.path]).then(() => {}, () => {});
+    try { localStorage.removeItem("funi.noteDraft." + row.id); } catch (e) {}
+    S.files = (S.files || []).filter((x) => x.id !== row.id);
+    const gone = row; row = null; note = null;
+    $("noteSheet").close();
+    if (F.renderModFiles) F.renderModFiles();
+    F.toast("Deleted “" + gone.name + "”.");
+  };
   $("ntEditBtn").onclick = () => { pageIdx = visiblePage(); setMode("edit"); };
   $("ntDone").onclick = async () => { commitText(); if (dirty) { setState("Saving…"); await save(); } setMode("read"); };
   $("ntSaveBtn").onclick = async () => { commitText(); dirty = true; setState("Saving…"); await save(); if (!dirty) F.toast("Saved to " + code + " › Notes."); };
@@ -545,7 +562,8 @@
 
   /* ---------- covers on the module page ---------- */
   F.renderNoteCovers = (box, books) => {
-    box.innerHTML = books.map((f) => '<button type="button" class="note-cover" data-fopen="' + esc(f.id) + '"><canvas width="180" height="240" data-cover="' + esc(f.id) + '"></canvas><b>' + esc(f.name) + "</b><span>" + esc(F.whenShort ? F.whenShort(f.created_at) : "") + "</span></button>").join("");
+    box.innerHTML = books.map((f) => '<div class="note-wrap"><button type="button" class="note-cover" data-fopen="' + esc(f.id) + '"><canvas width="180" height="240" data-cover="' + esc(f.id) + '"></canvas><b>' + esc(f.name) + "</b><span>" + esc(F.whenShort ? F.whenShort(f.created_at) : "") + '</span></button>' +
+      '<button type="button" class="note-del" data-del-file="' + esc(f.id) + '" aria-label="Delete ' + esc(f.name) + '" title="Delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>').join("");
     books.forEach(async (f) => {
       try {
         const n = JSON.parse(await (await F.fileBlob(f)).text()), cv = box.querySelector('[data-cover="' + f.id + '"]'); if (!cv) return;
