@@ -524,6 +524,16 @@
   window.addEventListener("appinstalled", () => { $("installBtn").hidden = true; F.toast("Funi is on your home screen."); });
   F.install = async () => {
     if (installPrompt) { installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; return; }
+    // no install offer from the browser: show the steps for this device
+    const ua = navigator.userAgent, android = /android/i.test(ua), edge = /edg\//i.test(ua), chrome = /chrome|crios/i.test(ua) && !edge, phone = isIOS || android;
+    const steps = isIOS ? ["Open this page in <b>Safari</b>.", "Tap <b>Share</b> (the square with an arrow).", "Tap <b>Add to Home Screen</b>."]
+      : android ? ["Open this page in <b>Chrome</b>.", "Tap the <b>⋮</b> menu at the top right.", "Tap <b>Add to Home screen</b> or <b>Install app</b>."]
+      : edge ? ["Click the <b>⋯</b> menu at the top right of Edge.", "Go to <b>Apps</b> › <b>Install this site as an app</b>.", "Click <b>Install</b>."]
+      : chrome ? ["Look for the <b>install icon</b> at the right end of the address bar (a small screen with a down arrow) and click it.", "No icon? Click the <b>⋮</b> menu › <b>Cast, save and share</b> › <b>Install page as app…</b>", "Click <b>Install</b>."]
+      : ["Open <b>study-with-funi.vercel.app</b> in <b>Chrome</b> or <b>Edge</b>; this browser can't install apps.", "Then click the install icon in the address bar, or the menu › Install."];
+    $("instTitle").textContent = phone ? "Get Funi on your phone" : "Get Funi on your computer";
+    $("instSteps").innerHTML = steps.concat(["Open Funi from your " + (phone ? "home screen" : "desktop or Start menu") + ", then turn on notifications (bell › switch at the top)."]).map((x) => "<li>" + x + "</li>").join("");
+    $("instNote").textContent = phone ? "" : "Just removed Funi? The browser can take a moment to offer it again: refresh this page once, then try. If the menu says Open in Funi, it's still installed: open it from there.";
     $("iosSheet").showModal();
   };
   $("installBtn").onclick = F.install;
