@@ -96,14 +96,46 @@
   });
 
   const isNight = (r) => /^cross night/i.test((r && r.name) || "");
-  $("crossNightBtn").onclick = async () => {
-    $("crossNightBtn").disabled = true;
+  // cross night (and any room's timer): you choose the round and break length
+  const FOCUS_OPTS = [50, 60, 90, 120, 180], BREAK_OPTS = [10, 15, 20, 30];
+  let cnMode = "new", cnF = 50, cnB = 10;
+  try { const t = JSON.parse(localStorage.getItem("funi.cnTimes") || "null"); if (t && t.f && t.b) { cnF = t.f; cnB = t.b; } } catch (e) {}
+  function drawCn() {
+    $("cnFocus").innerHTML = FOCUS_OPTS.map((m) => '<button type="button" class="chip' + (m === cnF ? " on" : "") + '" aria-pressed="' + (m === cnF) + '" data-cnf="' + m + '">' + (m >= 60 && m % 60 === 0 ? m / 60 + " hr" + (m > 60 ? "s" : "") : m >= 60 ? Math.floor(m / 60) + " hr " + (m % 60) : m + " min") + "</button>").join("");
+    $("cnBreak").innerHTML = BREAK_OPTS.map((m) => '<button type="button" class="chip' + (m === cnB ? " on" : "") + '" aria-pressed="' + (m === cnB) + '" data-cnb="' + m + '">' + m + " min</button>").join("");
+    $("cnFocusN").value = FOCUS_OPTS.includes(cnF) ? "" : cnF; $("cnBreakN").value = BREAK_OPTS.includes(cnB) ? "" : cnB;
+  }
+  function openCn(mode) {
+    cnMode = mode;
+    if (mode === "edit" && room) { cnF = room.focus_minutes; cnB = room.break_minutes; }
+    $("cnTitle").textContent = mode === "edit" ? (isNight(room) ? "Cross night timer 🌙" : "Room timer ⏱") : "Cross night 🌙";
+    $("cnHint").textContent = mode === "edit" ? "The new times start from the next round, for everyone in the room." : "Set your timer. Everyone who joins studies on it.";
+    $("cnGo").textContent = mode === "edit" ? "Save timer" : "Start cross night";
+    F.showError("cnError", ""); drawCn(); $("cnSheet").showModal();
+  }
+  $("cnFocus").addEventListener("click", (e) => { const b = e.target.closest("[data-cnf]"); if (b) { cnF = +b.dataset.cnf; drawCn(); } });
+  $("cnBreak").addEventListener("click", (e) => { const b = e.target.closest("[data-cnb]"); if (b) { cnB = +b.dataset.cnb; drawCn(); } });
+  $("cnFocusN").addEventListener("input", () => { const v = Math.round(+$("cnFocusN").value); if (v) { cnF = v; document.querySelectorAll("#cnFocus .chip").forEach((c) => { c.classList.toggle("on", +c.dataset.cnf === v); c.setAttribute("aria-pressed", String(+c.dataset.cnf === v)); }); } });
+  $("cnBreakN").addEventListener("input", () => { const v = Math.round(+$("cnBreakN").value); if (v) { cnB = v; document.querySelectorAll("#cnBreak .chip").forEach((c) => { c.classList.toggle("on", +c.dataset.cnb === v); c.setAttribute("aria-pressed", String(+c.dataset.cnb === v)); }); } });
+  $("cnGo").onclick = async () => {
+    if (!(cnF >= 1 && cnF <= 240)) return F.showError("cnError", "Study rounds can be 1 to 240 minutes (4 hours).");
+    if (!(cnB >= 1 && cnB <= 60)) return F.showError("cnError", "Breaks can be 1 to 60 minutes.");
+    try { localStorage.setItem("funi.cnTimes", JSON.stringify({ f: cnF, b: cnB })); } catch (e) {}
+    $("cnGo").disabled = true;
+    if (cnMode === "edit") {
+      const { data, error } = await F.sb.from("study_rooms").update({ focus_minutes: cnF, break_minutes: cnB }).eq("id", room.id).select().single();
+      $("cnGo").disabled = false;
+      if (error) return F.showError("cnError", "Couldn't save: " + error.message);
+      room = data; $("cnSheet").close(); renderRoom(); F.toast("Timer saved: " + cnF + " min rounds, " + cnB + " min breaks."); return;
+    }
     const mod = $("roomModule").value;
-    const { data, error } = await F.sb.from("study_rooms").insert({ host_id: F.me.id, name: "Cross night 🌙", module_code: mod || null, focus_minutes: 50, break_minutes: 10 }).select().single();
-    $("crossNightBtn").disabled = false;
-    if (error) return F.toast("Couldn't start cross night: " + error.message, { long: true });
-    F.go("room:" + data.id);
+    const { data, error } = await F.sb.from("study_rooms").insert({ host_id: F.me.id, name: "Cross night 🌙", module_code: mod || null, focus_minutes: cnF, break_minutes: cnB }).select().single();
+    $("cnGo").disabled = false;
+    if (error) return F.showError("cnError", "Couldn't start cross night: " + error.message);
+    $("cnSheet").close(); F.go("room:" + data.id);
   };
+  $("crossNightBtn").onclick = () => openCn("new");
+  $("rmTimes").onclick = () => openCn("edit");
   async function enterRoom(id) {
     if (!F.sb || !F.me) return;
     if (!room || room.id !== id) { stopRoom(); members = []; }
@@ -184,6 +216,14 @@
     $("rmStart").textContent = "Start round " + (room.round + 1);
     $("rmBreak").hidden = !(i.done);
     $("rmBreak").textContent = "Break together (" + room.break_minutes + " min)";
+    $("rmTimes").hidden = !(room.host_id === F.me.id && !i.run);
+    // cross night: everyone at their laptops under the moon
+    const night = isNight(room); $("rmNight").hidden = !night;
+    if (night) {
+      const ppl = members.map((m) => { const p = profiles()[m.user_id] || { id: m.user_id }; return { look: F.isPhoto(p.avatar) ? null : p.avatar, seed: m.user_id, feeling: i.run && !i.brk ? "Okay" : "Happy" }; });
+      const key = ppl.map((x) => x.seed + x.feeling + (x.look ? JSON.stringify(x.look) : "")).join("|");
+      if ($("rmNight").dataset.k !== key) { $("rmNight").dataset.k = key; $("rmNight").innerHTML = window.FuniArt.nightScene(ppl); }
+    }
     const status = i.run ? (i.brk ? "On a break" : "Focusing") : "Ready";
     $("rmSeats").innerHTML = members.map((m) => {
       const p = profiles()[m.user_id] || { id: m.user_id }, c = lastCheer[m.user_id], fresh = c && Date.now() - c.at < 9000;

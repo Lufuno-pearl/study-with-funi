@@ -257,7 +257,7 @@
     <div class="stack" id="roomsList"></div>
     <button type="button" class="cross-night" id="crossNightBtn">
       <svg class="cn-moon" viewBox="0 0 48 48" aria-hidden="true"><path d="M30 6a18 18 0 1 0 12 30A15 15 0 0 1 30 6z" fill="#FDD167"/><circle cx="10" cy="10" r="1.6" fill="#fff"/><circle cx="40" cy="44" r="1.2" fill="#fff"/><circle cx="6" cy="34" r="1" fill="#fff"/></svg>
-      <span class="grow"><b>Cross night</b><span>Study through the night with friends. 50 min rounds, 10 min breaks. Your partners get "Join me cross-nighting!"</span></span>
+      <span class="grow"><b>Cross night</b><span>Study through the night with friends. You choose the round and break times. Your partners get "Join me cross-nighting!"</span></span>
       <span class="cn-go">Start</span>
     </button>
     <form class="card stack" id="roomForm" novalidate>
@@ -286,6 +286,7 @@
       <div class="grow"><h1 id="rmTitle">Room</h1><p class="hint" id="rmSub"></p></div>
       <span class="pill mint live-pill"><span class="dot-live"></span>Live</span>
     </header>
+    <div class="night-scene" id="rmNight" hidden></div>
     <div class="room-timer" id="rmTimer">
       <span class="rt-label" id="rmLabel">WAITING TO START</span>
       <span class="rt-clock" id="rmClock" role="timer">25:00</span>
@@ -294,6 +295,7 @@
     <div class="btns-row" id="rmControls">
       <button type="button" class="btn primary" id="rmStart">Start round 1</button>
       <button type="button" class="btn ghost" id="rmBreak" hidden>Break together</button>
+      <button type="button" class="btn ghost" id="rmTimes" hidden>⏱ Change timer</button>
     </div>
     <div class="seats" id="rmSeats"></div>
     <div><label for="rmTask" style="margin-top:0">What are you working on?</label>
@@ -1338,6 +1340,20 @@
 </dialog>
 <div class="offline-bar" id="offlineBar" role="status" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0"/><path d="M3 3l18 18"/></svg>Offline · your saved stuff still works</div>
 <dialog id="imgSheet" class="img-view"><button type="button" class="btn ghost block" data-close="imgSheet">Close</button><img id="imgFull" alt="Shared photo"></dialog>
+
+<dialog id="cnSheet" aria-labelledby="cnTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="cnTitle">Cross night 🌙</h2>
+  <p class="hint" id="cnHint">Set your timer. Everyone in the room studies on it.</p>
+  <span class="label">Study rounds (minutes)</span>
+  <div class="chips" id="cnFocus"></div>
+  <div class="cn-other"><label for="cnFocusN">Or type your own</label><input id="cnFocusN" type="number" inputmode="numeric" min="1" max="240" placeholder="1 to 240"></div>
+  <span class="label">Breaks (minutes)</span>
+  <div class="chips" id="cnBreak"></div>
+  <div class="cn-other"><label for="cnBreakN">Or type your own</label><input id="cnBreakN" type="number" inputmode="numeric" min="1" max="60" placeholder="1 to 60"></div>
+  <p class="form-error" id="cnError" hidden></p>
+  <div class="btns"><button type="button" class="btn ghost" data-close="cnSheet">Cancel</button><button type="button" class="btn primary" id="cnGo">Start cross night</button></div>
+</div></dialog>
 
 <dialog id="iosSheet"><div class="sheet">
   <div class="sheet-grip"></div>

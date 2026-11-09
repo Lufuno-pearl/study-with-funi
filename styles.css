@@ -1427,3 +1427,20 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
 .hf-switch { width: 56px; height: 32px; flex-shrink: 0; border-radius: 16px; border: 0; padding: 3px; cursor: pointer; background: var(--line); display: flex; justify-content: flex-start; }
 .hf-switch.on { background: var(--accent); justify-content: flex-end; }
 .hf-switch i { width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; display: block; }
+
+/* ---------- Cross night: timer picker + night scene ---------- */
+.cn-other { margin-top: 8px; }
+.cn-other label { font-size: 13px; }
+.cn-other input { max-width: 180px; }
+#cnSheet .label { display: block; margin: 14px 0 8px; }
+.night-scene { border-radius: 24px; overflow: hidden; box-shadow: var(--shadow); line-height: 0; }
+.night-svg { width: 100%; height: auto; display: block; }
+.nt-star { animation: ntTwinkle 3s ease-in-out infinite; }
+@keyframes ntTwinkle { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.nt-steam { animation: ntSteam 2.4s ease-in-out infinite; }
+@keyframes ntSteam { 0% { transform: translateY(2px); opacity: 0; } 40% { opacity: .75; } 100% { transform: translateY(-6px); opacity: 0; } }
+.nt-glow { animation: ntGlow 4s ease-in-out infinite; }
+@keyframes ntGlow { 0%, 100% { opacity: .22; } 50% { opacity: .36; } }
+.nt-shoot { animation: ntShoot 9s linear infinite; }
+@keyframes ntShoot { 0%, 88% { opacity: 0; transform: translate(0, 0); } 90% { opacity: .9; } 96% { opacity: 0; transform: translate(70px, 25px); } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .nt-star, .nt-steam, .nt-glow, .nt-shoot { animation: none; } }

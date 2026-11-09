@@ -220,6 +220,38 @@
       '<g transform="translate(28 22) scale(1.2)">' + avatarSVG(look, feeling, seed, { noBg: true, chin: true }) + "</g></svg>";
   }
 
+  // cross night: everyone in the room at their laptops under the moon
+  function nightScene(people) {
+    const list = (people || []).slice(0, 4), n = Math.max(1, list.length), more = (people || []).length - list.length;
+    const W = 360, gap = W / (n + 1), sz = n > 2 ? 0.62 : 0.74;
+    let stars = "";
+    for (let i = 0; i < 26; i++) { const x = (i * 137) % 350 + 5, y = (i * 61) % 92 + 6, r = 0.8 + (i % 3) * 0.55;
+      stars += '<circle class="nt-star" style="animation-delay:' + ((i * 0.37) % 3).toFixed(2) + 's" cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#FFF6D8"/>'; }
+    let folks = "";
+    list.forEach((p, i) => {
+      const cx = gap * (i + 1), w = 120 * sz;
+      folks += '<g transform="translate(' + (cx - w / 2).toFixed(1) + " " + (n > 2 ? 86 : 70) + ") scale(" + sz + ')">' + avatarSVG(p.look, p.feeling || "Happy", p.seed, { noBg: true }) + "</g>" +
+        // the laptop, seen from behind, with its screen glow on the face
+        '<ellipse class="nt-glow" cx="' + cx.toFixed(1) + '" cy="' + (n > 2 ? 150 : 148) + '" rx="' + (34 * sz / 0.74).toFixed(1) + '" ry="16" fill="#BFD8FF" opacity=".28"/>' +
+        '<path d="M' + (cx - 30 * sz / 0.74).toFixed(1) + " 172l" + (6 * sz / 0.74).toFixed(1) + " -" + (34 * sz / 0.74).toFixed(1) + "h" + (48 * sz / 0.74).toFixed(1) + "l" + (6 * sz / 0.74).toFixed(1) + " " + (34 * sz / 0.74).toFixed(1) + 'z" fill="#C9CEDD"/>' +
+        '<path d="M' + (cx - 36 * sz / 0.74).toFixed(1) + " 172h" + (72 * sz / 0.74).toFixed(1) + "l-4 5h-" + (64 * sz / 0.74).toFixed(1) + 'z" fill="#9AA1B8"/>' +
+        '<circle cx="' + cx.toFixed(1) + '" cy="' + (172 - 17 * sz / 0.74).toFixed(1) + '" r="' + (4 * sz / 0.74).toFixed(1) + '" fill="#FFFFFF" opacity=".85"/>' +
+        (i === 0 ? '<g transform="translate(' + (cx + 40 * sz / 0.74).toFixed(1) + ' 160)"><rect width="13" height="12" rx="3" fill="#F4A5B8"/><path d="M13 3c5 0 5 6 0 6" fill="none" stroke="#F4A5B8" stroke-width="2.5"/><path class="nt-steam" d="M4-3c-3-4 3-6 0-10M9-3c-3-4 3-6 0-10" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></g>' : "");
+    });
+    return '<svg viewBox="0 0 360 200" class="night-svg" aria-hidden="true">' +
+      '<defs><linearGradient id="ntSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14123A"/><stop offset="1" stop-color="#2E2770"/></linearGradient>' +
+      '<radialGradient id="ntMoonGlow"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".55"/><stop offset="1" stop-color="#FFE9A8" stop-opacity="0"/></radialGradient></defs>' +
+      '<rect width="360" height="200" fill="url(#ntSky)"/>' + stars +
+      '<circle cx="302" cy="44" r="40" fill="url(#ntMoonGlow)"/><path d="M308 18a26 26 0 1 0 18 44a22 22 0 0 1-18-44z" fill="#FDD167"/><circle cx="296" cy="40" r="3" fill="#F2BE45"/><circle cx="304" cy="58" r="2.2" fill="#F2BE45"/>' +
+      '<path class="nt-shoot" d="M40 26l34 12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0"/>' +
+      // desk lamp
+      '<g transform="translate(14 118)"><path d="M14 54V18l18-12" fill="none" stroke="#6E6496" stroke-width="4" stroke-linecap="round"/><path d="M24 0l22 10-8 10z" fill="#F6CD5C"/><path class="nt-lamp" d="M38 18l30 36H8z" fill="#FFE9A8" opacity=".16"/><rect x="4" y="52" width="22" height="5" rx="2.5" fill="#6E6496"/></g>' +
+      folks +
+      '<rect y="174" width="360" height="26" fill="#3B2F7A"/><rect y="174" width="360" height="5" fill="#4C3F95"/>' +
+      (more > 0 ? '<text x="346" y="194" text-anchor="end" font-family="Nunito,sans-serif" font-weight="800" font-size="12" fill="#DCD3FF">+' + more + " more</text>" : "") +
+      "</svg>";
+  }
+
   // ready-made avatars for the profile picker
   const PRESETS = [
     { look: { skin: 4, hair: "puffs", hairColor: 0, hoodie: 0 }, kind: "Girls" }, { look: { skin: 2, hair: "afro", hairColor: 1, hoodie: 1 }, kind: "Girls" },
@@ -234,7 +266,7 @@
   window.FuniArt = {
     PRESETS,
     SKIN, HAIR_COLORS, HOODIES, HAIR_STYLES, FEELINGS, BG,
-    parseLook, defaultLook, avatarSVG, feelingSVG, studyScene, friendsScene, dreamyScene,
+    parseLook, defaultLook, avatarSVG, feelingSVG, studyScene, friendsScene, dreamyScene, nightScene,
     setGuy: (v) => { guy = !!v; }, isGuy: () => guy
   };
 })();
