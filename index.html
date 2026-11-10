@@ -488,6 +488,10 @@
         </div>
       </div>
     </div>
+    <div class="card stack" id="sesHistoryCard">
+      <div class="hf-row"><h2 class="grow" style="margin:0">My study history</h2><span class="pill lav" id="sesHistTotal"></span></div>
+      <div id="sesHistory"></div>
+    </div>
   </section>
 
   <!-- ---------- STUDY PLAN (timetable) ---------- -->
@@ -589,6 +593,10 @@
     <div class="two">
       <button type="button" class="btn primary" id="addExamBtn">Add a test or exam</button>
       <button type="button" class="btn soft-btn" id="shareExamsBtn">Share with partners</button>
+    </div>
+    <div class="seg" role="tablist" id="examSeg" aria-label="Show">
+      <button type="button" role="tab" data-eseg="soon" aria-selected="true">Coming up</button>
+      <button type="button" role="tab" data-eseg="done" aria-selected="false">Written ✓</button>
     </div>
     <div id="examList"></div>
   </section>
@@ -1006,8 +1014,10 @@
   <select id="fKind"><option>Exam</option><option>Test</option><option>Assignment</option><option>Quiz</option></select>
   <div class="two">
     <div><label for="fDate">Date</label><input id="fDate" type="date"></div>
-    <div><label for="fTime">Time</label><input id="fTime" type="time" value="09:00"></div>
+    <div><label for="fTime">Starts</label><input id="fTime" type="time" value="09:00"></div>
   </div>
+  <label for="fEnd">Ends (so Funi knows when you're done writing)</label>
+  <input id="fEnd" type="time" value="12:00">
   <label for="fVenue">Venue (optional)</label>
   <input id="fVenue" maxlength="80" placeholder="e.g. Great Hall">
   <p class="form-error" id="examError" hidden></p>

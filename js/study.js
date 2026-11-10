@@ -17,44 +17,70 @@
   /* =====================================================================
      TESTS & EXAMS
      ===================================================================== */
+  // a test counts as written once its end time has passed (no end time: once the day is over)
+  const hmNow = () => { const d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+  const written = (x) => { const today = F.todayISO(); return x.due_date < today || (x.due_date === today && !!x.end_time && hmNow() >= String(x.end_time).slice(0, 5)); };
+  F.isWritten = written;
   F.upcoming = () => {
     const today = F.todayISO();
-    return S.items.filter((x) => x.due_date >= today).sort((a, b) =>
+    return S.items.filter((x) => x.due_date >= today && !written(x)).sort((a, b) =>
       (a.due_date + (a.start_time || "")).localeCompare(b.due_date + (b.start_time || "")));
   };
   F.nextExamFor = (code) => F.upcoming().find((x) => sameCode(x.module, code));
   const chipClass = (n) => (n <= 7 ? "soon" : n <= 21 ? "mid" : "far");
 
   async function loadItems() {
-    S.items = F.read(key("items"), []);
+    S.items = F.read(key("items"), []); S.pastItems = F.read(key("pastItems"), []);
     const { data, error } = await F.sb.from("assessments").select("*").gte("due_date", F.todayISO()).order("due_date");
     if (error) { F.status("homeStatus", "Showing your saved copy. Couldn't reach Funi's server."); return; }
     F.status("homeStatus", "");
     S.items = data || []; F.store(key("items"), S.items);
+    // tests already written (the last year), for the Written list
+    const yearAgo = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+    const past = await F.sb.from("assessments").select("*").gte("due_date", yearAgo).lt("due_date", F.todayISO()).order("due_date", { ascending: false });
+    if (!past.error) { S.pastItems = past.data || []; F.store(key("pastItems"), S.pastItems); }
   }
+  S.pastItems = [];
+  const timeRange = (x) => (x.start_time ? F.niceTime(x.start_time) + (x.end_time ? "–" + F.niceTime(x.end_time) : "") : "");
   F.examRow = (x, withDelete) => {
     const d = F.daysLeft(x.due_date);
     return '<div class="item"><div class="txt"><b>' + esc(x.module) + " · " + esc(x.kind) + "</b><span>" +
-      F.niceDate(x.due_date) + (x.start_time ? " · " + F.niceTime(x.start_time) : "") + (x.venue ? " · " + esc(x.venue) : "") +
-      '</span></div><span class="chip-d ' + chipClass(d) + '">' + (d === 0 ? "Today" : d + " d") + "</span>" +
+      F.niceDate(x.due_date) + (x.start_time ? " · " + timeRange(x) : "") + (x.venue ? " · " + esc(x.venue) : "") +
+      '</span></div>' + (written(x) ? '<span class="chip-d done">✓ Written</span>' : '<span class="chip-d ' + chipClass(d) + '">' + (d === 0 ? "Today" : d + " d") + "</span>") +
       (withDelete ? '<button class="x-btn" data-del-exam="' + esc(x.id) + '" aria-label="Delete ' + esc(x.module) + " " + esc(x.kind) + '">×</button>' : "") + "</div>";
   };
+  let examSeg = "soon";
   function renderExams() {
+    const done = S.items.filter(written).concat(S.pastItems.filter((x) => !S.items.some((i) => i.id === x.id))).sort((a, b) => (b.due_date + (b.start_time || "")).localeCompare(a.due_date + (a.start_time || "")));
+    document.querySelectorAll("#examSeg [data-eseg]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.eseg === examSeg)));
+    const tab = document.querySelector('#examSeg [data-eseg="done"]'); if (tab) tab.textContent = "Written ✓" + (done.length ? " (" + done.length + ")" : "");
+    if (examSeg === "done") {
+      if (!done.length) { $("examList").innerHTML = '<div class="empty"><b>Nothing written yet</b><span>When a test or exam ends, it moves here so you can see everything you\'ve written.</span></div>'; return; }
+      let html = "", month = "";
+      done.forEach((x) => { const m = new Date(x.due_date + "T12:00").toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        if (m !== month) { html += (month ? "</div>" : "") + '<span class="label">' + esc(m) + '</span><div class="list">'; month = m; }
+        html += F.examRow(x, true); });
+      $("examList").innerHTML = html + "</div>"; return;
+    }
     const list = F.upcoming();
     $("examList").innerHTML = list.length ? '<div class="list">' + list.map((x) => F.examRow(x, true)).join("") + "</div>"
-      : '<div class="empty"><b>No tests or exams yet</b><span>Add one and Funi starts counting down.</span></div>';
+      : '<div class="empty"><b>No tests or exams coming up</b><span>Add one and Funi starts counting down.</span></div>';
   }
+  $("examSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-eseg]"); if (!b) return; examSeg = b.dataset.eseg; renderExams(); });
+  // move a test to Written the moment it ends, while Funi is open
+  setInterval(() => { if (S.view === "exams") renderExams(); }, 60000);
   $("examList").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-del-exam]"); if (!b) return;
-    const x = S.items.find((i) => i.id === b.dataset.delExam);
+    const x = S.items.concat(S.pastItems).find((i) => i.id === b.dataset.delExam);
     if (!(await F.confirm("Delete this " + (x ? x.kind.toLowerCase() : "test") + "?", x ? x.module + " on " + F.niceDate(x.due_date) : "", "Delete"))) return;
     const { error } = await F.sb.from("assessments").delete().eq("id", b.dataset.delExam);
     if (error) return F.toast("Couldn't delete: " + error.message);
     S.items = S.items.filter((i) => i.id !== b.dataset.delExam); F.store(key("items"), S.items);
+    S.pastItems = S.pastItems.filter((i) => i.id !== b.dataset.delExam); F.store(key("pastItems"), S.pastItems);
     renderExams(); F.emit("data");
   });
   F.openExamSheet = () => {
-    $("examForm").reset(); $("fTime").value = "09:00"; $("fDate").min = F.todayISO();
+    $("examForm").reset(); $("fTime").value = "09:00"; $("fEnd").value = "12:00"; $("fDate").min = F.todayISO();
     $("moduleCodes").innerHTML = S.modules.map((m) => '<option value="' + esc(m.code) + '">').join("");
     F.showError("examError", ""); $("examSheet").showModal();
   };
@@ -64,8 +90,11 @@
     const row = { module: $("fModule").value.trim().toUpperCase(), kind: $("fKind").value, due_date: $("fDate").value,
       start_time: $("fTime").value || null, venue: $("fVenue").value.trim() || null };
     if (!row.module || !row.due_date) return F.showError("examError", "Add the module and the date.");
+    const end = $("fEnd").value || null;
+    if (end && row.start_time && end <= row.start_time) return F.showError("examError", "The end time must be after the start time.");
     $("examSave").disabled = true;
-    const { data, error } = await F.sb.from("assessments").insert(row).select().single();
+    let { data, error } = await F.sb.from("assessments").insert(end ? Object.assign({ end_time: end }, row) : row).select().single();
+    if (error && /end_time/.test(error.message)) ({ data, error } = await F.sb.from("assessments").insert(row).select().single()); // before funi-v17-setup.sql
     $("examSave").disabled = false;
     if (error) return F.showError("examError", "Couldn't save: " + error.message);
     S.items.push(data); F.store(key("items"), S.items);
@@ -506,7 +535,14 @@
   /* =====================================================================
      STUDY SESSION (Study tab) — focus time is tracked for the dashboard
      ===================================================================== */
-  let sesFeeling = "Happy", tickTimer = null, lastSync = 0;
+  let sesFeeling = "Happy", tickTimer = null, lastSync = 0, noV17 = false;
+  async function sesUpdate(id, patch) {
+    const p = Object.assign({}, patch);
+    if (noV17) { delete p.paused_left; delete p.synced_at; }
+    let { error } = await F.sb.from("study_sessions").update(p).eq("id", id);
+    if (error && /paused_left|synced_at|schema cache/i.test(error.message)) { noV17 = true; delete p.paused_left; delete p.synced_at; ({ error } = await F.sb.from("study_sessions").update(p).eq("id", id)); }
+    return { error };
+  }
   const timerKey = () => key("timer");
   F.timerState = () => F.read(timerKey(), null);
   F.fillModuleSelects = () => {
@@ -531,6 +567,7 @@
       const row = { user_id: F.me.id, module_code: o.module, feeling: o.feeling, activity: o.activity, share_with_partners: o.share, planned_minutes: o.focusMin };
       const endIso = new Date(o.endAt || Date.now() + o.focusMin * 60000).toISOString();
       const extra = { break_minutes: o.breakMin, phase: "focus", phase_ends_at: endIso };
+      if (!noV17) { extra.synced_at = new Date().toISOString(); extra.focus_seconds = 0; }
       if (o.roomId) extra.room_id = o.roomId;
       let { data, error } = await F.sb.from("study_sessions").insert(Object.assign(extra, row)).select().single();
       if (error && /column/i.test(error.message)) ({ data, error } = await F.sb.from("study_sessions").insert(row).select().single());
@@ -582,13 +619,15 @@
     lastSync = Date.now();
     const sec = Math.round(t.focusSec);
     const row = S.sessions.find((s) => s.id === t.sessionId); if (row) row.focus_seconds = sec;
-    await F.sb.from("study_sessions").update({ focus_seconds: sec }).eq("id", t.sessionId);
+    await sesUpdate(t.sessionId, { focus_seconds: sec, synced_at: new Date().toISOString() });
   }
   // tell the server when this round ends, so it can buzz the phone even if Funi is closed
   function syncPhase(t) {
     if (!t || !t.sessionId || !F.sb) return;
     const ends = t.phase === "focus" && t.pausedLeft == null ? new Date(t.endAt).toISOString() : null;
-    F.sb.from("study_sessions").update({ phase: t.phase === "focus" ? "focus" : "done", phase_ends_at: ends }).eq("id", t.sessionId).then(() => {}, () => {});
+    // your other devices follow pause / resume from these fields
+    sesUpdate(t.sessionId, { phase: t.phase === "focus" ? "focus" : "done", phase_ends_at: ends, paused_left: t.pausedLeft != null ? Math.round(t.pausedLeft) : null,
+      focus_seconds: Math.round(t.focusSec || 0), synced_at: new Date().toISOString() }).then(() => {}, () => {});
   }
   F.syncPhase = syncPhase;
 
@@ -621,10 +660,10 @@
     if (t.sessionId && F.sb) {
       const sec = Math.round(t.focusSec);
       const row = S.sessions.find((s) => s.id === t.sessionId); if (row) row.focus_seconds = sec;
-      let { error } = await F.sb.from("study_sessions").update({ is_active: false, ended_at: new Date().toISOString(), focus_seconds: sec, phase: "done", phase_ends_at: null }).eq("id", t.sessionId);
+      let { error } = await sesUpdate(t.sessionId, { is_active: false, ended_at: new Date().toISOString(), focus_seconds: sec, phase: "done", phase_ends_at: null, paused_left: null });
       if (error && /column/i.test(error.message)) await F.sb.from("study_sessions").update({ is_active: false, ended_at: new Date().toISOString(), focus_seconds: sec }).eq("id", t.sessionId);
     }
-    showSession(); F.emit("data");
+    showSession(); F.emit("data"); loadHistory();
   }
   function drawDone(t) {
     const p = S.profile || { id: F.me && F.me.id };
@@ -712,6 +751,82 @@
     if (t.sessionId && F.sb) await F.sb.from("study_sessions").update({ feeling: f }).eq("id", t.sessionId);
     F.go("study");
   });
+  /* ---------- one session on all your devices ---------- */
+  function adopt(r) {
+    const now = Date.now(), focusMin = r.planned_minutes || 25, paused = !r.phase_ends_at;
+    let focusSec = (+r.focus_seconds || 0) + (!paused && r.synced_at ? Math.max(0, (now - new Date(r.synced_at).getTime()) / 1000) : 0);
+    if (!r.synced_at && !paused) focusSec = Math.max(focusSec, focusMin * 60 - Math.max(0, (new Date(r.phase_ends_at).getTime() - now) / 1000));
+    focusSec = Math.min(focusSec, focusMin * 60);
+    const old = F.timerState(), same = old && old.module === r.module_code && !live(old);
+    F.store(timerKey(), { sessionId: r.id, module: r.module_code, activity: r.activity || "Practice questions", feeling: r.feeling || "Happy", share: r.share_with_partners !== false,
+      focusMin, breakMin: r.break_minutes || 5, phase: "focus", endAt: paused ? now + (r.paused_left || 0) * 1000 : new Date(r.phase_ends_at).getTime(),
+      pausedLeft: paused ? r.paused_left : null, rounds: same ? old.rounds || 0 : 0, totalSec: same ? old.totalSec || 0 : 0,
+      startedAt: new Date(r.started_at).getTime(), lastTick: now, focusSec, roomId: r.room_id || null, roomRound: 0 });
+  }
+  function followSession(r) {
+    if (!r || !F.me || r.user_id !== F.me.id) return;
+    const t = F.timerState();
+    if (r.is_active) {
+      if (!r.phase_ends_at && r.paused_left == null) return; // paused on a device that hasn't updated yet: nothing to follow
+      if (live(t) && t.sessionId === r.id) {
+        // the same session: copy pause / resume from the other device
+        const srvPaused = !r.phase_ends_at;
+        if (srvPaused && t.pausedLeft == null) { tick(); const t2 = F.timerState(); if (!live(t2)) return; t2.pausedLeft = r.paused_left; F.store(timerKey(), t2); tick(); }
+        else if (!srvPaused && (t.pausedLeft != null || Math.abs(new Date(r.phase_ends_at).getTime() - t.endAt) > 3000)) { t.endAt = new Date(r.phase_ends_at).getTime(); t.pausedLeft = null; t.lastTick = Date.now(); F.store(timerKey(), t); tick(); }
+        return;
+      }
+      if (t && t.sessionId === r.id) return; // already finished here
+      if (live(t) && t.startedAt && new Date(r.started_at).getTime() < t.startedAt - 5000) return; // the one here is newer
+      adopt(r); showSession(); F.emit("data");
+      if (S.view !== "study") F.toast("Your study session is running here too.", { onClick: () => F.go("study") });
+      return;
+    }
+    // ended on another device
+    if (live(t) && t.sessionId === r.id) {
+      tick(); const t2 = F.timerState(); if (!live(t2) || t2.sessionId !== r.id) return;
+      clearInterval(tickTimer); t2.focusSec = Math.max(t2.focusSec || 0, +r.focus_seconds || 0);
+      complete(t2, "ended"); F.toast("Session ended on your other device.");
+    }
+  }
+  F.on("rt:session", (r) => { if (r && F.me && r.user_id === F.me.id) { followSession(r); clearTimeout(histT); histT = setTimeout(loadHistory, 1500); } });
+  async function catchUpSession() {
+    if (!F.sb || !F.me) return;
+    const since = new Date(Date.now() - 12 * 3600e3).toISOString();
+    const { data } = await F.sb.from("study_sessions").select("*").eq("user_id", F.me.id).eq("is_active", true).gte("started_at", since).order("started_at", { ascending: false }).limit(1);
+    const act = data && data[0], t = F.timerState();
+    if (live(t) && t.sessionId && (!act || act.id !== t.sessionId)) {
+      const { data: mine } = await F.sb.from("study_sessions").select("*").eq("id", t.sessionId).maybeSingle();
+      if (mine && !mine.is_active) followSession(mine);
+    }
+    if (act) followSession(act);
+  }
+
+  /* ---------- study history ---------- */
+  let hist = [], histT = null;
+  const minsTxt = (sec) => { const m = Math.max(1, Math.round(sec / 60)); return m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "") : m + " min"; };
+  async function loadHistory() {
+    if (!F.sb || !F.me) return;
+    const from = new Date(Date.now() - 30 * 864e5).toISOString();
+    const { data, error } = await F.sb.from("study_sessions").select("id,started_at,ended_at,focus_seconds,module_code,activity,is_active").eq("user_id", F.me.id).gte("started_at", from).order("started_at", { ascending: false }).limit(300);
+    if (error) return;
+    hist = (data || []).filter((r) => r.started_at).sort((a, b) => b.started_at.localeCompare(a.started_at)); drawHistory();
+  }
+  F.loadStudyHistory = loadHistory;
+  function drawHistory() {
+    const box = $("sesHistory"); if (!box) return;
+    const rows = hist.filter((r) => r.is_active || (+r.focus_seconds || 0) >= 60);
+    const week = rows.filter((r) => Date.now() - new Date(r.started_at).getTime() < 7 * 864e5).reduce((a, r) => a + (+r.focus_seconds || 0), 0);
+    $("sesHistTotal").textContent = week >= 60 ? minsTxt(week) + " this week" : ""; $("sesHistTotal").hidden = week < 60;
+    if (!rows.length) { box.innerHTML = '<p class="hint" style="margin:0">Every study round you finish shows up here, on all your devices.</p>'; return; }
+    const dayKey = (d) => d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(), today = dayKey(new Date()), yest = dayKey(new Date(Date.now() - 864e5));
+    const groups = [];
+    rows.forEach((r) => { const d = new Date(r.started_at), k = dayKey(d); let g = groups[groups.length - 1]; if (!g || g.k !== k) groups.push(g = { k, d, rows: [], sec: 0 }); g.rows.push(r); g.sec += +r.focus_seconds || 0; });
+    box.innerHTML = groups.slice(0, 14).map((g) => '<span class="label">' + (g.k === today ? "Today" : g.k === yest ? "Yesterday" : esc(g.d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }))) + (g.sec >= 60 ? " · " + minsTxt(g.sec) : "") + '</span><div class="list">' +
+      g.rows.map((r) => { const d = new Date(r.started_at);
+        return '<div class="item"><span class="when">' + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + '</span><div class="txt"><b>' + esc(r.module_code) + "</b><span>" + esc(r.activity || "Study") + "</span></div>" +
+          (r.is_active ? '<span class="pill lav">Now</span>' : '<span class="mins">' + minsTxt(+r.focus_seconds || 0) + "</span>") + "</div>"; }).join("") + "</div>").join("");
+  }
+
   async function loadMySessions() {
     const from = new Date(); from.setHours(0, 0, 0, 0); from.setDate(from.getDate() - ((from.getDay() + 6) % 7) - 7); // Monday last week
     const { data, error } = await F.sb.from("study_sessions").select("id,started_at,focus_seconds,module_code").eq("user_id", F.me.id).gte("started_at", from.toISOString());
@@ -931,7 +1046,7 @@
   F.on("view:marks", fillMarks);
   F.on("view:plan", renderPlan);
   F.on("view:reminders", () => { F.fillModuleSelects(); renderTasks(); });
-  F.on("view:study", () => { F.fillModuleSelects(); drawSesFeelings(); showSession(); });
+  F.on("view:study", () => { F.fillModuleSelects(); drawSesFeelings(); showSession(); drawHistory(); loadHistory(); });
 
   F.loadStudy = async () => {
     await Promise.all([loadItems(), loadModules(), loadTasks(), loadMySessions()]);
@@ -939,6 +1054,7 @@
     F.fillModuleSelects(); scheduleReminders();
     F.emit("data");
     syncMatchModules();
+    await catchUpSession(); // a session started (or ended) on your other device
     if (F.timerState()) {
       showSession(); // catch up on time that passed while Funi was closed
       let t = F.timerState();

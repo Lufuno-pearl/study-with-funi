@@ -360,7 +360,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 30px; marg
 .item span { font-size: 13px; color: var(--muted); }
 .x-btn { border: 0; background: none; color: var(--muted); width: 36px; height: 36px; border-radius: 18px; font-size: 22px; cursor: pointer; flex-shrink: 0; }
 .chip-d { font-family: var(--display); font-weight: 600; font-size: 14px; padding: 6px 10px; border-radius: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.soon { background: var(--peach); color: var(--peach-ink); } .mid { background: var(--accent-soft); color: var(--accent-soft-ink); } .far { background: var(--mint); color: var(--mint-ink); }
+.soon { background: var(--peach); color: var(--peach-ink); } .mid { background: var(--accent-soft); color: var(--accent-soft-ink); } .far { background: var(--mint); color: var(--mint-ink); } .chip-d.done { background: var(--mint); color: var(--mint-ink); }
 
 /* ---------- day strips & timelines ---------- */
 .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
@@ -1444,3 +1444,9 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
 .nt-shoot { animation: ntShoot 9s linear infinite; }
 @keyframes ntShoot { 0%, 88% { opacity: 0; transform: translate(0, 0); } 90% { opacity: .9; } 96% { opacity: 0; transform: translate(70px, 25px); } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .nt-star, .nt-steam, .nt-glow, .nt-shoot { animation: none; } }
+
+/* ---------- Study history ---------- */
+#sesHistory .label { display: block; margin: 12px 0 6px; }
+#sesHistory .label:first-child { margin-top: 0; }
+#sesHistory .item .when { font-family: var(--display); font-weight: 600; font-size: 14px; color: var(--muted); min-width: 52px; font-variant-numeric: tabular-nums; }
+#sesHistory .item .mins { font-weight: 800; font-size: 13px; white-space: nowrap; }
