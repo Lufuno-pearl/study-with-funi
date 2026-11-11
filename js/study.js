@@ -569,7 +569,9 @@
       const extra = { break_minutes: o.breakMin, phase: "focus", phase_ends_at: endIso };
       if (!noV17) { extra.synced_at = new Date().toISOString(); extra.focus_seconds = 0; }
       if (o.roomId) extra.room_id = o.roomId;
-      let { data, error } = await F.sb.from("study_sessions").insert(Object.assign(extra, row)).select().single();
+      let { data, error } = await F.sb.from("study_sessions").insert(Object.assign({}, extra, row)).select().single();
+      // before funi-v17-setup.sql: drop only the new fields, keep the end time so your other devices can follow
+      if (error && /synced_at|paused_left/i.test(error.message)) { noV17 = true; delete extra.synced_at; delete extra.focus_seconds; ({ data, error } = await F.sb.from("study_sessions").insert(Object.assign({}, extra, row)).select().single()); }
       if (error && /column/i.test(error.message)) ({ data, error } = await F.sb.from("study_sessions").insert(row).select().single());
       if (error) F.toast("Your timer started, but partners couldn't be told: " + error.message, { long: true });
       if (data) { sessionId = data.id; S.sessions.push(data); }
@@ -767,7 +769,11 @@
     if (!r || !F.me || r.user_id !== F.me.id) return;
     const t = F.timerState();
     if (r.is_active) {
-      if (!r.phase_ends_at && r.paused_left == null) return; // paused on a device that hasn't updated yet: nothing to follow
+      if (!r.phase_ends_at && r.paused_left == null) {
+        // no end time saved (older sessions): work it out from when it started and how long it was meant to be
+        if (!r.started_at || !(r.planned_minutes > 0)) return;
+        r = Object.assign({}, r, { phase_ends_at: new Date(new Date(r.started_at).getTime() + r.planned_minutes * 60000).toISOString() });
+      }
       if (live(t) && t.sessionId === r.id) {
         // the same session: copy pause / resume from the other device
         const srvPaused = !r.phase_ends_at;
