@@ -806,26 +806,56 @@
   const minsTxt = (sec) => { const m = Math.max(1, Math.round(sec / 60)); return m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "") : m + " min"; };
   async function loadHistory() {
     if (!F.sb || !F.me) return;
-    const from = new Date(Date.now() - 30 * 864e5).toISOString();
+    const from = new Date(Date.now() - 36 * 864e5).toISOString();
     const { data, error } = await F.sb.from("study_sessions").select("id,started_at,ended_at,focus_seconds,module_code,activity,is_active").eq("user_id", F.me.id).gte("started_at", from).order("started_at", { ascending: false }).limit(300);
     if (error) return;
     hist = (data || []).filter((r) => r.started_at).sort((a, b) => b.started_at.localeCompare(a.started_at)); drawHistory();
   }
   F.loadStudyHistory = loadHistory;
+  // compact: pick a range, see one bar per day, tap a day to see its rounds
+  let hRange = "week", hDay = null, hPicked = false;
+  const dKey = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  function rangeDays() {
+    const today = new Date(); today.setHours(12, 0, 0, 0);
+    const mon = new Date(today); mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    let start, n;
+    if (hRange === "week") { start = mon; n = 7; }
+    else if (hRange === "last") { start = new Date(mon); start.setDate(mon.getDate() - 7); n = 7; }
+    else if (hRange === "two") { start = new Date(mon); start.setDate(mon.getDate() - 7); n = 14; }
+    else { start = new Date(today); start.setDate(today.getDate() - 29); n = 30; }
+    return Array.from({ length: n }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+  }
   function drawHistory() {
     const box = $("sesHistory"); if (!box) return;
     const rows = hist.filter((r) => r.is_active || (+r.focus_seconds || 0) >= 60);
-    const week = rows.filter((r) => Date.now() - new Date(r.started_at).getTime() < 7 * 864e5).reduce((a, r) => a + (+r.focus_seconds || 0), 0);
-    $("sesHistTotal").textContent = week >= 60 ? minsTxt(week) + " this week" : ""; $("sesHistTotal").hidden = week < 60;
-    if (!rows.length) { box.innerHTML = '<p class="hint" style="margin:0">Every study round you finish shows up here, on all your devices.</p>'; return; }
-    const dayKey = (d) => d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(), today = dayKey(new Date()), yest = dayKey(new Date(Date.now() - 864e5));
-    const groups = [];
-    rows.forEach((r) => { const d = new Date(r.started_at), k = dayKey(d); let g = groups[groups.length - 1]; if (!g || g.k !== k) groups.push(g = { k, d, rows: [], sec: 0 }); g.rows.push(r); g.sec += +r.focus_seconds || 0; });
-    box.innerHTML = groups.slice(0, 14).map((g) => '<span class="label">' + (g.k === today ? "Today" : g.k === yest ? "Yesterday" : esc(g.d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }))) + (g.sec >= 60 ? " · " + minsTxt(g.sec) : "") + '</span><div class="list">' +
-      g.rows.map((r) => { const d = new Date(r.started_at);
+    const byDay = {}; rows.forEach((r) => { const k = dKey(new Date(r.started_at)); (byDay[k] = byDay[k] || []).push(r); });
+    const secOf = (k) => (byDay[k] || []).reduce((a, r) => a + (+r.focus_seconds || 0), 0);
+    const days = rangeDays(), todayK = dKey(new Date()), keys = days.map(dKey);
+    if (!hPicked || !hDay || !keys.includes(hDay)) { const withStudy = keys.filter((k) => k <= todayK && byDay[k]); hDay = keys.includes(todayK) && byDay[todayK] ? todayK : withStudy.length ? withStudy[withStudy.length - 1] : keys.includes(todayK) ? todayK : keys[keys.length - 1]; }
+    const total = keys.reduce((a, k) => a + secOf(k), 0), active = keys.filter((k) => secOf(k) >= 60).length, max = Math.max(3600, ...keys.map(secOf));
+    $("sesHistTotal").hidden = true;
+    // per module, for the whole range
+    const mods = {}; keys.forEach((k) => (byDay[k] || []).forEach((r) => { mods[r.module_code] = (mods[r.module_code] || 0) + (+r.focus_seconds || 0); }));
+    const modList = Object.entries(mods).filter((m) => m[1] >= 60).sort((a, b) => b[1] - a[1]);
+    const wide = days.length > 7, sel = byDay[hDay] || [], selD = days[keys.indexOf(hDay)];
+    box.innerHTML =
+      '<div class="seg hist-seg" role="tablist" aria-label="Show">' + [["week", "This week"], ["last", "Last week"], ["two", "2 weeks"], ["month", "Month"]].map((x) => '<button type="button" role="tab" data-hr="' + x[0] + '" aria-selected="' + (hRange === x[0]) + '">' + x[1] + "</button>").join("") + "</div>" +
+      '<p class="hist-sum">' + (total >= 60 ? "<b>" + minsTxt(total) + "</b> studied · " + active + " day" + (active === 1 ? "" : "s") : "No study in this time yet") + "</p>" +
+      '<div class="hist-bars' + (wide ? " wide" : "") + '" style="grid-template-columns:repeat(' + days.length + ',minmax(0,1fr))">' + days.map((d, i) => { const k = keys[i], sec = secOf(k), fut = k > todayK;
+        return '<button type="button" class="hb' + (k === hDay ? " on" : "") + (k === todayK ? " today" : "") + '" data-hd="' + k + '"' + (fut ? " disabled" : "") + ' aria-pressed="' + (k === hDay) + '" aria-label="' + esc(d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })) + ": " + (sec >= 60 ? minsTxt(sec) : "no study") + '">' +
+          '<span class="hb-track"><i style="height:' + (sec >= 60 ? Math.max(8, Math.round(sec / max * 100)) : 0) + '%"></i></span>' +
+          '<span class="hb-d">' + (wide ? (d.getDate() === 1 || i === 0 || d.getDay() === 1 ? d.getDate() : "") : "MTWTFSS"[(d.getDay() + 6) % 7]) + "</span></button>"; }).join("") + "</div>" +
+      (modList.length ? '<div class="hist-mods">' + modList.slice(0, 5).map((m) => '<span class="pill ' + (F.colorOf ? F.colorOf(m[0]).replace("c-", "") : "lav") + '">' + esc(m[0]) + " · " + minsTxt(m[1]) + "</span>").join("") + "</div>" : "") +
+      '<div class="hist-day"><b>' + (hDay === todayK ? "Today" : esc(selD.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }))) + "</b>" + (sel.length ? "<span>" + minsTxt(secOf(hDay)) + "</span>" : "") + "</div>" +
+      (sel.length ? '<div class="list">' + sel.map((r) => { const d = new Date(r.started_at);
         return '<div class="item"><span class="when">' + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + '</span><div class="txt"><b>' + esc(r.module_code) + "</b><span>" + esc(r.activity || "Study") + "</span></div>" +
-          (r.is_active ? '<span class="pill lav">Now</span>' : '<span class="mins">' + minsTxt(+r.focus_seconds || 0) + "</span>") + "</div>"; }).join("") + "</div>").join("");
+          (r.is_active ? '<span class="pill lav">Now</span>' : '<span class="mins">' + minsTxt(+r.focus_seconds || 0) + "</span>") + "</div>"; }).join("") + "</div>"
+        : '<p class="hint" style="margin:0">No study rounds on this day. Tap another day.</p>');
   }
+  $("sesHistory").addEventListener("click", (e) => {
+    const r = e.target.closest("[data-hr]"); if (r) { hRange = r.dataset.hr; hDay = null; hPicked = false; drawHistory(); return; }
+    const d = e.target.closest("[data-hd]"); if (d && !d.disabled) { hDay = d.dataset.hd; hPicked = true; drawHistory(); }
+  });
 
   async function loadMySessions() {
     const from = new Date(); from.setHours(0, 0, 0, 0); from.setDate(from.getDate() - ((from.getDay() + 6) % 7) - 7); // Monday last week
