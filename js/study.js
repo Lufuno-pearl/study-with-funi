@@ -535,7 +535,7 @@
   /* =====================================================================
      STUDY SESSION (Study tab) — focus time is tracked for the dashboard
      ===================================================================== */
-  let sesFeeling = "Happy", tickTimer = null, lastSync = 0, noV17 = false;
+  let sesFeeling = "Happy", tickTimer = null, lastSync = 0, noV17 = false, localAt = 0; // localAt: when you last paused/resumed here
   async function sesUpdate(id, patch) {
     const p = Object.assign({}, patch);
     if (noV17) { delete p.paused_left; delete p.synced_at; }
@@ -730,7 +730,8 @@
     tick();
     const t2 = F.timerState(); if (!live(t2)) return;
     if (t2.pausedLeft != null) { t2.endAt = Date.now() + t2.pausedLeft * 1000; t2.pausedLeft = null; t2.lastTick = Date.now(); }
-    else { t2.pausedLeft = Math.max(0, Math.round((t2.endAt - Date.now()) / 1000)); syncFocus(t2, true); }
+    else t2.pausedLeft = Math.max(0, Math.round((t2.endAt - Date.now()) / 1000));
+    localAt = Date.now(); lastSync = Date.now();
     F.store(timerKey(), t2); tick(); syncPhase(t2);
   };
   $("sesBig").onclick = () => {
@@ -769,17 +770,20 @@
     if (!r || !F.me || r.user_id !== F.me.id) return;
     const t = F.timerState();
     if (r.is_active) {
-      if (!r.phase_ends_at && r.paused_left == null) {
-        // no end time saved (older sessions): work it out from when it started and how long it was meant to be
-        if (!r.started_at || !(r.planned_minutes > 0)) return;
-        r = Object.assign({}, r, { phase_ends_at: new Date(new Date(r.started_at).getTime() + r.planned_minutes * 60000).toISOString() });
-      }
       if (live(t) && t.sessionId === r.id) {
+        // ignore the echo of what you just did on this device (it arrives a moment later)
+        if (Date.now() - localAt < 6000) return;
+        if (!r.phase_ends_at && r.paused_left == null) return; // can't tell from here: keep what this device shows
         // the same session: copy pause / resume from the other device
         const srvPaused = !r.phase_ends_at;
         if (srvPaused && t.pausedLeft == null) { tick(); const t2 = F.timerState(); if (!live(t2)) return; t2.pausedLeft = r.paused_left; F.store(timerKey(), t2); tick(); }
         else if (!srvPaused && (t.pausedLeft != null || Math.abs(new Date(r.phase_ends_at).getTime() - t.endAt) > 3000)) { t.endAt = new Date(r.phase_ends_at).getTime(); t.pausedLeft = null; t.lastTick = Date.now(); F.store(timerKey(), t); tick(); }
         return;
+      }
+      if (!r.phase_ends_at && r.paused_left == null) {
+        // no end time saved (older sessions): work it out from when it started and how long it was meant to be
+        if (!r.started_at || !(r.planned_minutes > 0)) return;
+        r = Object.assign({}, r, { phase_ends_at: new Date(new Date(r.started_at).getTime() + r.planned_minutes * 60000).toISOString() });
       }
       if (t && t.sessionId === r.id) return; // already finished here
       if (live(t) && t.startedAt && new Date(r.started_at).getTime() < t.startedAt - 5000) return; // the one here is newer
@@ -802,7 +806,7 @@
     const act = data && data[0], t = F.timerState();
     if (live(t) && t.sessionId && (!act || act.id !== t.sessionId)) {
       const { data: mine } = await F.sb.from("study_sessions").select("*").eq("id", t.sessionId).maybeSingle();
-      if (mine && !mine.is_active) followSession(mine);
+      if (mine && mine.is_active === false) followSession(mine);
     }
     if (act) followSession(act);
   }
