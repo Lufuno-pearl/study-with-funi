@@ -503,6 +503,7 @@
     F.me = data.user; F.showApp(); F.toast("New password saved. You're logged in.");
   });
   F.logout = async () => {
+    F.loggingOut = true; setTimeout(() => { F.loggingOut = false; }, 5000);
     F.stopLive();
     await F.unsubscribePush();
     if (F.sb) await F.sb.auth.signOut();
