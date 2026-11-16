@@ -1467,3 +1467,10 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
 .hist-mods { display: flex; flex-wrap: wrap; gap: 6px; }
 .hist-day { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 4px; }
 .hist-day span { font-weight: 800; font-size: 13px; color: var(--muted); }
+
+/* stickers sent one after another: side by side, like WhatsApp */
+.stk-row { display: flex; flex-wrap: wrap; gap: 4px 4px; align-self: flex-start; max-width: 100%; }
+.stk-row.me { align-self: flex-end; justify-content: flex-end; }
+.stk-row .bubble.sticker { max-width: none; align-self: auto; }
+.stk-row .bubble.sticker img.stk { width: 100px; height: 100px; }
+.stk-row .bubble.sticker:not(:last-child) time { visibility: hidden; }

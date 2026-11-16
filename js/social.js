@@ -380,12 +380,24 @@
   async function drawMsgs(newId) {
     await Promise.all(chatMsgs.filter((m) => m.file_path && m.file_type !== "funi/sticker" && !signed[m.file_path]).map((m) => signUrl(m.file_path)));
     if (!chatMsgs.length) { $("msgs").innerHTML = '<div class="empty"><b>Say hi to ' + esc(F.nameOf(profiles[S.chatWith])) + '</b><span>Send a photo of a question, a PDF, or ask for help.</span></div>'; return; }
-    let html = "", lastDay = "";
+    let html = "", lastDay = "", row = null; // row: stickers sent one after another sit side by side, like WhatsApp
+    const isStk = (m) => m.file_type === "funi/sticker" && m.file_path && !m.deleted_at && !m.reply_to;
+    const flush = () => { if (!row) return; html += row.items.length > 1 ? '<div class="stk-row' + (row.mine ? " me" : "") + '">' + row.items.join("") + "</div>" : row.items[0]; row = null; };
     chatMsgs.filter((m) => !hiddenForMe(m)).forEach((m) => {
       const d = new Date(m.created_at).toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" });
-      if (d !== lastDay) { html += '<span class="day-sep">' + (F.isoOf(new Date(m.created_at)) === F.todayISO() ? "Today" : d) + "</span>"; lastDay = d; }
+      if (d !== lastDay) { flush(); html += '<span class="day-sep">' + (F.isoOf(new Date(m.created_at)) === F.todayISO() ? "Today" : d) + "</span>"; lastDay = d; }
+      const at = new Date(m.created_at).getTime();
+      if (isStk(m)) {
+        // same person, within a minute of the last sticker: same row. Otherwise a new row.
+        if (row && (row.from !== m.sender_id || at - row.last > 60000)) flush();
+        if (!row) row = { from: m.sender_id, mine: m.sender_id === F.me.id, items: [], last: at };
+        row.items.push(bubbleHtml(m, m.id === newId)); row.last = at;
+        return;
+      }
+      flush();
       html += bubbleHtml(m, m.id === newId);
     });
+    flush();
     $("msgs").innerHTML = html;
     if (F.fillStickers) F.fillStickers($("msgs"));
     F.scrollTo("end");
