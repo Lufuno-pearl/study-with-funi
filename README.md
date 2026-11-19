@@ -1,77 +1,111 @@
 # Study with Funi
 
-A study app for university students: exam countdowns, marks you need per module, a study plan built around your classes, tasks you tick off, a shared focus timer, and study partners you can chat with (including photos and PDFs).
+**A free study app for university students. It plans your week with a model of how you forget, so you remember the most on test day.**
 
-Live: https://study-with-funi.vercel.app
+Live: **[study-with-funi.vercel.app](https://study-with-funi.vercel.app)** · Built by **Lufuno Pearl Moyo**, BSc Mathematics, Applied Mathematics and Computer Science at Wits.
 
-## Setting up the database (do this once)
-1. Open Supabase › **SQL Editor** › **New query**.
-2. Paste everything from **`funi-v2-setup.sql`** and press **Run**. You should see "Success. No rows returned".
-3. New query again: paste **`funi-v3-setup.sql`** and **Run**. This adds task priority and "notify me before", focus time, photo avatars (public `avatars` storage) and the every-minute push timer (pg_cron + pg_net).
-4. New query again: paste **`funi-v4-setup.sql`** and **Run**. This lets Funi buzz your phone when a study timer ends while the app is closed.
-5. New query again: paste **`funi-v5-setup.sql`** and **Run**. This adds files for each module (private `module-files` storage, 10 MB a file, 50 MB per person).
-6. New query again: paste **`funi-v6-setup.sql`** and **Run**. Accounts now need a verified email (one account per email), log in with username or email, and Funi is limited to 200 accounts (change the number in `funi_max_accounts()`).
-7. New query again: paste **`funi-v7-setup.sql`** and **Run**. This adds study rooms, leaderboard + streaks, the study garden, flashcards, quiz battles and voice-note notifications.
-8. New query again: paste **`funi-v8-setup.sql`** and **Run**. Cross night rooms then send "… is cross-nighting tonight 🌙".
-9. New query again: paste **`funi-v9-setup.sql`** and **Run**. This adds repeating reminders.
-10. New query again: paste **`funi-v10-setup.sql`** and **Run**. Partners can share their exam timetable and modules (never marks).
-11. New query again: paste **`funi-v11-setup.sql`** and **Run**. Chat messages can be replied to and deleted (for me / for everyone).
-12. New query again: paste **`funi-v12-setup.sql`** and **Run**. Adds My House (shared files, notes and exam calendar), Study FC, and call rooms (video, whiteboard, presenting files).
-14. New query again: paste **`funi-v13-setup.sql`** and **Run**. Adds stickers in chats (your own collection, saving stickers friends send, and bringing in WhatsApp stickers).
-15. New query again: paste **`funi-v14-setup.sql`** and **Run**. Adds the daily House Quiz (with the crown), weekly dares with fair turns, morning goals, the exam war room, past paper sprints with scanning, explain it back, the mistake bank, editing chat messages, and houses of up to 20 people.
-16. New query again: paste **`funi-v15-setup.sql`** and **Run**. Adds house rules (owner settings, agree before joining), quiz questions only from your modules, up to 10 questions each, ranking by average, dare warnings with automatic removal, and reminders (3 hours left on a dare, 30 minutes before the quiz).
-17. New query again: paste **`funi-v16-setup.sql`** and **Run**. Adds quiz countdown reminders (5 minutes before, 2 minutes before, and when the quiz opens) and the owner choice of all reminders or just one.
-18. New query again: paste **`funi-v17-setup.sql`** and **Run**. Adds end times for tests (so they move to "Written" when you finish) and keeps one study session in step across your phone and laptop.
-19. New query again: paste **`funi-v18-setup.sql`** and **Run**. Adds marks for tests ("What do I need?" for tests) and the private "Funi in numbers" page for the app owner.
-13. All of them are safe to run again any time. They keep existing data.
+<table>
+  <tr>
+    <td><img src="docs/screenshots/dashboard.png" width="180" alt="Dashboard with the next test countdown, study time and tasks"></td>
+    <td><img src="docs/screenshots/smart-timetable.png" width="180" alt="Smart study timetable with how ready you'll be on each test day"></td>
+    <td><img src="docs/screenshots/what-do-i-need.png" width="180" alt="Working out the mark you need in a test"></td>
+    <td><img src="docs/screenshots/cross-night.png" width="180" alt="A Cross night study room with friends at their laptops"></td>
+    <td><img src="docs/screenshots/chat.png" width="180" alt="Chat with a study partner, with a help request"></td>
+  </tr>
+</table>
 
-This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
+## Why I built it
 
-(`study-circle-setup.sql` and `study-circle-complete-setup.sql` are older versions. You don't need them any more.)
+In exam season I had six modules, four tests in one week and no clear idea what to study first. The planners I tried were just calendars: you still had to decide everything yourself. I wanted an app that knows your tests, your marks and your classes, and works out the plan for you. And it had to make studying less lonely. So I built Funi and shared it with other students.
+
+## What it does
+
+**Plan**
+- Countdowns for every test and exam, which move to a **Written ✓** list when you finish writing.
+- **What do I need?** The mark you need in a test or exam to reach the average you want.
+- A **smart study timetable** for the next 7 days, fitted around your classes (see the maths below).
+- Tasks and reminders that notify your phone, even when Funi is closed.
+
+**Study**
+- Focus sessions with a timer that **follows you between your phone and laptop**, plus a study history by day and module.
+- Files for each module (notes, past papers, photos, links) that **open offline**.
+- Handwritten notes that tidy your writing onto the lines, and flashcards with quiz battles.
+
+**Together**
+- Study partners, chat with voice notes, files and your own WhatsApp stickers.
+- Study rooms with a shared timer, **Cross night** for all-nighters, and video calls with a live whiteboard.
+- **My House**, a small study group: a nightly quiz with a crown 👑, weekly dares, an exam war room for sending "all the best" before exams, past paper sprints with a page scanner, and a shared mistake bank.
+
+## The maths: a smart study timetable
+
+Most planners hand out study time by turns. Funi treats your week as an **optimisation problem**, built on a **model of forgetting**.
+
+**1. Memory decays.** For each module, *R* is how much you remember (0 to 1) and *S* is how stable that memory is, in days:
+
+$$R(t) = R_0 \, e^{-t/S}$$
+
+**2. A study hour lifts the memory and makes it more stable.** It is more stable the more you had forgotten, which is the spacing effect. A second hour of the same module in a row counts for less, so the model prefers spreading a module out:
+
+$$R \leftarrow R + g\,(1 - R) \qquad S \leftarrow S + c\,(1 - R_{\text{before}})$$
+
+**3. The goal.** Choose a module (or a break) for every free hour $x$ in the next 7 days to maximise how much you remember on each test day. The weight $w_i$ grows with the mark you need in that test:
+
+$$\max_x \; \sum_i w_i \, R_i(t_{\text{test},i}) \; - \; \text{penalties}(x)$$
+
+The constraints come from real life: only free hours (not in class, not during a test), your daily limit, a break after 3 hours in a row, and nothing for a module after its test.
+
+**4. Solving it.** The model is simulated hour by hour over the week (168 steps). A **greedy** pass makes a first plan by giving each hour to the module losing the most memory, weighted by how close its test is. **Simulated annealing** then improves it with thousands of small changes: move one hour, or swap two. Better plans are always kept, and worse ones are sometimes kept early on, with probability $e^{-\Delta/T}$, so the search doesn't get stuck. The temperature $T$ cools each step. A seeded random generator keeps the plan the same all day, and it is only planned again when your tests, marks or settings change.
+
+On a sample week, taking turns (the old planner) planned 10 hours for modules whose test had already happened. The optimised plan breaks none of the rules, and it raises the predicted memory on test day from about 60% to about 80%.
+
+Code: [`js/smartplan.js`](js/smartplan.js) (the model and optimiser), connected to the app in [`js/study.js`](js/study.js).
 
 ## How it's built
-- Plain HTML, CSS and JavaScript. No build step. Vercel hosts it.
-- `index.html` – all screens. `styles.css` – the look, with 4 themes (Lavender, Blush, Midnight, Night).
-- `js/art.js` – the cartoon avatars, feeling faces and scenes (drawn as SVG).
-- `js/core.js` – helpers, themes, navigation, log in, notifications, live updates.
-- `js/files.js` – My files: notes, past papers, photos and links under each module.
-- `js/fun.js` – study rooms (shared timer + cheers), leaderboard + streaks, study garden.
-- `js/cards.js` – flashcard decks (share, flip to study) and quiz battles.
-- `js/dash.js` – the dashboard: stat tiles, study graph, calendar, reminders, exam bars.
-- `js/study.js` – tests, priorities, marks calculator, study plan, focus sessions, reminders.
-- `js/social.js` – profile, feelings, partners, invites, chat with files, notifications.
-- `js/boot.js` – starts the app.
-- `api/config.js` – gives the browser the public Supabase settings and the push key.
-- `api/push.js` – called every minute by Supabase; sends phone pop-ups for due reminders and new notifications.
-- `sw.js` – offline support and notifications. `manifest.json` – makes it installable.
 
-## Accounts (username + verified email)
-- Create account = username + email + password + confirm password. Supabase emails a confirmation link; one account per email.
-- Log in with your username **or** your email. 8 wrong passwords locks a username for 15 minutes.
-- Forgot password: Log in › Forgot your password? sends a reset link.
-- At most 200 accounts (verified ones, plus sign-ups from the last day still waiting to confirm).
-- Older accounts (made before emails) keep working and can add an email in Profile.
-
-### Emails are sent through Gmail (free, about 500 a day)
-Supabase › Authentication › Emails › SMTP Settings: host `smtp.gmail.com`, port `465`, username = the Gmail address, password = a Google **app password** (needs 2-Step Verification). Never paste the app password anywhere except Supabase.
-
-### Resetting a password by hand (still works)
-In Supabase › SQL Editor, replace `USERNAME` and `NEW_PASSWORD`, then Run:
-
-```sql
-update auth.users
-set encrypted_password = extensions.crypt('NEW_PASSWORD', extensions.gen_salt('bf'))
-where id = (select id from public.study_profiles where username = 'USERNAME');
+```mermaid
+flowchart LR
+  P["Phone or laptop<br/>installable web app (PWA)"] -- "pages, offline copy" --> SW["Service worker<br/>offline cache"]
+  P -- "data, logins, files, live updates" --> SB[("Supabase<br/>Postgres + Auth + Storage + Realtime")]
+  P -- "video calls (WebRTC)" --- P2["Your study partners"]
+  V["Vercel<br/>hosting + serverless API"] --> P
+  SB -- "pg_cron every minute" --> API["/api/push"]
+  API -- "Web Push" --> P
 ```
 
-## Settings that must stay on
-- Supabase › Authentication › Sign In / Providers › Email: **Confirm email: ON**, **Secure email change: OFF**
-- Supabase › Authentication › URL Configuration: Site URL `https://study-with-funi.vercel.app`, Redirect URLs `https://study-with-funi.vercel.app/**`
-- Vercel › Settings › Environment Variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-  - The service role key is secret. Paste it straight from Supabase › Project Settings › API keys into Vercel. Never share it anywhere else.
+| Part | What I used |
+|---|---|
+| Front end | Plain HTML, CSS and JavaScript (no framework), installable as a PWA |
+| Database and logins | Supabase: Postgres with row-level security, Auth, Storage, Realtime |
+| Server code | SQL functions in Postgres and Vercel serverless functions (`/api`) |
+| Scheduled jobs | `pg_cron` for reminders, quiz countdowns and house rules |
+| Notifications | Web Push (VAPID) from `/api/push` |
+| Calls | WebRTC with a TURN relay, plus a shared canvas whiteboard |
+| Hosting cost | R0: Vercel Hobby and Supabase free plans |
 
-## Notifications
-- While Funi is open, everything pops up instantly.
-- When Funi is closed, phone pop-ups come through Web Push: Supabase calls `/api/push` every minute, which sends due reminders ("30 min before" etc.) and new messages/invites. The push keys are made automatically and kept in the `funi_settings` table.
-- Voice notes in chat are up to 3 minutes (about 180 KB a minute) and are deleted automatically after 7 days by `/api/push`.
-- On iPhone, push only works from the home-screen app (Add to Home Screen), then Notifications › turn the switch on.
+## Problems I had to solve
+
+- **One study session on two devices.** A session started on your phone carries on, on your laptop, through Postgres Realtime. The app's own updates come back to it as an echo a moment later, which at first un-paused a timer you had just paused. Each device now ignores echoes of its own actions for a few seconds.
+- **Phones that wake up offline.** Phones often reopen Funi before the internet is ready, which used to log people out. Funi now retries the login and opens with the saved session. It only logs you out when the server says the login is truly invalid.
+- **Offline first.** The service worker caches the app, your data and your module files, so notes and past papers still open with no data.
+- **Privacy by design.** Every table has row-level security policies. Your marks are never shared with partners or your house, and the owner-only statistics come from a function that checks who is asking.
+- **Fair rules in a group.** House quiz rankings use the average per question, so you don't lose for playing less. Only people who played can come last. Who chooses the dare rotates fairly, and missed dares are handled by a scheduled job.
+- **Free-tier limits.** Images are shrunk on the phone before uploading, voice notes expire after 7 days, and storage limits are checked in the database.
+
+## Project layout
+
+```
+index.html, styles.css     all screens and themes
+js/smartplan.js            forgetting model + greedy + simulated annealing
+js/study.js                tests, marks, timetable, focus sessions, study history
+js/social.js, stickers.js  partners, chat, voice notes, stickers
+js/house.js, housefun.js   My House: files, quiz, dares, sprints, war room
+js/call.js, fun.js         video calls + whiteboard, study rooms, Cross night
+js/notes.js, files.js      handwritten notes, module files, offline copies
+api/                       Vercel functions: config, push notifications, TURN
+funi-v*-setup.sql          database changes, run in order (tables, policies, functions, jobs)
+sw.js, manifest.json       offline support and install
+```
+
+## Running your own copy
+
+See **[docs/SETUP.md](docs/SETUP.md)** for the database, accounts, email and notification setup.

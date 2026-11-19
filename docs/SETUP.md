@@ -1,0 +1,75 @@
+# Running your own copy of Funi
+
+Everything you need to set up the database, accounts, emails and notifications.
+
+## Setting up the database (do this once)
+1. Open Supabase › **SQL Editor** › **New query**.
+2. Paste everything from **`funi-v2-setup.sql`** and press **Run**. You should see "Success. No rows returned".
+3. New query again: paste **`funi-v3-setup.sql`** and **Run**. This adds task priority and "notify me before", focus time, photo avatars (public `avatars` storage) and the every-minute push timer (pg_cron + pg_net).
+4. New query again: paste **`funi-v4-setup.sql`** and **Run**. This lets Funi buzz your phone when a study timer ends while the app is closed.
+5. New query again: paste **`funi-v5-setup.sql`** and **Run**. This adds files for each module (private `module-files` storage, 10 MB a file, 50 MB per person).
+6. New query again: paste **`funi-v6-setup.sql`** and **Run**. Accounts now need a verified email (one account per email), log in with username or email, and Funi is limited to 200 accounts (change the number in `funi_max_accounts()`).
+7. New query again: paste **`funi-v7-setup.sql`** and **Run**. This adds study rooms, leaderboard + streaks, the study garden, flashcards, quiz battles and voice-note notifications.
+8. New query again: paste **`funi-v8-setup.sql`** and **Run**. Cross night rooms then send "… is cross-nighting tonight 🌙".
+9. New query again: paste **`funi-v9-setup.sql`** and **Run**. This adds repeating reminders.
+10. New query again: paste **`funi-v10-setup.sql`** and **Run**. Partners can share their exam timetable and modules (never marks).
+11. New query again: paste **`funi-v11-setup.sql`** and **Run**. Chat messages can be replied to and deleted (for me / for everyone).
+12. New query again: paste **`funi-v12-setup.sql`** and **Run**. Adds My House (shared files, notes and exam calendar), Study FC, and call rooms (video, whiteboard, presenting files).
+14. New query again: paste **`funi-v13-setup.sql`** and **Run**. Adds stickers in chats (your own collection, saving stickers friends send, and bringing in WhatsApp stickers).
+15. New query again: paste **`funi-v14-setup.sql`** and **Run**. Adds the daily House Quiz (with the crown), weekly dares with fair turns, morning goals, the exam war room, past paper sprints with scanning, explain it back, the mistake bank, editing chat messages, and houses of up to 20 people.
+16. New query again: paste **`funi-v15-setup.sql`** and **Run**. Adds house rules (owner settings, agree before joining), quiz questions only from your modules, up to 10 questions each, ranking by average, dare warnings with automatic removal, and reminders (3 hours left on a dare, 30 minutes before the quiz).
+17. New query again: paste **`funi-v16-setup.sql`** and **Run**. Adds quiz countdown reminders (5 minutes before, 2 minutes before, and when the quiz opens) and the owner choice of all reminders or just one.
+18. New query again: paste **`funi-v17-setup.sql`** and **Run**. Adds end times for tests (so they move to "Written" when you finish) and keeps one study session in step across your phone and laptop.
+19. New query again: paste **`funi-v18-setup.sql`** and **Run**. Adds marks for tests ("What do I need?" for tests) and the private "Funi in numbers" page for the app owner.
+13. All of them are safe to run again any time. They keep existing data.
+
+This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.
+
+(`study-circle-setup.sql` and `study-circle-complete-setup.sql` are older versions. You don't need them any more.)
+
+## How it's built
+- Plain HTML, CSS and JavaScript. No build step. Vercel hosts it.
+- `index.html` – all screens. `styles.css` – the look, with 4 themes (Lavender, Blush, Midnight, Night).
+- `js/art.js` – the cartoon avatars, feeling faces and scenes (drawn as SVG).
+- `js/core.js` – helpers, themes, navigation, log in, notifications, live updates.
+- `js/files.js` – My files: notes, past papers, photos and links under each module.
+- `js/fun.js` – study rooms (shared timer + cheers), leaderboard + streaks, study garden.
+- `js/cards.js` – flashcard decks (share, flip to study) and quiz battles.
+- `js/dash.js` – the dashboard: stat tiles, study graph, calendar, reminders, exam bars.
+- `js/study.js` – tests, priorities, marks calculator, study plan, focus sessions, reminders.
+- `js/social.js` – profile, feelings, partners, invites, chat with files, notifications.
+- `js/boot.js` – starts the app.
+- `api/config.js` – gives the browser the public Supabase settings and the push key.
+- `api/push.js` – called every minute by Supabase; sends phone pop-ups for due reminders and new notifications.
+- `sw.js` – offline support and notifications. `manifest.json` – makes it installable.
+
+## Accounts (username + verified email)
+- Create account = username + email + password + confirm password. Supabase emails a confirmation link; one account per email.
+- Log in with your username **or** your email. 8 wrong passwords locks a username for 15 minutes.
+- Forgot password: Log in › Forgot your password? sends a reset link.
+- At most 200 accounts (verified ones, plus sign-ups from the last day still waiting to confirm).
+- Older accounts (made before emails) keep working and can add an email in Profile.
+
+### Emails are sent through Gmail (free, about 500 a day)
+Supabase › Authentication › Emails › SMTP Settings: host `smtp.gmail.com`, port `465`, username = the Gmail address, password = a Google **app password** (needs 2-Step Verification). Never paste the app password anywhere except Supabase.
+
+### Resetting a password by hand (still works)
+In Supabase › SQL Editor, replace `USERNAME` and `NEW_PASSWORD`, then Run:
+
+```sql
+update auth.users
+set encrypted_password = extensions.crypt('NEW_PASSWORD', extensions.gen_salt('bf'))
+where id = (select id from public.study_profiles where username = 'USERNAME');
+```
+
+## Settings that must stay on
+- Supabase › Authentication › Sign In / Providers › Email: **Confirm email: ON**, **Secure email change: OFF**
+- Supabase › Authentication › URL Configuration: Site URL `https://study-with-funi.vercel.app`, Redirect URLs `https://study-with-funi.vercel.app/**`
+- Vercel › Settings › Environment Variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+  - The service role key is secret. Paste it straight from Supabase › Project Settings › API keys into Vercel. Never share it anywhere else.
+
+## Notifications
+- While Funi is open, everything pops up instantly.
+- When Funi is closed, phone pop-ups come through Web Push: Supabase calls `/api/push` every minute, which sends due reminders ("30 min before" etc.) and new messages/invites. The push keys are made automatically and kept in the `funi_settings` table.
+- Voice notes in chat are up to 3 minutes (about 180 KB a minute) and are deleted automatically after 7 days by `/api/push`.
+- On iPhone, push only works from the home-screen app (Add to Home Screen), then Notifications › turn the switch on.
