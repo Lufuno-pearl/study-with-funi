@@ -506,7 +506,7 @@
     F.loggingOut = true; setTimeout(() => { F.loggingOut = false; }, 5000);
     F.stopLive();
     await F.unsubscribePush();
-    if (F.sb) await F.sb.auth.signOut();
+    if (F.sb) await F.sb.auth.signOut({ scope: "local" }); // only this device; your phone/laptop stay logged in
     // remove this account's offline copies from the phone
     try { if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.filter((k) => k === "funi-data" || k.startsWith("funi-files-")).map((k) => caches.delete(k))); } } catch (e) {}
     F.me = null; F.startedOffline = false; if (F.offlineBar) F.offlineBar();
@@ -604,6 +604,8 @@
     const me = F.me.id;
     liveChannel = F.sb.channel("funi-live-" + me)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "study_messages", filter: "recipient_id=eq." + me }, (p) => F.emit("rt:message", p.new))
+      // what you send from your other devices (phone ↔ laptop) shows up here too
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "study_messages", filter: "sender_id=eq." + me }, (p) => F.emit("rt:myMessage", p.new))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "study_messages", filter: "sender_id=eq." + me }, (p) => F.emit("rt:messageRead", p.new))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "study_messages", filter: "recipient_id=eq." + me }, (p) => F.emit("rt:messageUpdate", p.new))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: "user_id=eq." + me }, (p) => F.emit("rt:notification", p.new))

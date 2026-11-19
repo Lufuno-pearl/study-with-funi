@@ -457,7 +457,7 @@
     if (error && /reply_to/.test(error.message)) return F.toast("Replies need one setup step: run funi-v11-setup.sql in Supabase.", { long: true });
     if (error) return F.toast("Message wasn't sent: " + error.message, { long: true });
     $("chatInput").value = ""; $("chatInput").style.height = "auto"; clearAttach(); setHelp(false); setReply(null); syncSend();
-    chatMsgs.push(data);
+    if (!chatMsgs.some((x) => x.id === data.id)) chatMsgs.push(data);
     (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
     await drawMsgs(data.id);
   });
@@ -471,7 +471,7 @@
     const { data, error } = await F.sb.from("study_messages").insert(row).select().single();
     if (error) return F.toast("Sticker wasn't sent: " + error.message, { long: true });
     setReply(null);
-    chatMsgs.push(data);
+    if (!chatMsgs.some((x) => x.id === data.id)) chatMsgs.push(data);
     (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
     await drawMsgs(data.id);
   };
@@ -528,7 +528,7 @@
     $("recSend").disabled = false; showRecorder(false); recBlob = null;
     if (error) return F.toast("Voice note wasn't sent: " + error.message, { long: true });
     setHelp(false); setReply(null);
-    chatMsgs.push(data);
+    if (!chatMsgs.some((x) => x.id === data.id)) chatMsgs.push(data);
     (S.convos[to] = S.convos[to] || { last: null, unread: 0 }).last = data;
     await drawMsgs(data.id);
   };
@@ -623,10 +623,21 @@
     if (S.view === "chat" && S.chatWith === m.sender_id && document.visibilityState === "visible") { chatMsgs.push(m); await drawMsgs(m.id); markRead(m.sender_id); }
     else { c.unread++; renderConvos(); }
   });
+  // a message you sent from your other device
+  F.on("rt:myMessage", async (m) => {
+    if (!m || chatMsgs.some((x) => x.id === m.id)) return;
+    await ensureProfile(m.recipient_id);
+    const c = S.convos[m.recipient_id] || (S.convos[m.recipient_id] = { last: null, unread: 0 });
+    if (!c.last || c.last.created_at <= m.created_at) c.last = m;
+    if (S.view === "chat" && S.chatWith === m.recipient_id) { chatMsgs.push(m); await drawMsgs(m.id); }
+    renderConvos();
+  });
   function applyMsgUpdate(m) {
     const local = chatMsgs.find((x) => x.id === m.id);
     if (local) { const changed = local.read_at !== m.read_at || local.deleted_at !== m.deleted_at || local.body !== m.body || (local.hidden_for || []).length !== (m.hidden_for || []).length; Object.assign(local, m); if (changed && S.view === "chat") drawMsgs(); }
     const other = m.sender_id === F.me.id ? m.recipient_id : m.sender_id, c = S.convos[other];
+    // read on your other device: the unread count goes down here too
+    if (c && m.recipient_id === F.me.id && m.read_at && c.unread > 0 && !(local && local._countedRead)) { c.unread = Math.max(0, c.unread - 1); if (local) local._countedRead = true; renderConvos(); if (F.renderTabBadges) F.renderTabBadges(); }
     if (c && c.last && c.last.id === m.id) { Object.assign(c.last, m); renderConvos(); }
   }
   F.on("crowns", () => { if (S.view === "messages") renderConvos(); if (S.view === "chat" && S.chatWith) $("chatCrown").hidden = !F.isCrowned(S.chatWith); });

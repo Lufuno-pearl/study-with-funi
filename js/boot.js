@@ -89,7 +89,7 @@
       if (F.linkType === "signup") F.toast("Email confirmed! Welcome to Funi, " + F.usernameOf(user) + ".", { long: true });
       if (F.linkType === "email_change") F.toast("Your email is updated.");
     } else {
-      if (user) await F.sb.auth.signOut();
+      if (user) await F.sb.auth.signOut({ scope: "local" });
       F.showAuth();
       // if a login keeps ending by itself, say why (helps find the cause)
       let why = null; try { why = localStorage.getItem("funi.authWhy"); localStorage.removeItem("funi.authWhy"); } catch (e) {}
