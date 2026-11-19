@@ -406,7 +406,8 @@
   };
   $("signupForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!F.sb) return F.showError("signupError", "Funi can't reach the internet. Check your connection and try again.");
+    if (!F.sb && F.reconnect) await F.reconnect(); // try connecting again first
+    if (!F.sb) return F.showError("signupError", "Funi can't reach its server from this network. Check the internet, then try again (or use your phone's hotspot).");
     const user = cleanUsername($("suUser").value), email = cleanEmail($("suEmail").value), p1 = $("suPass").value, p2 = $("suPass2").value;
     if (!signSex) return F.showError("signupError", "Choose Female or Male first.");
     const bad = usernameProblem(user);
@@ -443,7 +444,8 @@
   });
   $("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!F.sb) return F.showError("loginError", "Funi can't reach the internet. Check your connection and try again.");
+    if (!F.sb && F.reconnect) await F.reconnect(); // try connecting again first
+    if (!F.sb) return F.showError("loginError", "Funi can't reach its server from this network. Check the internet, then try again (or use your phone's hotspot).");
     const who = $("liUser").value.trim(), pass = $("liPass").value;
     if (!who || !pass) return F.showError("loginError", "Enter your username (or email) and password.");
     F.showError("loginError", "");

@@ -104,6 +104,11 @@
     });
   }
   start();
+  // Funi opened while the internet wasn't ready: connect again by itself as soon as it can
+  F.reconnect = async () => { if (F.sb || F.me || F.reconnecting) return !!F.sb; F.reconnecting = true;
+    try { F.status("authStatus", ""); await start(); } finally { F.reconnecting = false; } return !!F.sb; };
+  window.addEventListener("online", () => { if (!F.sb) F.reconnect(); });
+  setInterval(() => { if (!F.sb && !F.me && document.visibilityState === "visible") F.reconnect(); }, 8000);
 
   /* ---------- offline: show a small bar, refresh everything when the internet is back ---------- */
   function offlineBar() {
