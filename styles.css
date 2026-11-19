@@ -1474,3 +1474,33 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
 .stk-row .bubble.sticker { max-width: none; align-self: auto; }
 .stk-row .bubble.sticker img.stk { width: 100px; height: 100px; }
 .stk-row .bubble.sticker:not(:last-child) time { visibility: hidden; }
+
+/* ---------- Smart plan: how ready you'll be on each test day ---------- */
+.mchips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.mchips::-webkit-scrollbar { display: none; }
+.mc { flex: 0 0 auto; display: grid; gap: 1px; text-align: left; border: 0; border-radius: 18px; padding: 10px 14px; cursor: pointer; font: inherit; min-width: 128px; }
+.mc b { font-size: 14px; }
+.mc span { font-size: 12px; font-weight: 700; opacity: .85; }
+.mc .pct { font-family: var(--display); font-size: 24px; font-weight: 600; line-height: 1.1; opacity: 1; }
+.mc .hint2 { font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.plan-how summary { cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 16px; min-height: 28px; }
+.plan-how[open] summary { margin-bottom: 8px; }
+.plan-how p { margin: 0; }
+.plan-how .eq { font-family: "Cambria Math", "STIX Two Math", Georgia, serif; font-size: 16px; background: var(--card-2); border-radius: 12px; padding: 8px 12px; overflow-x: auto; white-space: nowrap; }
+.txt.as-btn { border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.marks-box { margin-top: 12px; border: 1.5px solid var(--line); border-radius: 16px; padding: 0 12px; }
+.marks-box[open] { padding-bottom: 12px; }
+.marks-box summary { cursor: pointer; min-height: 46px; display: flex; align-items: center; font-weight: 800; color: var(--accent-soft-ink); }
+.need-box { margin-top: 10px; background: var(--accent-soft); color: var(--accent-soft-ink); border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; font-size: 13px; font-weight: 700; }
+.need-box .need-n { font-family: var(--display); font-size: 26px; font-weight: 600; }
+/* ---------- Funi in numbers (owner only) ---------- */
+.st-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.st-tile { background: var(--card-2); border-radius: 16px; padding: 10px 12px; display: grid; gap: 2px; }
+.st-tile b { font-family: var(--display); font-size: 26px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.st-tile span { font-size: 12px; font-weight: 700; color: var(--muted); }
+.st-chart { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; align-items: end; height: 140px; }
+.st-col { display: grid; grid-template-rows: auto 1fr auto; height: 100%; gap: 3px; text-align: center; }
+.st-v { font-size: 11px; font-weight: 800; color: var(--muted); min-height: 14px; }
+.st-bar { display: flex; align-items: flex-end; background: var(--card-2); border-radius: 8px; overflow: hidden; }
+.st-bar i { display: block; width: 100%; background: var(--accent); border-radius: 8px 8px 0 0; }
+.st-d { font-size: 11px; font-weight: 800; color: var(--muted); }

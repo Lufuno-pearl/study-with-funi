@@ -501,12 +501,26 @@
       <div class="grow"><h1>Your study timetable</h1><p class="hint" id="planInfo"></p></div>
       <button type="button" class="icon-btn" id="planSettingsBtn" aria-label="Plan settings: hours, rest day and classes"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
     </header>
+    <div class="mchips" id="planReady" aria-label="How ready you'll be on each test day" hidden></div>
     <div class="week" id="planDays"></div>
     <div id="planBody"></div>
     <div class="two">
       <button type="button" class="btn ghost" data-go="priorities">Change priorities</button>
       <button type="button" class="btn primary" data-go="reminders">My reminders</button>
     </div>
+    <details class="card plan-how">
+      <summary>How Funi plans your week</summary>
+      <div class="stack">
+        <p><b>1. A model of forgetting.</b> For each module Funi tracks how much you remember, <i>R</i>, which fades over time. <i>S</i> is how stable the memory is, in days.</p>
+        <p class="eq">R(t) = R₀ · e<sup>−t / S</sup></p>
+        <p><b>2. What a study hour does.</b> It closes part of the gap to 100% and makes the memory more stable. The more you'd forgotten, the more stable it gets (the spacing effect). Two hours of one module back to back count for less.</p>
+        <p class="eq">R ← R + g·(1 − R) &nbsp;&nbsp; S ← S + c·(1 − R<sub>before</sub>)</p>
+        <p><b>3. The goal.</b> Pick which module goes in each free hour to make what you remember on each test day as high as possible. Modules where you need a higher mark count more.</p>
+        <p class="eq">maximise Σ w<sub>i</sub> · R<sub>i</sub>(test day) − penalties</p>
+        <p><b>4. Solving it.</b> Funi makes a quick first plan (greedy), then improves it with simulated annealing: thousands of small changes, keeping the better ones. Your rules always win: classes, your daily hours, breaks, and nothing for a module after its test.</p>
+        <p class="hint">How ready you feel (in Your priorities) sets where each module starts. Tap a module above to add your marks for that test.</p>
+      </div>
+    </details>
   </section>
 
   <!-- ---------- PRIORITIES (modules) ---------- -->
@@ -898,6 +912,11 @@
       <h2>Theme</h2>
       <div class="themes" id="themePicker"></div>
     </div>
+    <div class="card flat stack" id="adminCard" hidden>
+      <h2>Funi in numbers</h2>
+      <p>How many people use Funi and how much they study. Only you can see this.</p>
+      <button type="button" class="btn ghost block" id="adminOpen">See the numbers</button>
+    </div>
     <div class="card flat stack">
       <h2>Get the app</h2>
       <p>Add Funi to your home screen so it opens like a normal app and can send notifications.</p>
@@ -1006,7 +1025,7 @@
 
 <dialog id="examSheet"><form class="sheet" id="examForm">
   <div class="sheet-grip"></div>
-  <h2>New test or exam</h2>
+  <h2 id="examTitle">New test or exam</h2>
   <label for="fModule">Module</label>
   <input id="fModule" maxlength="60" placeholder="e.g. COMS2015A" autocomplete="off" list="moduleCodes">
   <datalist id="moduleCodes"></datalist>
@@ -1020,6 +1039,18 @@
   <input id="fEnd" type="time" value="12:00">
   <label for="fVenue">Venue (optional)</label>
   <input id="fVenue" maxlength="80" placeholder="e.g. Great Hall">
+  <details id="fMarks" class="marks-box">
+    <summary>What do I need in this test? (optional)</summary>
+    <div class="two">
+      <div><label for="fSoFar">My mark so far (%)</label><input id="fSoFar" type="number" inputmode="decimal" min="0" max="100" placeholder="e.g. 58"></div>
+      <div><label for="fDone">Work so far is worth (%)</label><input id="fDone" type="number" inputmode="decimal" min="0" max="100" placeholder="e.g. 30"></div>
+    </div>
+    <div class="two">
+      <div><label for="fWorth">This test is worth (%)</label><input id="fWorth" type="number" inputmode="decimal" min="1" max="100" placeholder="e.g. 15"></div>
+      <div><label for="fWant">Average I want (%)</label><input id="fWant" type="number" inputmode="decimal" min="0" max="100" placeholder="e.g. 65"></div>
+    </div>
+    <div class="need-box" id="fNeedBox" hidden><span>To keep your average at <b id="fNeedWant"></b>, you need</span><b class="need-n" id="fNeed"></b><span id="fNeedNote"></span></div>
+  </details>
   <p class="form-error" id="examError" hidden></p>
   <div class="btns">
     <button type="button" class="btn ghost" data-close="examSheet">Cancel</button>
@@ -1365,6 +1396,14 @@
   <div class="btns"><button type="button" class="btn ghost" data-close="cnSheet">Cancel</button><button type="button" class="btn primary" id="cnGo">Start cross night</button></div>
 </div></dialog>
 
+<dialog id="statsSheet" aria-labelledby="stTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="stTitle">Funi in numbers</h2>
+  <p class="hint" id="stWhen"></p>
+  <div id="stBody"><p class="status-line">Loading…</p></div>
+  <div class="btns"><button type="button" class="btn ghost" id="stCopy">Copy for my CV</button><button type="button" class="btn primary" data-close="statsSheet">Done</button></div>
+</div></dialog>
+
 <dialog id="iosSheet"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2 id="instTitle">Get Funi on your phone</h2>
@@ -1378,6 +1417,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="/js/art.js"></script>
 <script src="/js/core.js"></script>
+<script src="/js/smartplan.js"></script>
 <script src="/js/study.js"></script>
 <script src="/js/social.js"></script>
 <script src="/js/files.js"></script>
@@ -1390,6 +1430,7 @@
 <script src="/js/stickers.js"></script>
 <script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
+<script src="/js/stats.js"></script>
 <script src="/js/boot.js"></script>
 </body>
 </html>

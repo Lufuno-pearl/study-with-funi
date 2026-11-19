@@ -44,9 +44,11 @@
   const timeRange = (x) => (x.start_time ? F.niceTime(x.start_time) + (x.end_time ? "–" + F.niceTime(x.end_time) : "") : "");
   F.examRow = (x, withDelete) => {
     const d = F.daysLeft(x.due_date);
-    return '<div class="item"><div class="txt"><b>' + esc(x.module) + " · " + esc(x.kind) + "</b><span>" +
+    const need = withDelete ? testNeed(x) : null;
+    return '<div class="item"><' + (withDelete ? 'button type="button" class="txt as-btn" data-edit-exam="' + esc(x.id) + '" aria-label="Edit ' + esc(x.module) + " " + esc(x.kind) + '"' : 'div class="txt"') + "><b>" + esc(x.module) + " · " + esc(x.kind) + "</b><span>" +
       F.niceDate(x.due_date) + (x.start_time ? " · " + timeRange(x) : "") + (x.venue ? " · " + esc(x.venue) : "") +
-      '</span></div>' + (written(x) ? '<span class="chip-d done">✓ Written</span>' : '<span class="chip-d ' + chipClass(d) + '">' + (d === 0 ? "Today" : d + " d") + "</span>") +
+      (need != null && !written(x) ? " · need " + Math.max(0, Math.round(need)) + "%" : "") +
+      "</span></" + (withDelete ? "button" : "div") + ">" + (written(x) ? '<span class="chip-d done">✓ Written</span>' : '<span class="chip-d ' + chipClass(d) + '">' + (d === 0 ? "Today" : d + " d") + "</span>") +
       (withDelete ? '<button class="x-btn" data-del-exam="' + esc(x.id) + '" aria-label="Delete ' + esc(x.module) + " " + esc(x.kind) + '">×</button>' : "") + "</div>";
   };
   let examSeg = "soon";
@@ -79,12 +81,35 @@
     S.pastItems = S.pastItems.filter((i) => i.id !== b.dataset.delExam); F.store(key("pastItems"), S.pastItems);
     renderExams(); F.emit("data");
   });
-  F.openExamSheet = () => {
-    $("examForm").reset(); $("fTime").value = "09:00"; $("fEnd").value = "12:00"; $("fDate").min = F.todayISO();
+  let editingExam = null;
+  const MARK_IDS = [["fSoFar", "so_far"], ["fDone", "done_pct"], ["fWorth", "worth_pct"], ["fWant", "want_pct"]];
+  function liveNeed() {
+    const v = (id) => { const n = parseFloat($(id).value); return isFinite(n) ? n : null; };
+    const n = testNeed({ so_far: v("fSoFar"), done_pct: v("fDone"), worth_pct: v("fWorth"), want_pct: v("fWant") });
+    $("fNeedBox").hidden = n == null;
+    if (n == null) return;
+    $("fNeed").textContent = Math.max(0, Math.round(n)) + "%";
+    $("fNeedWant").textContent = v("fWant") + "%";
+    $("fNeedNote").textContent = n > 100 ? "That's over 100%, so Funi gives this module extra hours in your timetable." : n <= 0 ? "You're already above that. Funi keeps you ticking over." : "The higher this is, the more hours Funi gives this module.";
+  }
+  MARK_IDS.forEach(([id]) => $(id).addEventListener("input", liveNeed));
+  F.openExamSheet = (x) => {
+    editingExam = x && x.id ? x : null;
+    $("examForm").reset(); $("fTime").value = "09:00"; $("fEnd").value = "12:00"; $("fDate").min = editingExam ? "" : F.todayISO();
     $("moduleCodes").innerHTML = S.modules.map((m) => '<option value="' + esc(m.code) + '">').join("");
-    F.showError("examError", ""); $("examSheet").showModal();
+    $("examTitle").textContent = editingExam ? editingExam.module + " · " + editingExam.kind : "New test or exam";
+    $("examSave").textContent = editingExam ? "Save changes" : "Save";
+    if (editingExam) {
+      const x0 = editingExam; $("fModule").value = x0.module; $("fKind").value = x0.kind; $("fDate").value = x0.due_date;
+      $("fTime").value = x0.start_time ? String(x0.start_time).slice(0, 5) : ""; $("fEnd").value = x0.end_time ? String(x0.end_time).slice(0, 5) : ""; $("fVenue").value = x0.venue || "";
+      MARK_IDS.forEach(([id, k]) => { $(id).value = x0[k] != null ? +x0[k] : ""; });
+    }
+    $("fMarks").open = !!(editingExam && editingExam.worth_pct != null);
+    liveNeed(); F.showError("examError", ""); $("examSheet").showModal();
   };
-  $("addExamBtn").onclick = F.openExamSheet;
+  F.editExam = (id) => { const x = S.items.concat(S.pastItems || []).find((i) => i.id === id); if (x) F.openExamSheet(x); };
+  $("examList").addEventListener("click", (e) => { const b = e.target.closest("[data-edit-exam]"); if (b) F.editExam(b.dataset.editExam); });
+  $("addExamBtn").onclick = () => F.openExamSheet();
   $("examForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const row = { module: $("fModule").value.trim().toUpperCase(), kind: $("fKind").value, due_date: $("fDate").value,
@@ -92,11 +117,29 @@
     if (!row.module || !row.due_date) return F.showError("examError", "Add the module and the date.");
     const end = $("fEnd").value || null;
     if (end && row.start_time && end <= row.start_time) return F.showError("examError", "The end time must be after the start time.");
+    // your marks for this test (optional): what you need is worked out from these
+    const marks = {}; let anyMark = false;
+    MARK_IDS.forEach(([id, k]) => { const n = parseFloat($(id).value); marks[k] = isFinite(n) ? Math.max(0, Math.min(100, n)) : null; if (marks[k] != null) anyMark = true; });
+    if (anyMark && !(marks.worth_pct > 0)) return F.showError("examError", "Add what this test is worth, so Funi can work out the mark you need.");
     $("examSave").disabled = true;
-    let { data, error } = await F.sb.from("assessments").insert(end ? Object.assign({ end_time: end }, row) : row).select().single();
-    if (error && /end_time/.test(error.message)) ({ data, error } = await F.sb.from("assessments").insert(row).select().single()); // before funi-v17-setup.sql
+    const full = Object.assign({ end_time: end }, row, marks);
+    let data, error;
+    if (editingExam) {
+      ({ data, error } = await F.sb.from("assessments").update(full).eq("id", editingExam.id).select().single());
+      if (error && /so_far|done_pct|worth_pct|want_pct|schema cache/i.test(error.message)) { $("examSave").disabled = false; return F.showError("examError", "Marks for tests need one setup step: run funi-v18-setup.sql in Supabase."); }
+    } else {
+      ({ data, error } = await F.sb.from("assessments").insert(full).select().single());
+      if (error && /so_far|done_pct|worth_pct|want_pct|end_time|schema cache/i.test(error.message)) ({ data, error } = await F.sb.from("assessments").insert(end ? Object.assign({ end_time: end }, row) : row).select().single());
+      if (error && /end_time/.test(error.message)) ({ data, error } = await F.sb.from("assessments").insert(row).select().single()); // before funi-v17-setup.sql
+    }
     $("examSave").disabled = false;
     if (error) return F.showError("examError", "Couldn't save: " + error.message);
+    if (editingExam) {
+      [S.items, S.pastItems].forEach((arr) => { const i = arr.findIndex((x) => x.id === data.id); if (i >= 0) arr[i] = data; });
+      F.store(key("items"), S.items); F.store(key("pastItems"), S.pastItems);
+      $("examSheet").close(); renderExams(); F.emit("data"); if (S.view === "plan") renderPlan();
+      const n = testNeed(data); F.toast(n != null ? "Saved. You need " + Math.max(0, Math.round(n)) + "% in this " + data.kind.toLowerCase() + ". Your timetable is updated." : "Saved."); return;
+    }
     S.items.push(data); F.store(key("items"), S.items);
     $("examSheet").close();
     if (!S.modules.some((m) => sameCode(m.code, row.module))) await addModule(row.module, "", true);
@@ -470,13 +513,85 @@
     }
     return { blocks };
   }
+  /* ---------- the smart plan (the model and optimiser live in js/smartplan.js) ---------- */
+  const CONF_R = [0.5, 0.2, 0.35, 0.5, 0.65, 0.8]; // how ready you feel -> how much you remember now
+  // the mark you need in this test to keep your average where you want it
+  function testNeed(x) {
+    if (!x || !(+x.worth_pct > 0) || x.want_pct == null || x.so_far == null) return null;
+    const d = +x.done_pct || 0, w = +x.worth_pct;
+    return (+x.want_pct * (d + w) - +x.so_far * d) / w;
+  }
+  F.testNeed = testNeed;
+  function freeHours(date, st, isToday) {
+    const row = new Array(24).fill(false);
+    if (+st.rest === date.getDay()) return row;
+    freeSlots(date, st, isToday).forEach(([a, b]) => { for (let h = Math.ceil(a / 60); (h + 1) * 60 <= b; h++) row[h] = true; });
+    // a test's own hours aren't for studying
+    F.upcoming().filter((x) => x.due_date === F.isoOf(date)).forEach((x) => {
+      const s0 = x.start_time ? toMin(x.start_time) : 540, e0 = x.end_time ? toMin(x.end_time) : s0 + 120;
+      for (let h = Math.floor(s0 / 60); h * 60 < e0 && h < 24; h++) row[h] = false; });
+    return row;
+  }
+  function smartInput(st) {
+    const base = new Date(); base.setHours(0, 0, 0, 0);
+    const free = [], freeAllDay = [], cap = [];
+    for (let d = 0; d < 7; d++) { const date = new Date(base); date.setDate(base.getDate() + d);
+      free.push(freeHours(date, st, d === 0)); freeAllDay.push(freeHours(date, st, false)); cap.push(+st.hours || 3); }
+    const map = new Map();
+    F.orderedModules().forEach((m) => map.set(m.code.trim().toUpperCase(), { code: m.code, mod: m }));
+    F.upcoming().forEach((x) => { const k = x.module.trim().toUpperCase(); if (!map.has(k)) map.set(k, { code: x.module.trim(), mod: null }); });
+    const mods = [];
+    map.forEach((sx, k) => {
+      const test = F.upcoming().find((x) => x.module.trim().toUpperCase() === k);
+      let testH = 21 * 24;
+      if (test) testH = Math.round((new Date(test.due_date + "T00:00:00") - base) / 3600e3) + (test.start_time ? toMin(test.start_time) / 60 : 9);
+      const tn = testNeed(test), en = sx.mod ? needFor(sx.mod, 50) : null, need = tn != null ? tn : en != null ? en : 60;
+      const conf = sx.mod ? sx.mod.confidence || 3 : 3, R0 = CONF_R[conf] || 0.5;
+      // tests after this week still get hours, but the closest tests come first
+      const far = testH > 8 * 24 ? Math.max(0.35, (8 * 24) / testH) : 1;
+      mods.push({ code: sx.code, test, need, needFrom: tn != null ? "test" : en != null ? "exam" : null, conf, R0, S0: 1.2 + 1.5 * R0, testH,
+        w: (0.4 + 0.8 * Math.max(0, Math.min(1.1, need / 100))) * (test ? far : 0.5) });
+    });
+    return { free, freeAllDay, cap, mods, base };
+  }
+  // planned once, then kept for the day (it only changes when your tests, modules or settings change)
+  function smartWeek(st) {
+    if (!F.planWeekSmart) return null;
+    const I = smartInput(st), core = (fr) => ({ free: fr, cap: I.cap, mods: I.mods.map((m) => ({ R0: m.R0, S0: m.S0, w: m.w, testH: m.testH })) });
+    const P = core(I.free), k = F.todayISO() + "|" + JSON.stringify(core(I.freeAllDay));
+    let c = F.read(key("smartplan"), null);
+    if (!c || c.k !== k || !Array.isArray(c.A)) { const r = F.planWeekSmart(P, F.todayISO()); c = { k, A: r.A }; F.store(key("smartplan"), c); }
+    return { I, P, A: c.A, ev: F.smartPlanCore.evaluate(P, c.A) };
+  }
+  F.smartWeek = () => smartWeek(planSettings());
+  function smartDay(W, d, date) {
+    const dateISO = F.isoOf(date), row = W.A[d], blocks = [];
+    for (let h = 0; h < 24; h++) {
+      const m = row[h]; if (m < 0 || !W.I.mods[m]) continue;
+      let e = h; while (e + 1 < 24 && row[e + 1] === m) e++;
+      const mm = W.I.mods[m], daysTo = mm.test ? Math.round((new Date(mm.test.due_date + "T00:00:00") - new Date(dateISO + "T00:00:00")) / 864e5) : 60;
+      blocks.push({ start: h * 60, end: (e + 1) * 60, code: mm.code, task: taskFor({ exam: mm.test, daysTo, conf: mm.conf, pass: mm.need }), daysTo, exam: mm.test, key: dateISO + "|" + h * 60 + "|" + mm.code });
+      h = e;
+    }
+    return blocks;
+  }
+  function drawReady(W) {
+    const box = $("planReady"); if (!box) return;
+    const list = W ? W.I.mods.map((m, i) => ({ m, pct: Math.round(W.ev.atTest[i] * 100) })).filter((x) => x.m.test).sort((a, b) => a.m.testH - b.m.testH) : [];
+    box.hidden = !list.length;
+    box.innerHTML = list.map(({ m, pct }) => { const d = m.test ? F.daysLeft(m.test.due_date) : 0;
+      const soon = m.testH <= 8 * 24; // further away: planned closer to the time, so no forecast yet
+      return '<button type="button" class="mc ' + colorOf(m.code) + '" data-edit-test="' + esc(m.test.id) + '" aria-label="' + esc(m.code) + (soon ? ": " + pct + "% ready on test day" : "") + '. Tap to add your marks for this test."><b>' + esc(m.code) + "</b><span>" + esc(m.test.kind) + " " + (d === 0 ? "today" : d === 1 ? "tomorrow" : "in " + d + " days") + '</span><span class="pct">' + (soon ? pct + "%" : "Later") + '</span><span class="hint2">' + (m.needFrom === "test" ? "Need " + Math.max(0, Math.round(m.need)) + "%" : "Add marks") + "</span></button>"; }).join("");
+  }
   const COLORS = ["c-peach", "c-lav", "c-mint", "c-butter", "c-pink", "c-sky"];
   F.colorOf = (code) => colorOf(code);
   function colorOf(code) { const i = F.orderedModules().findIndex((m) => sameCode(m.code, code)); return COLORS[(i < 0 ? 5 : i) % COLORS.length]; }
   let planSel = 0;
   function renderPlan() {
     const st = planSettings(), base = new Date(); base.setHours(0, 0, 0, 0);
-    $("planInfo").textContent = "Made from your priorities · " + st.hours + "h a day" + (st.classes.length ? " · " + st.classes.length + " classes blocked out" : "");
+    let W = null; try { W = smartWeek(st); } catch (e) { W = null; }
+    drawReady(W);
+    $("planInfo").textContent = (W ? "Smart plan" + (W.ev.readySoon != null ? " · " + Math.round(W.ev.readySoon) + "% ready for this week's tests" : "") : "Made from your priorities") + " · " + st.hours + "h a day" + (st.classes.length ? " · " + st.classes.length + " classes blocked out" : "");
     let strip = "";
     for (let i = 0; i < 7; i++) {
       const d = new Date(base); d.setDate(base.getDate() + i);
@@ -484,7 +599,8 @@
     }
     $("planDays").innerHTML = strip;
     const day = new Date(base); day.setDate(base.getDate() + planSel);
-    const plan = buildDay(day, st, planSel === 0), done = F.read(key("done"), {});
+    const plan = !W ? buildDay(day, st, planSel === 0) : +st.rest === day.getDay() ? { rest: true, blocks: [] } : !W.I.mods.length ? { empty: true, blocks: [] } : { blocks: smartDay(W, planSel, day) },
+      done = F.read(key("done"), {});
     if (plan.rest) { $("planBody").innerHTML = '<div class="empty"><b>Rest day</b><span>No study blocks. Rest is part of the plan.</span></div>'; return; }
     if (plan.empty) { $("planBody").innerHTML = '<div class="empty"><b>Nothing to plan yet</b><span>Add your tests and modules, then come back.</span><button class="btn primary small" data-go="priorities">Add modules</button></div>'; return; }
     if (!plan.blocks.length) { $("planBody").innerHTML = '<div class="empty"><b>No free time left today</b><span>Check tomorrow, or change your study hours in settings.</span></div>'; return; }
@@ -502,6 +618,7 @@
   }
   F.renderPlan = renderPlan;
   $("planDays").addEventListener("click", (e) => { const b = e.target.closest("[data-pi]"); if (!b) return; planSel = +b.dataset.pi; renderPlan(); });
+  $("planReady").addEventListener("click", (e) => { const b = e.target.closest("[data-edit-test]"); if (b && F.editExam) F.editExam(b.dataset.editTest); });
   $("planBody").addEventListener("click", (e) => {
     const s = e.target.closest("[data-start-block]");
     if (s) { F.go("study"); $("sesModule").value = s.dataset.startBlock; $("sesMinutes").value = s.dataset.min; return; }
