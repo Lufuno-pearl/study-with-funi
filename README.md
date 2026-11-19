@@ -4,6 +4,8 @@
 
 Live: **[study-with-funi.vercel.app](https://study-with-funi.vercel.app)** · Built by **Lufuno Pearl Moyo**, BSc Mathematics, Applied Mathematics and Computer Science at Wits.
 
+▶ **[Watch the 60-second demo](docs/funi-demo.mp4)**
+
 <table>
   <tr>
     <td><img src="docs/screenshots/dashboard.png" width="180" alt="Dashboard with the next test countdown, study time and tasks"></td>
