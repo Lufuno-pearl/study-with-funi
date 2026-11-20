@@ -4,7 +4,8 @@
 
 Live: **[study-with-funi.vercel.app](https://study-with-funi.vercel.app)** · Built by **Lufuno Pearl Moyo**, BSc Mathematics, Applied Mathematics and Computer Science at Wits.
 
-▶ **[Watch the 60-second demo](docs/funi-demo.mp4)**
+<a href="https://study-with-funi.vercel.app/docs/funi-demo.mp4"><img src="docs/funi-demo-poster.jpg" width="260" alt="Play the 60-second demo video"></a><br>
+▶ **[Watch the 60-second demo](https://study-with-funi.vercel.app/docs/funi-demo.mp4)**
 
 <table>
   <tr>
