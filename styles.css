@@ -1533,3 +1533,33 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
 .pg-c.blk.c-butter { background: var(--butter); color: var(--butter-ink); border-left-color: var(--butter-mid); }
 .pg-c.blk.c-pink { background: var(--pink); color: var(--pink-ink); border-left-color: var(--pink-mid); }
 .pg-c.blk.c-sky { background: var(--sky); color: var(--sky-ink); border-left-color: var(--sky-mid); }
+/* ---------- Marks book ---------- */
+#mbBox { display: grid; gap: 12px; margin-top: 12px; }
+.mb-empty { display: grid; gap: 10px; }
+.mb-sum { display: grid; gap: 10px; }
+.mb-avg { display: flex; align-items: center; gap: 12px; }
+.mb-big { font-family: var(--display); font-size: 44px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.mb-target { display: grid; gap: 6px; }
+.mb-target .lbl { font-size: 12px; font-weight: 800; color: var(--muted); }
+.mb-need { background: var(--accent-soft); color: var(--accent-soft-ink); border-radius: 14px; padding: 10px 12px; font-weight: 700; }
+.mb-need b { font-family: var(--display); font-size: 20px; font-weight: 600; }
+.mb-need.ok { background: var(--mint); color: var(--mint-ink); }
+.mb-need.warn { background: var(--peach); color: var(--peach-ink); }
+.mb-line { font-size: 13px; font-weight: 700; color: var(--muted); }
+.mb-line.ok { color: var(--ok); } .mb-line.warn { color: var(--danger); }
+.mb-list { display: grid; gap: 0; padding-block: 4px; }
+.mb-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mb-row:last-of-type { border-bottom: 0; }
+.mb-row.grp { border-bottom: 0; padding-bottom: 4px; }
+.mb-name { flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left; border: 0; background: none; padding: 0; font: inherit; color: var(--ink); cursor: pointer; }
+.mb-name b { font-size: 15px; }
+.mb-name span { font-size: 12px; font-weight: 700; color: var(--muted); }
+.mb-kind { font-style: normal; background: var(--card-2); color: var(--accent-soft-ink); border-radius: 6px; padding: 1px 6px; margin-right: 4px; }
+.mb-in { display: flex; align-items: center; gap: 4px; font-weight: 800; color: var(--muted); }
+.mb-in input { width: 74px; min-height: 42px; text-align: center; font-weight: 800; }
+.mb-avg-s { font-family: var(--display); font-weight: 600; font-size: 18px; }
+.mb-kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.mb-kid { display: grid; gap: 2px; font-size: 11px; font-weight: 800; color: var(--muted); text-align: center; }
+.mb-kid input { min-height: 38px; text-align: center; font-weight: 800; padding: 0 4px; }
+.mb-quick { margin-top: 12px; }
+.mb-quick summary { cursor: pointer; font-weight: 800; min-height: 40px; display: flex; align-items: center; color: var(--accent-soft-ink); }

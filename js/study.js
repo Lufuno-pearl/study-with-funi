@@ -103,6 +103,9 @@
       const x0 = editingExam; $("fModule").value = x0.module; $("fKind").value = x0.kind; $("fDate").value = x0.due_date;
       $("fTime").value = x0.start_time ? String(x0.start_time).slice(0, 5) : ""; $("fEnd").value = x0.end_time ? String(x0.end_time).slice(0, 5) : ""; $("fVenue").value = x0.venue || "";
       MARK_IDS.forEach(([id, k]) => { $(id).value = x0[k] != null ? +x0[k] : ""; });
+      // nothing typed yet: fill in from the marks book
+      const g = x0.so_far == null && F.gradeSoFar ? F.gradeSoFar(x0.module) : null;
+      if (g && g.avg != null) { $("fSoFar").value = g.avg; $("fDone").value = g.done; if (g.target && !$("fWant").value) $("fWant").value = g.target; }
     }
     $("fMarks").open = !!(editingExam && editingExam.worth_pct != null);
     liveNeed(); F.showError("examError", ""); $("examSheet").showModal();
@@ -291,6 +294,7 @@
   }));
 
   const saveTimers = {};
+  F.saveModule = (m, patch) => saveModule(m, patch);
   function saveModule(m, patch) {
     Object.assign(m, patch); F.store(key("mods"), S.modules);
     const k = m.id + Object.keys(patch).join();
@@ -547,7 +551,7 @@
       const test = F.upcoming().find((x) => x.module.trim().toUpperCase() === k);
       let testH = 21 * 24;
       if (test) testH = Math.round((new Date(test.due_date + "T00:00:00") - base) / 3600e3) + (test.start_time ? toMin(test.start_time) / 60 : 9);
-      const tn = testNeed(test), en = sx.mod ? needFor(sx.mod, 50) : null, need = tn != null ? tn : en != null ? en : 60;
+      const tn = testNeed(test), en = sx.mod ? needFor(sx.mod, +sx.mod.target || 50) : null, need = tn != null ? tn : en != null ? en : 60;
       const conf = sx.mod ? sx.mod.confidence || 3 : 3, R0 = CONF_R[conf] || 0.5;
       // tests after this week still get hours, but the closest tests come first
       const far = testH > 8 * 24 ? Math.max(0.35, (8 * 24) / testH) : 1;

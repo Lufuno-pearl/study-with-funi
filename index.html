@@ -563,12 +563,15 @@
   <section class="view" id="vMarks" hidden>
     <header class="page-head">
       <button type="button" class="icon-btn" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <div class="grow"><h1>What do I need?</h1></div>
+      <div class="grow"><h1>Marks book</h1><p class="hint">Your marks, your average and what you need</p></div>
     </header>
-    <div class="cols"><div class="col">
-    <p>Check your course outline for how much the exam is worth. Drag the sliders or type the exact numbers.</p>
     <label for="mModule">Module</label>
     <select id="mModule"></select>
+    <div id="mbBox"></div>
+    <details class="card flat mb-quick" id="mQuick">
+    <summary>Quick calculator (without a marks book)</summary>
+    <div class="cols"><div class="col">
+    <p>Check your course outline for how much the exam is worth. Drag the sliders or type the exact numbers.</p>
     <div class="card flat stack">
       <div class="slider-row"><label class="lbl" for="mClassN">My class mark so far</label><span class="num-box"><input type="number" id="mClassN" min="0" max="100" step="any" inputmode="decimal" value="50"><span>%</span></span></div>
       <input type="range" id="mClass" min="0" max="100" step="1" value="50" aria-label="My class mark so far">
@@ -592,6 +595,7 @@
     </div>
     <button type="button" class="btn soft-btn block" id="mSave">Save and update my priorities</button>
     </div></div>
+    </details>
   </section>
 
   <!-- ---------- REMINDERS ---------- -->
@@ -1041,7 +1045,7 @@
   <input id="fModule" maxlength="60" placeholder="e.g. COMS2015A" autocomplete="off" list="moduleCodes">
   <datalist id="moduleCodes"></datalist>
   <label for="fKind">Type</label>
-  <select id="fKind"><option>Exam</option><option>Test</option><option>Assignment</option><option>Quiz</option></select>
+  <select id="fKind"><option>Exam</option><option>Test</option><option>Tutorial test</option><option>Assignment</option><option>Quiz</option><option>Tutorial</option><option>Lab / practical</option><option>Project</option></select>
   <div class="two">
     <div><label for="fDate">Date</label><input id="fDate" type="date"></div>
     <div><label for="fTime">Starts</label><input id="fTime" type="time" value="09:00"></div>
@@ -1422,6 +1426,31 @@
   <div class="btns"><button type="button" class="btn ghost" id="blkDone">Mark done</button><button type="button" class="btn primary" id="blkStart">Start now</button></div>
 </div></dialog>
 
+<dialog id="mbSheet" aria-labelledby="mbTitle"><form class="sheet" id="mbForm" novalidate>
+  <div class="sheet-grip"></div>
+  <h2 id="mbTitle">Add to my marks book</h2>
+  <label for="mbKind">What is it?</label>
+  <select id="mbKind"></select>
+  <div id="mbOne">
+    <label for="mbName">Name</label><input id="mbName" maxlength="60" placeholder="e.g. Test 1">
+    <div class="two">
+      <div><label for="mbWeight">Worth (% of final)</label><input id="mbWeight" type="number" inputmode="decimal" min="0" max="100" placeholder="e.g. 15"></div>
+      <div><label for="mbMark">My mark (%)</label><input id="mbMark" type="number" inputmode="decimal" min="0" max="100" placeholder="Not back yet"></div>
+    </div>
+  </div>
+  <div id="mbSet" hidden>
+    <label for="mbSetName">Name</label><input id="mbSetName" maxlength="40" placeholder="e.g. Tuts">
+    <div class="two">
+      <div><label for="mbCount">How many</label><input id="mbCount" type="number" inputmode="numeric" min="1" max="50" value="10"></div>
+      <div><label for="mbBest">Best how many count</label><input id="mbBest" type="number" inputmode="numeric" min="1" max="50" value="4"></div>
+    </div>
+    <label for="mbSetWeight">Together worth (% of final)</label><input id="mbSetWeight" type="number" inputmode="decimal" min="0" max="100" placeholder="e.g. 7">
+    <p class="hint">Like "Best 4 Tuts" on your marks sheet: Funi only counts your best ones.</p>
+  </div>
+  <p class="form-error" id="mbError" hidden></p>
+  <div class="btns"><button type="button" class="btn ghost" id="mbDelete" hidden>Delete</button><button type="button" class="btn ghost" data-close="mbSheet">Cancel</button><button type="submit" class="btn primary" id="mbSave">Add</button></div>
+</form></dialog>
+
 <dialog id="iosSheet"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2 id="instTitle">Get Funi on your phone</h2>
@@ -1448,6 +1477,7 @@
 <script src="/js/stickers.js"></script>
 <script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
+<script src="/js/marksbook.js"></script>
 <script src="/js/stats.js"></script>
 <script src="/js/boot.js"></script>
 </body>
