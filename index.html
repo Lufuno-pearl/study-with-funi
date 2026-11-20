@@ -539,19 +539,6 @@
       <button type="button" class="btn ghost" data-go="priorities">Change priorities</button>
       <button type="button" class="btn primary" data-go="reminders">My reminders</button>
     </div>
-    <details class="card plan-how">
-      <summary>How Funi plans your week</summary>
-      <div class="stack">
-        <p><b>1. A model of forgetting.</b> For each module Funi tracks how much you remember, <i>R</i>, which fades over time. <i>S</i> is how stable the memory is, in days.</p>
-        <p class="eq">R(t) = R₀ · e<sup>−t / S</sup></p>
-        <p><b>2. What a study hour does.</b> It closes part of the gap to 100% and makes the memory more stable. The more you'd forgotten, the more stable it gets (the spacing effect). Two hours of one module back to back count for less.</p>
-        <p class="eq">R ← R + g·(1 − R) &nbsp;&nbsp; S ← S + c·(1 − R<sub>before</sub>)</p>
-        <p><b>3. The goal.</b> Pick which module goes in each free hour to make what you remember on each test day as high as possible. Modules where you need a higher mark count more.</p>
-        <p class="eq">maximise Σ w<sub>i</sub> · R<sub>i</sub>(test day) − penalties</p>
-        <p><b>4. Solving it.</b> Funi makes a quick first plan (greedy), then improves it with simulated annealing: thousands of small changes, keeping the better ones. Your rules always win: classes, your daily hours, breaks, and nothing for a module after its test.</p>
-        <p class="hint">How ready you feel (in Your priorities) sets where each module starts. Tap a module above to add your marks for that test.</p>
-      </div>
-    </details>
   </section>
 
   <!-- ---------- PRIORITIES (modules) ---------- -->
@@ -1472,8 +1459,9 @@
       <div><label for="mbCount">How many</label><input id="mbCount" type="number" inputmode="numeric" min="1" max="50" value="10"></div>
       <div><label for="mbBest">Best how many count</label><input id="mbBest" type="number" inputmode="numeric" min="1" max="50" value="4"></div>
     </div>
+    <label class="toggle"><input type="checkbox" id="mbAll"> All of them count (no "best" rule)</label>
     <label for="mbSetWeight">Together worth (% of final)</label><input id="mbSetWeight" type="number" inputmode="decimal" min="0" max="100" placeholder="e.g. 7">
-    <p class="hint">Like "Best 4 Tuts" on your marks sheet: Funi only counts your best ones.</p>
+    <p class="hint">Like "Best 4 Tuts" on your marks sheet: Funi only counts your best ones. If your module counts every tut, tick "All of them count".</p>
   </div>
   <p class="form-error" id="mbError" hidden></p>
   <div class="btns"><button type="button" class="btn ghost" id="mbDelete" hidden>Delete</button><button type="button" class="btn ghost" data-close="mbSheet">Cancel</button><button type="submit" class="btn primary" id="mbSave">Add</button></div>

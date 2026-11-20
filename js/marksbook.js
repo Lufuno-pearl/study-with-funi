@@ -88,7 +88,7 @@
   function rowHtml(t) {
     const x = t.x, kids = items.filter((k) => k.group_id === x.id);
     if (x.is_group) {
-      return '<div class="mb-row grp"><button type="button" class="mb-name" data-mb-edit="' + esc(x.id) + '"><b>' + esc(x.name) + '</b><span>' + esc("Best " + t.n + " of " + kids.length + " · " + r1(t.W) + "% of final") + "</span></button>" +
+      return '<div class="mb-row grp"><button type="button" class="mb-name" data-mb-edit="' + esc(x.id) + '"><b>' + esc(x.name) + '</b><span>' + esc((t.n >= kids.length ? "All " + kids.length + " count" : "Best " + t.n + " of " + kids.length) + " · " + r1(t.W) + "% of final") + "</span></button>" +
         '<span class="mb-avg-s">' + (t.avg == null ? "–" : r1(t.avg) + "%") + "</span></div>" +
         '<div class="mb-kids">' + kids.map((k) => '<label class="mb-kid"><span>' + esc(k.name) + '</span><input type="number" inputmode="decimal" min="0" max="100" placeholder="–" value="' + (k.mark == null ? "" : +k.mark) + '" data-mb-mark="' + esc(k.id) + '" aria-label="' + esc(k.name) + ' mark"></label>').join("") + "</div>";
     }
@@ -161,13 +161,17 @@
     $("mbSave").textContent = it ? "Save" : "Add"; $("mbDelete").hidden = !it;
     if (it) {
       $("mbKind").value = TYPES.includes(it.kind) ? it.kind : "Test";
-      if (it.is_group) { $("mbOne").hidden = true; $("mbSet").hidden = false; $("mbKind").disabled = true; $("mbSetName").value = it.name; $("mbCount").value = items.filter((k) => k.group_id === it.id).length; $("mbCount").disabled = true; $("mbBest").value = it.best_n || ""; $("mbSetWeight").value = it.weight ?? ""; }
+      if (it.is_group) { $("mbOne").hidden = true; $("mbSet").hidden = false; $("mbKind").disabled = true; $("mbSetName").value = it.name; const nk = items.filter((k) => k.group_id === it.id).length; $("mbCount").value = nk; $("mbCount").disabled = false; $("mbBest").value = it.best_n || nk; $("mbAll").checked = !it.best_n || it.best_n >= nk; syncAll(); $("mbSetWeight").value = it.weight ?? ""; }
       else { $("mbOne").hidden = false; $("mbSet").hidden = true; $("mbKind").disabled = false; $("mbName").value = it.name; $("mbWeight").value = it.weight ?? ""; $("mbMark").value = it.mark ?? ""; }
-    } else { $("mbForm").reset(); $("mbKind").disabled = false; $("mbCount").disabled = false; $("mbKind").value = "Test"; $("mbOne").hidden = false; $("mbSet").hidden = true; $("mbCount").value = 10; $("mbBest").value = 4; }
+    } else { $("mbForm").reset(); $("mbKind").disabled = false; $("mbCount").disabled = false; $("mbKind").value = "Test"; $("mbOne").hidden = false; $("mbSet").hidden = true; $("mbCount").value = 10; $("mbBest").value = 4; $("mbAll").checked = false; syncAll(); }
     F.showError("mbError", ""); $("mbSheet").showModal();
   }
   $("mbKind").addEventListener("change", () => { const set = $("mbKind").value === SET; $("mbOne").hidden = set; $("mbSet").hidden = !set; if (!set && !$("mbName").value) $("mbName").placeholder = "e.g. " + ($("mbKind").value === "Exam" ? "Exam" : $("mbKind").value + " 1"); });
   const num = (id) => { const v = parseFloat($(id).value); return isFinite(v) ? v : null; };
+  // "All of them count": best = how many there are
+  function syncAll() { const all = $("mbAll").checked; $("mbBest").disabled = all; if (all) $("mbBest").value = $("mbCount").value; }
+  $("mbAll").addEventListener("change", syncAll);
+  $("mbCount").addEventListener("input", () => { if ($("mbAll").checked) $("mbBest").value = $("mbCount").value; });
   $("mbForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (editing && editing.rules) {
@@ -176,10 +180,25 @@
       F.saveModule(mod, { dp_min: dp, subminimum: sub }); $("mbSheet").close(); render(); return;
     }
     if ($("mbKind").value === SET || (editing && editing.is_group)) {
-      const name = $("mbSetName").value.trim() || "Tuts", count = Math.round(num("mbCount") || 0), best = Math.round(num("mbBest") || 0), w = num("mbSetWeight");
+      const name = $("mbSetName").value.trim() || "Tuts", count = Math.round(num("mbCount") || 0), w = num("mbSetWeight");
+      const best = $("mbAll").checked ? count : Math.round(num("mbBest") || 0);
       if (w == null || w < 0 || w > 100) return F.showError("mbError", "Add how much the set is worth together (0 to 100%).");
-      if (!editing && (count < 1 || count > 50)) return F.showError("mbError", "How many: 1 to 50.");
-      if (best < 1 || best > (editing ? items.filter((k) => k.group_id === editing.id).length : count)) return F.showError("mbError", "Best how many must be between 1 and how many there are.");
+      if (count < 1 || count > 50) return F.showError("mbError", "How many: 1 to 50.");
+      if (best < 1 || best > count) return F.showError("mbError", "Best how many must be between 1 and how many there are (" + count + ").");
+      if (editing) {
+        // more or fewer tuts than before
+        const kids = items.filter((k) => k.group_id === editing.id).sort((a, b) => a.position - b.position);
+        if (count < kids.length) {
+          const drop = kids.slice(count), marked = drop.filter((k) => k.mark != null).length;
+          if (marked && !(await F.confirm("Remove " + drop.length + " from the set?", marked + " of them already " + (marked === 1 ? "has a mark" : "have marks") + ". Those marks are deleted.", "Remove"))) return;
+          const { error } = await F.sb.from("grade_items").delete().in("id", drop.map((k) => k.id));
+          if (error) return F.showError("mbError", error.message);
+          items = items.filter((x) => !drop.includes(x));
+        } else if (count > kids.length) {
+          const base = name.replace(/s$/i, ""), more = await insert(Array.from({ length: count - kids.length }, (_, i) => ({ name: base + " " + (kids.length + i + 1), kind: editing.kind || "Tutorial", group_id: editing.id, position: kids.length + i })));
+          if (more) items.push(...more);
+        }
+      }
       $("mbSave").disabled = true;
       if (editing) { const { error } = await F.sb.from("grade_items").update({ name, best_n: best, weight: w }).eq("id", editing.id); if (error) { $("mbSave").disabled = false; return F.showError("mbError", error.message); } Object.assign(editing, { name, best_n: best, weight: w }); }
       else await addSet(name, count, best, w, items.length);
