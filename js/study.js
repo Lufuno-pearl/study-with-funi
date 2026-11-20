@@ -126,7 +126,9 @@
     let data, error;
     if (editingExam) {
       ({ data, error } = await F.sb.from("assessments").update(full).eq("id", editingExam.id).select().single());
-      if (error && /so_far|done_pct|worth_pct|want_pct|schema cache/i.test(error.message)) { $("examSave").disabled = false; return F.showError("examError", "Marks for tests need one setup step: run funi-v18-setup.sql in Supabase."); }
+      // before funi-v17-setup.sql there's no end time: save the rest
+      if (error && /end_time/i.test(error.message)) { delete full.end_time; ({ data, error } = await F.sb.from("assessments").update(full).eq("id", editingExam.id).select().single()); }
+      if (error && /so_far|done_pct|worth_pct|want_pct/i.test(error.message)) { $("examSave").disabled = false; return F.showError("examError", "Marks for tests need one setup step: run funi-v18-setup.sql in Supabase."); }
     } else {
       ({ data, error } = await F.sb.from("assessments").insert(full).select().single());
       if (error && /so_far|done_pct|worth_pct|want_pct|end_time|schema cache/i.test(error.message)) ({ data, error } = await F.sb.from("assessments").insert(end ? Object.assign({ end_time: end }, row) : row).select().single());
