@@ -24,7 +24,7 @@ In exam season I had six modules, four tests in one week and no clear idea what 
 
 **Plan**
 - Countdowns for every test and exam, which move to a **Written ✓** list when you finish writing.
-- **What do I need?** The mark you need in a test or exam to reach the average you want.
+- **A marks book** for each module: tests, tuts (with "best 4 count" rules), assignments and the exam, with their weights. It works out your average so far, the mark you need on what's left, and warns you about DP and exam subminimums.
 - A **smart study timetable** for the next 7 days, fitted around your classes (see the maths below).
 - Tasks and reminders that notify your phone, even when Funi is closed.
 
@@ -91,6 +91,7 @@ flowchart LR
 - **Offline first.** The service worker caches the app, your data and your module files, so notes and past papers still open with no data.
 - **Privacy by design.** Every table has row-level security policies. Your marks are never shared with partners or your house, and the owner-only statistics come from a function that checks who is asking.
 - **Fair rules in a group.** House quiz rankings use the average per question, so you don't lose for playing less. Only people who played can come last. Who chooses the dare rotates fairly, and missed dares are handled by a scheduled job.
+- **Privacy you can act on.** A plain-language privacy page (POPIA), *Download my data* as a file, and *Delete my account*, which removes your files and data and hands any house you own to another member.
 - **Free-tier limits.** Images are shrunk on the phone before uploading, voice notes expire after 7 days, and storage limits are checked in the database.
 
 ## Project layout

@@ -23,11 +23,30 @@
 <body>
 
 <!-- ===================== Welcome: create account / log in ===================== -->
-<section class="auth" id="authScreen" hidden>
+<section class="auth has-landing" id="authScreen" hidden>
+  <div class="landing" id="landing">
+    <span class="eyebrow">For university students · Free</span>
+    <h1>Study smarter with Funi</h1>
+    <p class="ld-lead">Funi plans your week around your tests, works out the marks you need, and makes studying with friends fun.</p>
+    <ul class="ld-feats">
+      <li><span aria-hidden="true">🧠</span><span><b>A smart study timetable</b> that plans around how fast you forget, so you remember the most on test day.</span></li>
+      <li><span aria-hidden="true">🎯</span><span><b>A marks book</b> that tells you exactly what you need in your next test or exam.</span></li>
+      <li><span aria-hidden="true">⏳</span><span><b>Countdowns, reminders and focus sessions</b> that stay in step on your phone and laptop.</span></li>
+      <li><span aria-hidden="true">👯</span><span><b>Study partners, houses and quiz battles</b>, plus Cross night for all-nighters 🌙</span></li>
+    </ul>
+    <div class="ld-shots">
+      <img src="/img/landing-smart-timetable.webp" alt="Smart study timetable" width="180" height="389" loading="lazy">
+      <img src="/img/landing-what-do-i-need.webp" alt="Working out the mark you need" width="180" height="389" loading="lazy">
+      <img src="/img/landing-cross-night.webp" alt="A Cross night study room" width="180" height="389" loading="lazy">
+    </div>
+    <div class="ld-btns"><button type="button" class="btn primary" data-ld="signup">Create a free account</button><button type="button" class="btn ghost" data-ld="login">Log in</button></div>
+    <p class="hint ld-foot">Built by a Wits student · Works on any phone or laptop · <button type="button" class="link" data-open-privacy>Privacy</button></p>
+  </div>
   <div class="auth-art" id="authArt"></div>
   <div class="auth-hero">
     <h1>Welcome to Funi</h1>
     <p>Plan your studying, count down to exams and study with friends.</p>
+    <button type="button" class="link ld-what" id="ldWhat">What is Funi?</button>
   </div>
   <div class="card">
     <div class="seg" role="tablist">
@@ -140,6 +159,7 @@
       <button class="icon-btn" id="installBtn" aria-label="Download the app" hidden><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
       <button class="icon-btn" data-go="notifs" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span class="badge pinkb" id="bellBadge" hidden></span></button>
     </header>
+    <section class="card welcome" id="welcomeCard" hidden aria-labelledby="wcTitle"></section>
     <div class="dash-grid">
       <div class="d-next" id="dashNext"></div>
       <div class="d-stats" id="dashStats"></div>
@@ -192,7 +212,7 @@
         <button class="tile" data-go="priorities"><i class="t-peach"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></i>Modules &amp; priorities</button>
         <button class="tile" data-go="study"><i class="t-mint"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></i>Focus timer</button>
         <button class="tile" data-go="reminders"><i class="t-pink"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></i>Reminders</button>
-        <button class="tile" data-go="marks"><i class="t-butter"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></i>What do I need?</button>
+        <button class="tile" data-go="marks"><i class="t-butter"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></i>Marks book</button>
         <button class="tile" data-go="decks"><i class="t-pink"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="13" rx="3"/><path d="M7 4h11a3 3 0 0 1 3 3v10"/></svg></i>Flashcards</button>
         <button class="tile" data-go="house"><i class="t-lav"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></i>My House</button>
         <button class="tile" data-go="files"><i class="t-mint"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></i>My files</button>
@@ -927,10 +947,18 @@
       <h2>Theme</h2>
       <div class="themes" id="themePicker"></div>
     </div>
+    <div class="card flat stack" id="privacyCard">
+      <h2>Privacy and your data</h2>
+      <p>Your marks are private. Funi never sells your data or shows ads.</p>
+      <button type="button" class="btn ghost block" data-open-privacy>How Funi uses your data</button>
+      <div class="two"><button type="button" class="btn ghost" id="exportBtn">Download my data</button><button type="button" class="btn danger" id="deleteMeBtn">Delete my account</button></div>
+      <button type="button" class="btn ghost block" data-report>Report a problem</button>
+    </div>
     <div class="card flat stack" id="adminCard" hidden>
       <h2>Funi in numbers</h2>
       <p>How many people use Funi and how much they study. Only you can see this.</p>
       <button type="button" class="btn ghost block" id="adminOpen">See the numbers</button>
+      <button type="button" class="btn ghost block" id="reportsOpen">Problem reports</button>
     </div>
     <div class="card flat stack">
       <h2>Get the app</h2>
@@ -1451,6 +1479,51 @@
   <div class="btns"><button type="button" class="btn ghost" id="mbDelete" hidden>Delete</button><button type="button" class="btn ghost" data-close="mbSheet">Cancel</button><button type="submit" class="btn primary" id="mbSave">Add</button></div>
 </form></dialog>
 
+<dialog id="privacySheet" aria-labelledby="pvTitle"><div class="sheet privacy">
+  <div class="sheet-grip"></div>
+  <h2 id="pvTitle">How Funi uses your data</h2>
+  <p class="hint">Last updated 20 November 2026</p>
+  <h3>What Funi keeps</h3>
+  <ul>
+    <li><b>Your account:</b> username, email, password (stored scrambled, nobody can read it) and your avatar.</li>
+    <li><b>Your studying:</b> modules, tests and exams, marks, tasks and reminders, study sessions, notes, flashcards and files you add.</li>
+    <li><b>With other people:</b> study partners, messages, voice notes, stickers, study rooms and houses you join.</li>
+    <li><b>Your devices:</b> a code that lets Funi send notifications to your phone or laptop.</li>
+  </ul>
+  <h3>Who can see what</h3>
+  <ul>
+    <li><b>Only you:</b> your marks, marks book, tasks, notes and files.</li>
+    <li><b>Your study partners:</b> your name, avatar, how you're feeling, when you're studying (you can turn this off per session), and exam dates you choose to share. Never your marks.</li>
+    <li><b>Your house:</b> what you post in the house (files, notes, quiz answers, wishes) and your quiz scores.</li>
+    <li><b>The person who runs Funi:</b> totals only (like how many people signed up), and problem reports you send.</li>
+  </ul>
+  <h3>Where it's kept</h3>
+  <p>In Funi's database (Supabase) and hosting (Vercel). Every table is locked so each person can only reach their own data. Voice notes delete themselves after 7 days.</p>
+  <h3>Your rights</h3>
+  <p>Under South Africa's privacy law (POPIA) you can see your data, have it corrected and have it deleted. Use <b>Download my data</b> and <b>Delete my account</b> in your Profile, or send a message with <b>Report a problem</b>.</p>
+  <div class="btns"><button type="button" class="btn primary" data-close="privacySheet">Got it</button></div>
+</div></dialog>
+
+<dialog id="reportSheet" aria-labelledby="rpTitle"><form class="sheet" id="reportForm" novalidate>
+  <div class="sheet-grip"></div>
+  <h2 id="rpTitle">Report a problem</h2>
+  <p class="hint">Tell me what happened and what you expected. It goes straight to the person who builds Funi.</p>
+  <label for="rpBody">What went wrong?</label>
+  <textarea id="rpBody" rows="5" maxlength="2000" placeholder="e.g. I tapped Save on my test and nothing happened."></textarea>
+  <label for="rpShot">Screenshot (optional)</label>
+  <input id="rpShot" type="file" accept="image/*">
+  <p class="hint" id="rpInfo"></p>
+  <p class="form-error" id="rpError" hidden></p>
+  <div class="btns"><button type="button" class="btn ghost" data-close="reportSheet">Cancel</button><button type="submit" class="btn primary" id="rpSend">Send</button></div>
+</form></dialog>
+
+<dialog id="reportsSheet" aria-labelledby="rlTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="rlTitle">Problem reports</h2>
+  <div id="rlBody"><p class="status-line">Loading…</p></div>
+  <div class="btns"><button type="button" class="btn primary" data-close="reportsSheet">Done</button></div>
+</div></dialog>
+
 <dialog id="iosSheet"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2 id="instTitle">Get Funi on your phone</h2>
@@ -1478,6 +1551,9 @@
 <script src="/js/cards.js"></script>
 <script src="/js/dash.js"></script>
 <script src="/js/marksbook.js"></script>
+<script src="/js/privacy.js"></script>
+<script src="/js/report.js"></script>
+<script src="/js/welcome.js"></script>
 <script src="/js/stats.js"></script>
 <script src="/js/boot.js"></script>
 </body>

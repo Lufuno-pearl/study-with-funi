@@ -94,7 +94,8 @@
     const dlg = $("confirmSheet");
     let answered = false;
     $("confirmOk").onclick = () => { answered = true; dlg.close(); resolve(true); };
-    dlg.addEventListener("close", function once() { dlg.removeEventListener("close", once); if (!answered) resolve(false); });
+    // the previous question's "close" can arrive after this one has opened: ignore it while the box is showing
+    dlg.addEventListener("close", function once() { if (dlg.open) return; dlg.removeEventListener("close", once); if (!answered) resolve(false); });
     dlg.showModal();
   });
 
@@ -309,6 +310,7 @@
     else if (h.indexOf("house-") === 0) F.go("house:" + h.slice(6));
     else if (h.indexOf("quiz-") === 0) { F.pendingQuiz = h.slice(5); F.go("house:" + h.slice(5)); }
     else if (h === "house") F.go("house");
+    else if (h === "reports" && F.openReports) { F.go("profile"); F.openReports(); }
     else if (h === "fc") F.go("fc");
     try { window.history.replaceState(null, "", "/"); } catch (e) {}
   };
@@ -328,6 +330,15 @@
   }
   F.authPanel = authPanel;
   function setAuthTab(which) { authPanel(which === "signup" ? "signupForm" : "loginForm"); }
+  // front page for visitors; this device has logged in before -> straight to the login box
+  const returning = () => { try { return localStorage.getItem("funi.returning") === "1"; } catch (e) { return false; } };
+  function landingMode() { $("authScreen").classList.toggle("returning", returning()); }
+  landingMode();
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ld]"); if (b) { setAuthTab(b.dataset.ld); const card = $("authScreen").querySelector(".auth > .card"); if (card) card.scrollIntoView({ behavior: "smooth", block: "start" }); const f = $(b.dataset.ld === "signup" ? "suUser" : "liUser"); if (f) setTimeout(() => f.focus({ preventScroll: true }), 400); return; }
+  });
+  $("ldWhat").onclick = () => { $("authScreen").classList.remove("returning"); $("landing").scrollIntoView({ behavior: "smooth" }); };
+  F.on("login", () => { try { localStorage.setItem("funi.returning", "1"); } catch (e) {} landingMode(); });
   $("tabSignup").onclick = () => setAuthTab("signup");
   $("tabLogin").onclick = () => setAuthTab("login");
   const cleanUsername = (raw) => String(raw || "").trim().toLowerCase();
@@ -589,7 +600,7 @@
   // where tapping a notification takes you (the same links phone notifications use)
   F.notifUrl = (n) => !n ? "/" : (n.kind === "message" || n.kind === "help" || n.kind === "accepted") && n.actor_id ? "/#chat-" + n.actor_id : n.kind === "invite" ? "/#invites"
     : n.kind === "room" && n.ref_id ? "/#room-" + n.ref_id : n.kind === "battle" && n.ref_id ? "/#battle-" + n.ref_id : n.kind === "deck" && n.ref_id ? "/#deck-" + n.ref_id
-    : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" ? (n.ref_id ? "/#house-" + n.ref_id : "/#house") : n.kind === "quiz" && n.ref_id ? "/#quiz-" + n.ref_id : "/#partners";
+    : n.kind === "share" && n.ref_id ? "/#share-" + n.ref_id : n.kind === "house" ? (n.ref_id ? "/#house-" + n.ref_id : "/#house") : n.kind === "quiz" && n.ref_id ? "/#quiz-" + n.ref_id : n.kind === "report" ? "/#reports" : "/#partners";
   F.systemNotify = async (title, body, tag, url) => {
     if (!F.canNotify() || Notification.permission !== "granted") return;
     try {
