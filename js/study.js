@@ -581,18 +581,90 @@
     const box = $("planReady"); if (!box) return;
     const list = W ? W.I.mods.map((m, i) => ({ m, pct: Math.round(W.ev.atTest[i] * 100) })).filter((x) => x.m.test).sort((a, b) => a.m.testH - b.m.testH) : [];
     box.hidden = !list.length;
+    if (list.length && !list.some((x) => x.m.code === planMod)) planMod = list[0].m.code;
     box.innerHTML = list.map(({ m, pct }) => { const d = m.test ? F.daysLeft(m.test.due_date) : 0;
       const soon = m.testH <= 8 * 24; // further away: planned closer to the time, so no forecast yet
-      return '<button type="button" class="mc ' + colorOf(m.code) + '" data-edit-test="' + esc(m.test.id) + '" aria-label="' + esc(m.code) + (soon ? ": " + pct + "% ready on test day" : "") + '. Tap to add your marks for this test."><b>' + esc(m.code) + "</b><span>" + esc(m.test.kind) + " " + (d === 0 ? "today" : d === 1 ? "tomorrow" : "in " + d + " days") + '</span><span class="pct">' + (soon ? pct + "%" : "Later") + '</span><span class="hint2">' + (m.needFrom === "test" ? "Need " + Math.max(0, Math.round(m.need)) + "%" : "Add marks") + "</span></button>"; }).join("");
+      return '<button type="button" class="mc ' + colorOf(m.code) + (m.code === planMod ? " on" : "") + '" data-mod-pick="' + esc(m.code) + '" data-edit-test="' + esc(m.test.id) + '" aria-pressed="' + (m.code === planMod) + '" aria-label="' + esc(m.code) + (soon ? ": " + pct + "% ready on test day" : "") + '. Tap to add your marks for this test."><b>' + esc(m.code) + "</b><span>" + esc(m.test.kind) + " " + (d === 0 ? "today" : d === 1 ? "tomorrow" : "in " + d + " days") + '</span><span class="pct">' + (soon ? pct + "%" : "Later") + '</span><span class="hint2">' + (m.code === planMod ? "Tap again: add marks" : m.needFrom === "test" ? "Need " + Math.max(0, Math.round(m.need)) + "%" : "Add marks") + "</span></button>"; }).join("");
   }
   const COLORS = ["c-peach", "c-lav", "c-mint", "c-butter", "c-pink", "c-sky"];
   F.colorOf = (code) => colorOf(code);
   function colorOf(code) { const i = F.orderedModules().findIndex((m) => sameCode(m.code, code)); return COLORS[(i < 0 ? 5 : i) % COLORS.length]; }
-  let planSel = 0;
+  let planSel = 0, planMod = null, planW = null;
+  /* the whole week as one grid, like the demo */
+  function drawWeekGrid(W, st) {
+    const base = W.I.base, done = F.read(key("done"), {}), nowH = new Date().getHours();
+    const h0 = Math.floor(toMin(st.from) / 60), h1 = Math.ceil(toMin(st.to) / 60);
+    const blocksByDay = [];
+    for (let d = 0; d < 7; d++) { const date = new Date(base); date.setDate(base.getDate() + d); blocksByDay.push(+st.rest === date.getDay() ? [] : smartDay(W, d, date)); }
+    let html = '<span></span>';
+    for (let d = 0; d < 7; d++) { const date = new Date(base); date.setDate(base.getDate() + d);
+      const testDay = F.upcoming().some((x) => x.due_date === F.isoOf(date));
+      html += '<span class="pg-h' + (testDay ? " test" : "") + (+st.rest === date.getDay() ? " rest" : "") + '">' + (d === 0 ? "Today" : DAY[date.getDay()]) + "<br>" + date.getDate() + "</span>"; }
+    for (let h = h0; h < h1; h++) {
+      html += '<span class="pg-t">' + String(h).padStart(2, "0") + "</span>";
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(base); date.setDate(base.getDate() + d); const iso = F.isoOf(date), past = d === 0 && h < nowH;
+        const test = F.upcoming().find((x) => x.due_date === iso && h * 60 < (x.end_time ? toMin(x.end_time) : (x.start_time ? toMin(x.start_time) : 540) + 120) && (h + 1) * 60 > (x.start_time ? toMin(x.start_time) : 540));
+        if (test) { const first = Math.floor((test.start_time ? toMin(test.start_time) : 540) / 60) === h; html += '<span class="pg-c test" title="' + esc(test.module + " " + test.kind) + '">' + (first ? esc(test.module.slice(0, 4)) : "") + "</span>"; continue; }
+        const cls = st.classes.some((c) => +c.day === date.getDay() && toMin(c.start) < (h + 1) * 60 && toMin(c.end) > h * 60);
+        if (cls) { html += '<span class="pg-c cls" title="Class"></span>'; continue; }
+        const b = blocksByDay[d].find((x) => x.start <= h * 60 && x.end > h * 60);
+        if (b) { const isDone = !!done[b.key];
+          html += '<button type="button" class="pg-c blk ' + colorOf(b.code) + (planMod && b.code !== planMod ? " dim" : "") + (isDone ? " done" : "") + (past ? " past" : "") + '" data-blk="' + d + "|" + b.start + '" title="' + esc(b.code) + '">' + (b.start === h * 60 ? (isDone ? "✓ " : "") + esc(b.code.slice(0, 4)) : "") + "</button>"; continue; }
+        html += '<span class="pg-c' + (past ? " past" : "") + '"></span>';
+      } }
+    $("planGrid").innerHTML = html;
+    $("planGrid").style.gridTemplateColumns = "26px repeat(7, minmax(0, 1fr))";
+    planW = { W, blocksByDay };
+  }
+  function drawForecast(W) {
+    const i = W.I.mods.findIndex((m) => m.code === planMod); $("planFc").hidden = i < 0; if (i < 0) return;
+    const core = F.smartPlanCore, c = $("planChart"), x = c.getContext("2d"), w = c.width, h = c.height, pad = { l: 70, r: 14, t: 16, b: 34 };
+    const css = (v) => getComputedStyle(document.body).getPropertyValue(v).trim() || "#7556DC";
+    const sim = core.simulate(W.P, W.A, true).curve[i], none = core.simulate(W.P, core.blank(), true).curve[i];
+    const X = (g) => pad.l + (w - pad.l - pad.r) * g / core.HRS, Y = (v) => pad.t + (h - pad.t - pad.b) * (1 - v);
+    x.clearRect(0, 0, w, h); x.font = "700 20px Nunito, sans-serif"; x.lineWidth = 1.5; x.strokeStyle = css("--line"); x.fillStyle = css("--muted");
+    [0, 0.5, 1].forEach((v) => { x.beginPath(); x.moveTo(pad.l, Y(v)); x.lineTo(w - pad.r, Y(v)); x.stroke(); x.textAlign = "right"; x.fillText(Math.round(v * 100) + "%", pad.l - 8, Y(v) + 7); });
+    x.textAlign = "center"; for (let d = 0; d < 7; d++) { const dt = new Date(W.I.base); dt.setDate(dt.getDate() + d); x.fillText(d === 0 ? "Today" : DAY[dt.getDay()], X(d * 24 + 12), h - 8); }
+    x.setLineDash([8, 7]); x.strokeStyle = css("--muted"); x.lineWidth = 2.5; x.beginPath(); none.forEach((v, g) => g ? x.lineTo(X(g), Y(v)) : x.moveTo(X(g), Y(v))); x.stroke(); x.setLineDash([]);
+    x.strokeStyle = css("--accent"); x.lineWidth = 4; x.beginPath(); sim.forEach((v, g) => g ? x.lineTo(X(g), Y(v)) : x.moveTo(X(g), Y(v))); x.stroke();
+    const tH = W.I.mods[i].testH;
+    if (tH > 0 && tH < core.HRS) { const v = sim[Math.floor(tH)];
+      x.strokeStyle = css("--alert"); x.lineWidth = 2; x.beginPath(); x.moveTo(X(tH), pad.t); x.lineTo(X(tH), h - pad.b); x.stroke();
+      x.fillStyle = css("--alert"); x.beginPath(); x.arc(X(tH), Y(v), 8, 0, Math.PI * 2); x.fill();
+      x.textAlign = X(tH) > w - 140 ? "right" : "left"; x.fillStyle = css("--ink"); x.font = "800 22px Nunito, sans-serif"; x.fillText("Test: " + Math.round(v * 100) + "%", X(tH) + (x.textAlign === "left" ? 12 : -12), Math.max(pad.t + 20, Y(v) - 12)); }
+    else { x.textAlign = "right"; x.fillStyle = css("--ink"); x.font = "800 20px Nunito, sans-serif"; x.fillText("Test after this week →", w - pad.r, pad.t + 20); }
+    $("planFcTitle").textContent = "Memory forecast · " + W.I.mods[i].code;
+  }
+  // tap a block: start studying it, or mark it done
+  let blkPick = null;
+  $("planGrid").addEventListener("click", (e) => {
+    const c = e.target.closest("[data-blk]"); if (!c || !planW) return;
+    const [d, st0] = c.dataset.blk.split("|").map(Number), b = planW.blocksByDay[d].find((x) => x.start === st0); if (!b) return;
+    blkPick = { d, b }; const date = new Date(planW.W.I.base); date.setDate(date.getDate() + d);
+    const done = F.read(key("done"), {}), len = b.end - b.start;
+    $("blkTitle").textContent = b.code + " · " + (len >= 60 ? Math.floor(len / 60) + "h" + (len % 60 ? " " + (len % 60) + "m" : "") : len + "m");
+    $("blkSub").textContent = (d === 0 ? "Today" : DAY[date.getDay()] + " " + date.getDate()) + ", " + toHM(b.start) + "–" + toHM(b.end) + " · " + b.task + (b.exam ? " · " + b.exam.kind.toLowerCase() + (b.daysTo === 0 ? " later today" : b.daysTo === 1 ? " tomorrow" : " in " + b.daysTo + " days") : "");
+    $("blkDone").textContent = done[b.key] ? "Undo done" : "Mark done";
+    $("blkStart").hidden = d !== 0 || !!done[b.key];
+    $("blkSheet").showModal();
+  });
+  $("blkDone").onclick = () => { if (!blkPick) return; const done = F.read(key("done"), {}), k = blkPick.b.key; if (done[k]) delete done[k]; else done[k] = 1; F.store(key("done"), done); $("blkSheet").close(); renderPlan(); };
+  $("blkStart").onclick = () => { if (!blkPick) return; const b = blkPick.b; $("blkSheet").close(); F.go("study"); $("sesModule").value = b.code; $("sesMinutes").value = Math.min(b.end - b.start, 50); };
   function renderPlan() {
     const st = planSettings(), base = new Date(); base.setHours(0, 0, 0, 0);
     let W = null; try { W = smartWeek(st); } catch (e) { W = null; }
     drawReady(W);
+    const smart = !!(W && W.I.mods.length);
+    $("planSum").hidden = !smart; $("planDays").hidden = smart; $("planBody").hidden = smart; if (!smart) $("planFc").hidden = true;
+    if (smart) {
+      const ev = W.ev;
+      $("psBig").textContent = ev.readySoon != null ? Math.round(ev.readySoon) + "%" : Math.round(ev.ready) + "%";
+      $("psWhat").textContent = ev.readySoon != null ? "ready for this week's tests" : "ready overall (no tests this week)";
+      $("psRules").className = "ps-rules " + (ev.broken ? "no" : "ok");
+      $("psRules").textContent = ev.broken ? "✗ " + [ev.pen.after ? ev.pen.after + " h after a test" : "", ev.pen.over ? ev.pen.over + " h over your limit" : "", ev.pen.nobreak ? ev.pen.nobreak + " h without a break" : ""].filter(Boolean).join(" · ") : "✓ Keeps all your rules: classes, " + st.hours + "h a day, breaks";
+      drawWeekGrid(W, st); drawForecast(W);
+    }
     $("planInfo").textContent = (W ? "Smart plan" + (W.ev.readySoon != null ? " · " + Math.round(W.ev.readySoon) + "% ready for this week's tests" : "") : "Made from your priorities") + " · " + st.hours + "h a day" + (st.classes.length ? " · " + st.classes.length + " classes blocked out" : "");
     let strip = "";
     for (let i = 0; i < 7; i++) {
@@ -620,7 +692,9 @@
   }
   F.renderPlan = renderPlan;
   $("planDays").addEventListener("click", (e) => { const b = e.target.closest("[data-pi]"); if (!b) return; planSel = +b.dataset.pi; renderPlan(); });
-  $("planReady").addEventListener("click", (e) => { const b = e.target.closest("[data-edit-test]"); if (b && F.editExam) F.editExam(b.dataset.editTest); });
+  $("planReady").addEventListener("click", (e) => { const b = e.target.closest("[data-mod-pick]"); if (!b) return;
+    if (b.dataset.modPick === planMod) { if (F.editExam) F.editExam(b.dataset.editTest); return; }
+    planMod = b.dataset.modPick; renderPlan(); });
   $("planBody").addEventListener("click", (e) => {
     const s = e.target.closest("[data-start-block]");
     if (s) { F.go("study"); $("sesModule").value = s.dataset.startBlock; $("sesMinutes").value = s.dataset.min; return; }

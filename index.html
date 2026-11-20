@@ -502,6 +502,17 @@
       <button type="button" class="icon-btn" id="planSettingsBtn" aria-label="Plan settings: hours, rest day and classes"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
     </header>
     <div class="mchips" id="planReady" aria-label="How ready you'll be on each test day" hidden></div>
+    <div class="card plan-sum" id="planSum" hidden>
+      <div class="ps-head"><span class="ps-big" id="psBig"></span><span class="ps-what" id="psWhat">ready for this week's tests</span></div>
+      <span class="ps-rules" id="psRules"></span>
+      <div class="pgrid-wrap"><div class="pgrid" id="planGrid" aria-label="Your study week"></div></div>
+      <p class="hint" style="margin:0">Tap a block to start studying or mark it done.</p>
+    </div>
+    <div class="card plan-fc" id="planFc" hidden>
+      <h2 id="planFcTitle">Memory forecast</h2>
+      <canvas id="planChart" width="700" height="320" aria-label="How much of this module you'll remember over the week"></canvas>
+      <p class="hint" style="margin:0">Purple: with this plan. Dashed: if you don't study it. Each study hour lifts the line and makes it fall more slowly.</p>
+    </div>
     <div class="week" id="planDays"></div>
     <div id="planBody"></div>
     <div class="two">
@@ -1402,6 +1413,13 @@
   <p class="hint" id="stWhen"></p>
   <div id="stBody"><p class="status-line">Loading…</p></div>
   <div class="btns"><button type="button" class="btn ghost" id="stCopy">Copy for my CV</button><button type="button" class="btn primary" data-close="statsSheet">Done</button></div>
+</div></dialog>
+
+<dialog id="blkSheet" aria-labelledby="blkTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="blkTitle">Study block</h2>
+  <p class="hint" id="blkSub"></p>
+  <div class="btns"><button type="button" class="btn ghost" id="blkDone">Mark done</button><button type="button" class="btn primary" id="blkStart">Start now</button></div>
 </div></dialog>
 
 <dialog id="iosSheet"><div class="sheet">
