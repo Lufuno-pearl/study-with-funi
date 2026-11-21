@@ -1,9 +1,9 @@
 // Service worker: keeps Funi opening offline and shows notifications (also when the app is closed).
-const CACHE = "funi-v79";
+const CACHE = "funi-v80";
 const DATA = "funi-data"; // last copy of your Funi data, so pages still show when you're offline
 const SHELL = [
   "/", "/index.html", "/styles.css", "/manifest.json",
-  "/js/art.js", "/js/core.js", "/js/smartplan.js", "/js/study.js", "/js/social.js", "/js/files.js", "/js/fun.js", "/js/house.js", "/js/housefun.js", "/js/fc.js", "/js/call.js", "/js/notes.js", "/js/stickers.js", "/js/vendor/fflate.min.js", "/js/cards.js", "/js/dash.js", "/js/marksbook.js", "/js/privacy.js", "/js/report.js", "/js/welcome.js", "/img/landing-smart-timetable.webp", "/img/landing-what-do-i-need.webp", "/img/landing-cross-night.webp", "/js/stats.js", "/js/boot.js",
+  "/js/art.js", "/js/core.js", "/js/smartplan.js", "/js/study.js", "/js/social.js", "/js/files.js", "/js/fun.js", "/js/house.js", "/js/housefun.js", "/js/fc.js", "/js/call.js", "/js/notes.js", "/js/stickers.js", "/js/vendor/fflate.min.js", "/js/cards.js", "/js/dash.js", "/js/marksbook.js", "/js/privacy.js", "/js/report.js", "/js/welcome.js", "/img/landing-smart-timetable.webp", "/img/landing-what-do-i-need.webp", "/img/landing-cross-night.webp", "/js/sound.js", "/js/birthdays.js", "/js/stats.js", "/js/boot.js",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png",
   "/js/vendor/pdf.min.js", "/js/vendor/pdf.worker.min.js"
 ];

@@ -105,7 +105,7 @@
     const feeling = session ? session.feeling : p.feeling, tag = clickable ? "button" : "div";
     return "<" + tag + (clickable ? ' type="button" data-open-chat="' + esc(id) + '"' : "") + ' class="person">' +
       '<span class="ava-wrap"><span class="ava">' + F.avatar(p, feeling) + "</span>" + (st.live ? '<span class="live"></span>' : "") + "</span>" +
-      '<span class="txt"><b>' + esc(F.nameOf(p)) + '</b><span class="st' + (st.live ? " live" : "") + '">' + (st.live ? '<span class="dot-live"></span>' : '<span class="dot-off"></span>') + esc(st.text) + "</span>" +
+      '<span class="txt"><b>' + esc(F.nameOf(p)) + "</b>" + (F.birthdayTag ? F.birthdayTag(id) : "") + '<span class="st' + (st.live ? " live" : "") + '">' + (st.live ? '<span class="dot-live"></span>' : '<span class="dot-off"></span>') + esc(st.text) + "</span>" +
       '<span class="mod-line">' + esc(st.line || "@" + p.username) + "</span>" + (extraHtml || "") + "</span>" +
       '<span class="mood"><span class="face">' + F.face(feeling) + "</span>" + esc(feeling) + "</span></" + tag + ">";
   }

@@ -531,6 +531,7 @@
   function freeHours(date, st, isToday) {
     const row = new Array(24).fill(false);
     if (+st.rest === date.getDay()) return row;
+    if (F.isMyBirthdayOn && F.isMyBirthdayOn(date)) return row; // your birthday: a rest day
     freeSlots(date, st, isToday).forEach(([a, b]) => { for (let h = Math.ceil(a / 60); (h + 1) * 60 <= b; h++) row[h] = true; });
     // a test's own hours aren't for studying
     F.upcoming().filter((x) => x.due_date === F.isoOf(date)).forEach((x) => {

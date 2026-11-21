@@ -159,6 +159,8 @@
       <button class="icon-btn" id="installBtn" aria-label="Download the app" hidden><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
       <button class="icon-btn" data-go="notifs" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span class="badge pinkb" id="bellBadge" hidden></span></button>
     </header>
+    <section class="bday-party" id="bdayParty" hidden aria-live="polite"></section>
+    <div class="bday-friends" id="bdayFriends" hidden></div>
     <section class="card welcome" id="welcomeCard" hidden aria-labelledby="wcTitle"></section>
     <div class="dash-grid">
       <div class="d-next" id="dashNext"></div>
@@ -934,6 +936,23 @@
       <h2>Theme</h2>
       <div class="themes" id="themePicker"></div>
     </div>
+    <div class="card flat stack" id="bdayCard">
+      <h2>My birthday 🎂</h2>
+      <p class="hint" style="margin:0">Day and month only. Funi never asks for the year, so nobody sees your age.</p>
+      <div class="two">
+        <div><label for="bdDay">Day</label><select id="bdDay"></select></div>
+        <div><label for="bdMonth">Month</label><select id="bdMonth"></select></div>
+      </div>
+      <span class="label" style="margin:0">Who can see it</span>
+      <div class="chips" id="bdWho"><button type="button" class="chip" data-bd-who="1">My partners and houses</button><button type="button" class="chip" data-bd-who="0">Nobody</button></div>
+      <label class="toggle-row"><input type="checkbox" id="bdRest" checked> Give me a rest day on my birthday</label>
+      <button type="button" class="btn primary block" id="bdSave">Save my birthday</button>
+    </div>
+    <div class="card flat stack" id="soundCard">
+      <h2>Sounds</h2>
+      <label class="toggle-row"><input type="checkbox" id="soundOn" checked> Play a sound when something new comes in while Funi is open</label>
+      <button type="button" class="btn ghost block" id="soundTest">🔔 Play the sound</button>
+    </div>
     <div class="card flat stack" id="privacyCard">
       <h2>Privacy and your data</h2>
       <p>Your marks are private. Funi never sells your data or shows ads.</p>
@@ -1512,6 +1531,24 @@
   <div class="btns"><button type="button" class="btn primary" data-close="reportsSheet">Done</button></div>
 </div></dialog>
 
+<dialog id="bdCardSheet" aria-labelledby="bdcTitle"><div class="sheet">
+  <div class="sheet-grip"></div>
+  <h2 id="bdcTitle">💌 Your birthday card</h2>
+  <div id="bdcBody" class="bd-card"></div>
+  <div class="btns"><button type="button" class="btn ghost" data-close="bdCardSheet">Close</button><button type="button" class="btn primary" id="bdThank">Thank everyone</button></div>
+</div></dialog>
+
+<dialog id="bdSignSheet" aria-labelledby="bdsTitle"><form class="sheet" id="bdSignForm" novalidate>
+  <div class="sheet-grip"></div>
+  <h2 id="bdsTitle">Sign the birthday card</h2>
+  <label for="bdsText">Your wish</label>
+  <textarea id="bdsText" rows="4" maxlength="300" placeholder="Happy birthday! 🥳"></textarea>
+  <span class="label">Add a sticker</span>
+  <div class="bd-stk" id="bdsStk"></div>
+  <p class="form-error" id="bdsError" hidden></p>
+  <div class="btns"><button type="button" class="btn ghost" data-close="bdSignSheet">Cancel</button><button type="submit" class="btn primary" id="bdsSend">Sign the card</button></div>
+</form></dialog>
+
 <dialog id="iosSheet"><div class="sheet">
   <div class="sheet-grip"></div>
   <h2 id="instTitle">Get Funi on your phone</h2>
@@ -1542,6 +1579,8 @@
 <script src="/js/privacy.js"></script>
 <script src="/js/report.js"></script>
 <script src="/js/welcome.js"></script>
+<script src="/js/sound.js"></script>
+<script src="/js/birthdays.js"></script>
 <script src="/js/stats.js"></script>
 <script src="/js/boot.js"></script>
 </body>

@@ -22,6 +22,7 @@ Everything you need to set up the database, accounts, emails and notifications.
 18. New query again: paste **`funi-v17-setup.sql`** and **Run**. Adds end times for tests (so they move to "Written" when you finish) and keeps one study session in step across your phone and laptop.
 19. New query again: paste **`funi-v18-setup.sql`** and **Run**. Adds marks for tests ("What do I need?" for tests) and the private "Funi in numbers" page for the app owner.
 20. New query again: paste **`funi-v19-setup.sql`** and **Run**. Adds the marks book, problem reports (with screenshots) and *Delete my account*.
+21. New query again: paste **`funi-v20-setup.sql`** and **Run**. Adds birthdays: reminders for your partners and houses, the birthday card and the rest day.
 13. All of them are safe to run again any time. They keep existing data.
 
 This creates: study partners, feelings, live chat with files (private `chat-files` storage), notifications, tasks & reminders, exam weight/subminimum per module, and turns on live updates.

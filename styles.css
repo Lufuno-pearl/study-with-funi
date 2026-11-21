@@ -1614,3 +1614,38 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
   .landing h1 { font-size: 46px; }
   .ld-shots img { width: 180px; }
 }
+/* ---------- Birthdays ---------- */
+.toggle-row { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; }
+.toggle-row input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.bday-party { position: relative; overflow: hidden; border-radius: 26px; padding: 18px 16px; margin-bottom: 14px; display: grid; justify-items: center; gap: 8px; text-align: center; background: linear-gradient(160deg, #FFE3EC, #EDE2FF 55%, #FFF1C9); color: #2B2540; }
+.bday-party h2 { font-size: 26px; color: #2B2540; margin: 0; }
+.bday-party p { color: #5A4F7A; font-weight: 700; margin: 0; }
+.bd-me { position: relative; display: inline-block; }
+.bd-me .ava { width: 86px; height: 86px; display: block; border-radius: 50%; overflow: hidden; }
+.bd-me .bd-hat { position: absolute; width: 34px; left: 50%; top: -24px; transform: translateX(-50%) rotate(-8deg); }
+.bd-me.sm .ava { width: 46px; height: 46px; }
+.bd-me.sm .bd-hat { width: 20px; top: -14px; }
+.bd-balloon { position: absolute; width: 30px; height: 38px; border-radius: 50% 50% 48% 48%; animation: bdFloat 5s ease-in-out infinite; }
+.bd-balloon::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 30px; background: rgba(43, 37, 64, .35); }
+@keyframes bdFloat { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-10px) rotate(4deg); } }
+.bd-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.bd-confetti i { position: absolute; top: -12px; width: 6px; height: 11px; border-radius: 2px; animation: bdFall 3.2s linear infinite; }
+@keyframes bdFall { to { transform: translateY(420px) rotate(540deg); } }
+@media (prefers-reduced-motion: reduce) { .bd-balloon, .bd-confetti i { animation: none; } .bd-confetti { display: none; } }
+.bday-friends { display: grid; gap: 10px; margin-bottom: 14px; }
+.bd-friend { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; border-radius: 22px; padding: 16px 14px 12px; background: linear-gradient(160deg, #FFE3EC, #EDE2FF); color: #2B2540; }
+.bd-friend .grow { display: grid; gap: 2px; min-width: 0; }
+.bd-friend b { font-family: var(--display); font-size: 16px; font-weight: 600; }
+.bd-friend span { font-size: 12.5px; font-weight: 700; color: #5A4F7A; }
+.bd-friend .btn { position: relative; z-index: 1; }
+.bd-tag { display: inline-block; background: #FFE3EC; color: #93284D; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 2px 8px; margin-left: 4px; vertical-align: 2px; }
+.bd-card { display: grid; gap: 10px; background: #F7D9E3; border-radius: 20px; padding: 12px; max-height: 60vh; overflow: auto; }
+.bd-wish { background: var(--card); border-radius: 16px; padding: 10px 12px; display: grid; gap: 4px; }
+.bd-wish p { margin: 0; white-space: pre-wrap; }
+.bd-who { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.bd-who .ava { width: 28px; height: 28px; }
+.bd-stk-big { font-size: 34px; line-height: 1; }
+.bd-stk { display: flex; flex-wrap: wrap; gap: 6px; }
+.bd-stk button { width: 46px; height: 46px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); font-size: 24px; cursor: pointer; }
+.bd-stk button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+#bdsText { width: 100%; }
