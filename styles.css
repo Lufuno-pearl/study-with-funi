@@ -221,7 +221,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 30px; marg
 .seg .count { display: inline-flex; min-width: 20px; height: 20px; border-radius: 10px; padding: 0 5px; margin-left: 6px; background: var(--alert); color: var(--on-alert); font-size: 11px; align-items: center; justify-content: center; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid var(--line); background: var(--card); color: var(--accent-soft-ink); font-weight: 800; font-size: 13px; cursor: pointer; }
-.chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chip.on, .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .chip:disabled { opacity: 0.45; cursor: default; }
 
 .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; border: 0; }
