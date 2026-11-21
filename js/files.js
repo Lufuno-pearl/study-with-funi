@@ -384,35 +384,88 @@
     if (!name) return F.showError("fsError", "Give it a name.");
     const btn = $("fsSave"), label = btn.textContent;
     btn.disabled = true; btn.textContent = "Uploading…"; F.showError("fsError", "");
+    try {
+      await storeFile(picked, name, folder, curCode, (msg) => F.showError("fsError", msg));
+      $("fileSheet").close(); renderModFiles(); F.toast("Saved to " + curCode + " › " + folder + ".");
+    } catch (err) {
+      F.showError("fsError", friendlyErr(err));
+      $("toast").hidden = true;
+    } finally { btn.disabled = false; btn.textContent = label; }
+  });
+  const friendlyErr = (err) => { const m = (err && err.message) || ""; return /failed to fetch|network|load failed/i.test(m) ? "Couldn't reach the internet, so it didn't upload. Check your Wi-Fi or data and try again." : m || "Something went wrong. Try again."; };
+  // saves one file into a module (used by Add a file and by dragging files in)
+  async function storeFile(picked, name, folder, code, onSlow) {
     let path = null;
     try {
       let blob = picked, type = picked.type || "application/octet-stream", ext = (picked.name.match(/\.([\w]+)$/) || [])[1] || "";
       if (/^image\//.test(type) || /\.(jpe?g|png|heic|webp)$/i.test(picked.name)) {
         const r = await shrink(picked); blob = r.blob; if (r.ext) { type = r.type; ext = r.ext; }
       }
-      if (!blob.size) throw new Error("That file came through empty. If it's on Google Drive, download it to your phone first, then upload it.");
-      if (blob.size > MAX_FILE) throw new Error("That file is bigger than 10 MB. Save it in Google Drive and add the link instead.");
+      if (!blob.size) throw new Error(picked.name + " came through empty. If it's on Google Drive, download it first, then add it.");
+      if (blob.size > MAX_FILE) throw new Error(picked.name + " is bigger than 10 MB. Save it in Google Drive and add the link instead.");
       if (used() + blob.size > MAX_SPACE) throw new Error("Your 50 MB is full (" + mb(used()) + " used). Delete some files, or save a link instead.");
-      if (F.looksOffline()) throw new Error("You're offline. Connect to Wi-Fi or data, then tap Save again.");
+      if (F.looksOffline()) throw new Error("You're offline. Connect to Wi-Fi or data, then try again.");
       const safe = (name.replace(/[^\w.\-]+/g, "_").slice(0, 60) || "file") + (ext ? "." + ext.toLowerCase() : "");
-      path = F.me.id + "/" + curCode.replace(/[^\w\-]+/g, "_") + "/" + Date.now() + "-" + safe;
-      // a slow or dropped connection used to leave the button stuck with no message
-      const slow = setTimeout(() => F.showError("fsError", "Still uploading… a weak connection makes this slow. Keep this open."), 15000);
+      path = F.me.id + "/" + code.replace(/[^\w\-]+/g, "_") + "/" + Date.now() + "-" + safe;
+      // a slow or dropped connection used to leave things stuck with no message
+      const slow = setTimeout(() => onSlow && onSlow("Still uploading… a weak connection makes this slow. Keep Funi open."), 15000);
       const up = await Promise.race([
         F.sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: false }),
         new Promise((_, no) => setTimeout(() => no(new Error("The upload took too long. Check your internet and try again.")), 120000))
       ]).finally(() => clearTimeout(slow));
-      if (up.error) { path = null; throw new Error("Couldn't upload: " + up.error.message); }
-      const { data, error } = await F.sb.from("module_files").insert({ user_id: F.me.id, module_code: curCode, folder, name, kind: "file", path, mime: type, size: blob.size }).select().single();
+      if (up.error) { path = null; throw new Error("Couldn't upload " + picked.name + ": " + up.error.message); }
+      const { data, error } = await F.sb.from("module_files").insert({ user_id: F.me.id, module_code: code, folder, name, kind: "file", path, mime: type, size: blob.size }).select().single();
       if (error) throw new Error(/space|52428800/i.test(error.message) ? "Your 50 MB is full. Delete some files first." : "Couldn't save: " + error.message);
       offPut(path, blob, type); path = null;
-      S.files.unshift(data); $("fileSheet").close(); renderModFiles(); F.toast("Saved to " + curCode + " › " + folder + ".");
+      S.files.unshift(data); return data;
     } catch (err) {
       if (path) F.sb.storage.from(BUCKET).remove([path]).then(() => {}, () => {});
-      const m = (err && err.message) || "";
-      F.showError("fsError", /failed to fetch|network|load failed/i.test(m) ? "Couldn't reach the internet, so it didn't upload. Check your Wi-Fi or data and tap Save again." : m || "Something went wrong. Try again.");
-      $("toast").hidden = true;
-    } finally { btn.disabled = false; btn.textContent = label; }
+      throw err;
+    }
+  }
+
+  /* ---------- drag files in from your computer ---------- */
+  // which folder a file goes in, from its type and name
+  const folderFor = (f) => /^image\//.test(f.type) || /\.(jpe?g|png|heic|webp|gif)$/i.test(f.name) ? "Photos"
+    : /past|paper|exam|test|memo|quiz|\b(19|20)\d\d\b/i.test(f.name) ? "Past papers"
+    : /\.(pdf|docx?|pptx?|txt|md|html?|tex|ipynb)$/i.test(f.name) ? "Notes" : "Other";
+  async function dropInto(code, files) {
+    const list = [...files].filter((f) => f && f.size !== undefined);
+    if (!list.length) return;
+    if (missing) return F.toast("Run funi-v5-setup.sql in Supabase first, then you can add files.", { long: true });
+    let ok = 0; const fails = [];
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      F.toast("Adding " + (list.length > 1 ? (i + 1) + " of " + list.length + ": " : "") + f.name + "…");
+      try { await storeFile(f, f.name.replace(/\.[^.]+$/, "").slice(0, 120) || "File", folderFor(f), code); ok++; }
+      catch (err) { fails.push(friendlyErr(err)); }
+      if (S.view === "modfiles") renderModFiles(); else if (S.view === "files") renderFiles();
+    }
+    if (fails.length) F.toast((ok ? "Added " + ok + ". " : "") + fails[0] + (fails.length > 1 ? " (+" + (fails.length - 1) + " more)" : ""), { long: true });
+    else F.toast("Added " + ok + (ok === 1 ? " file" : " files") + " to " + code + ".");
+  }
+  F.dropFilesInto = dropInto;
+  const hasFiles = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files");
+  let dragDepth = 0;
+  function dropTarget(e) {
+    if (S.view === "modfiles" && curCode) return { code: curCode, el: $("vModFiles") };
+    if (S.view === "files") { const t = e.target.closest && e.target.closest("[data-mod]"); return t ? { code: t.dataset.mod, el: t } : null; }
+    return null;
+  }
+  document.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; dragDepth++; document.body.classList.toggle("drag-files", S.view === "modfiles" || S.view === "files"); });
+  document.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) { document.body.classList.remove("drag-files"); document.querySelectorAll(".drop-on").forEach((x) => x.classList.remove("drop-on")); } });
+  document.addEventListener("dragover", (e) => {
+    if (!hasFiles(e)) return;
+    const t = dropTarget(e);
+    document.querySelectorAll(".drop-on").forEach((x) => { if (!t || x !== t.el) x.classList.remove("drop-on"); });
+    if (!t) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "copy"; t.el.classList.add("drop-on");
+  });
+  document.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    const t = dropTarget(e); dragDepth = 0; document.body.classList.remove("drag-files"); document.querySelectorAll(".drop-on").forEach((x) => x.classList.remove("drop-on"));
+    if (!t) return;
+    e.preventDefault(); dropInto(t.code, e.dataTransfer.files);
   });
 
   /* ---------- Send to a study partner ---------- */
