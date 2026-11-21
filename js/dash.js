@@ -140,7 +140,7 @@
     const list = F.upcoming().slice(0, 4), bars = ["b-lav", "b-pink", "b-mint", "b-butter"];
     $("dashExams").innerHTML = list.length ? list.map((x, i) => {
       const m = F.s.modules.find((mm) => F.sameCode(mm.code, x.module)), ready = F.readinessOf(m), d = F.daysLeft(x.due_date), need = m ? F.needFor(m, 50) : null;
-      return '<div class="ex-row"><span class="ex-sq ' + bars[i] + '"></span><div class="grow"><div class="between"><b>' + esc(x.module) + " · " + esc(x.kind) + '</b><span class="ex-d' + (d <= 7 ? " soon-t" : "") + '">' + (d === 0 ? "Today" : d + (d === 1 ? " day" : " days")) + "</span></div>" +
+      return '<div class="ex-row"><span class="ex-sq ' + bars[i] + '"></span><div class="grow"><div class="between"><b>' + esc(x.module) + " · " + esc(x.kind) + '</b><span class="ex-d' + (d <= 7 ? " soon-t" : "") + '">' + F.tickHTML(x) + "</span></div>" +
         '<div class="bar"><i class="' + bars[i] + '" style="width:' + ready + '%"></i></div><span class="hint">' + ready + "% ready" + (need != null ? " · needs " + (need > 100 ? "more than 100%" : need + "%") + " in the exam" : "") + "</span></div></div>";
     }).join("") : '<div class="empty"><b>No tests or exams yet</b><span>Add them under Hub › Tests &amp; exams.</span></div>';
   }
@@ -150,7 +150,7 @@
     if (!n) { $("dashNext").innerHTML = '<button type="button" class="next-card empty-next" data-go="exams"><span class="next-num"><b>+</b></span><span class="grow"><span class="eyebrow">NO EXAMS YET</span><b>Add your first test or exam</b><span>Funi starts counting down for you</span></span></button>'; return; }
     const d = F.daysLeft(n.due_date), m = S.modules.find((mm) => F.sameCode(mm.code, n.module));
     $("dashNext").innerHTML = '<button type="button" class="next-card" data-go="plan"><span class="next-num"><b>' + (d === 0 ? "!" : d) + "</b><span>" + (d === 0 ? "today" : d === 1 ? "day" : "days") + '</span></span><span class="grow"><span class="eyebrow">NEXT EXAM</span><b>' +
-      esc(n.module) + " · " + esc(n.kind) + "</b><span>" + F.niceDate(n.due_date) + (n.start_time ? " · " + F.niceTime(n.start_time) : "") + " · You're " + F.readinessOf(m) + '% ready</span></span><svg viewBox="0 0 24 24" class="chev"><path d="M9 6l6 6-6 6"/></svg></button>';
+      esc(n.module) + " · " + esc(n.kind) + "</b><span>" + F.niceDate(n.due_date) + (n.start_time ? " · " + F.niceTime(n.start_time) : "") + " · You're " + F.readinessOf(m) + '% ready</span>' + F.tickHTML(n, "next-clock") + '</span><svg viewBox="0 0 24 24" class="chev"><path d="M9 6l6 6-6 6"/></svg></button>';
   }
 
   function cheer(f) {

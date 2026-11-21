@@ -1656,3 +1656,7 @@ body.wall-dark.in-chat .bubble.sticker time { color: #E8E4F5; }
 #vModFiles.drop-on::after { content: "Drop to add these files to this module"; position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; font: 600 22px var(--display); color: var(--accent-soft-ink); background: color-mix(in srgb, var(--accent-soft) 88%, transparent); border: 3px dashed var(--accent); border-radius: 24px; pointer-events: none; }
 body.drag-files .mod-tile { outline: 2px dashed var(--line); outline-offset: 2px; }
 .mod-tile.drop-on { outline: 3px dashed var(--accent) !important; transform: scale(1.03); }
+
+/* live countdown clocks */
+.tick { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.next-card .grow > .next-clock { display: table; color: var(--on-hero); margin-top: 6px; padding: 4px 10px; border-radius: 10px; background: rgba(255,255,255,0.18); font-family: var(--display); font-size: 18px; font-weight: 800; letter-spacing: .5px; align-self: flex-start; }

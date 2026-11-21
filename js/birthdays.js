@@ -117,8 +117,18 @@
     who = mine ? mine.visible !== false : true; $("bdRest").checked = mine ? mine.rest !== false : true;
     document.querySelectorAll("[data-bd-who]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.bdWho === "1") === who)));
     $("bdSave").textContent = mine ? "Save changes" : "Save my birthday";
+    // once it's saved, just show it with an Edit button
+    const done = !!mine && !editing;
+    $("bdDone").hidden = !done; $("bdForm").hidden = done; $("bdCancel").hidden = !mine;
+    if (mine) {
+      $("bdDoneText").textContent = mine.day + " " + MONTHS[mine.month - 1];
+      $("bdDoneMore").textContent = (mine.visible !== false ? "Your partners and houses can see it." : "Nobody else can see it. 🤫") + (mine.rest !== false ? " Rest day on your birthday." : "");
+    }
   }
-  F.on("view:profile", async () => { if (!ready) await load(); fillProfile(); });
+  let editing = false;
+  $("bdEdit").onclick = () => { editing = true; fillProfile(); };
+  $("bdCancel").onclick = () => { editing = false; fillProfile(); };
+  F.on("view:profile", async () => { if (!ready) await load(); editing = false; fillProfile(); });
   document.addEventListener("click", (e) => { const b = e.target.closest("[data-bd-who]"); if (!b) return; who = b.dataset.bdWho === "1"; document.querySelectorAll("[data-bd-who]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); });
   $("bdSave").onclick = async () => {
     const day = +$("bdDay").value, month = +$("bdMonth").value;
@@ -128,7 +138,7 @@
     const { data, error } = await F.sb.from("birthdays").upsert({ user_id: F.me.id, day, month, visible: who, rest: $("bdRest").checked, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).select().single();
     $("bdSave").disabled = false;
     if (error) return F.toast(/birthdays|schema cache/i.test(error.message) ? "Birthdays need one setup step: run funi-v20-setup.sql in Supabase." : "Couldn't save: " + error.message, { long: true });
-    mine = data; fillProfile(); render();
+    mine = data; editing = false; fillProfile(); render();
     F.toast("Saved: " + day + " " + MONTHS[month - 1] + (who ? ". Your partners and houses will be reminded." : ". Only you'll know. 🤫"));
   };
 })();

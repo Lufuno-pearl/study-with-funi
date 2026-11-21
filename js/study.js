@@ -48,7 +48,7 @@
     return '<div class="item"><' + (withDelete ? 'button type="button" class="txt as-btn" data-edit-exam="' + esc(x.id) + '" aria-label="Edit ' + esc(x.module) + " " + esc(x.kind) + '"' : 'div class="txt"') + "><b>" + esc(x.module) + " · " + esc(x.kind) + "</b><span>" +
       F.niceDate(x.due_date) + (x.start_time ? " · " + timeRange(x) : "") + (x.venue ? " · " + esc(x.venue) : "") +
       (need != null && !written(x) ? " · need " + Math.max(0, Math.round(need)) + "%" : "") +
-      "</span></" + (withDelete ? "button" : "div") + ">" + (written(x) ? '<span class="chip-d done">✓ Written</span>' : '<span class="chip-d ' + chipClass(d) + '">' + (d === 0 ? "Today" : d + " d") + "</span>") +
+      "</span></" + (withDelete ? "button" : "div") + ">" + (written(x) ? '<span class="chip-d done">✓ Written</span>' : '<span class="chip-d ' + chipClass(d) + '">' + F.tickHTML(x) + "</span>") +
       (withDelete ? '<button class="x-btn" data-del-exam="' + esc(x.id) + '" aria-label="Delete ' + esc(x.module) + " " + esc(x.kind) + '">×</button>' : "") + "</div>";
   };
   let examSeg = "soon";

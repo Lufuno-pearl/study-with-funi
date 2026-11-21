@@ -20,6 +20,15 @@
   F.isoOf = (d) => d.toLocaleDateString("en-CA");
   F.todayISO = () => F.isoOf(new Date());
   F.daysLeft = (dateStr) => { const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((new Date(dateStr + "T00:00:00") - t) / 86400000); };
+  // live countdowns: any element with data-count="<ISO time>" counts down every second, like a clock
+  F.startOf = (x) => x.due_date + "T" + (x.start_time ? String(x.start_time).slice(0, 5) : "00:00") + ":00";
+  F.clockLeft = (iso) => {
+    const ms = new Date(iso).getTime() - Date.now(); if (ms <= 0) return "Started";
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), pad = (n) => String(n).padStart(2, "0");
+    return (d ? d + "d " : "") + pad(Math.floor((s % 86400) / 3600)) + ":" + pad(Math.floor((s % 3600) / 60)) + ":" + pad(s % 60);
+  };
+  F.tickHTML = (x, cls) => '<span class="tick' + (cls ? " " + cls : "") + '" data-count="' + F.startOf(x) + '">' + F.clockLeft(F.startOf(x)) + "</span>";
+  setInterval(() => { if (document.visibilityState !== "visible") return; document.querySelectorAll("[data-count]").forEach((el) => { const t = F.clockLeft(el.dataset.count); if (el.textContent !== t) el.textContent = t; }); }, 1000);
   F.niceDate = (dateStr) => new Date(dateStr + "T00:00:00").toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" });
   F.niceTime = (t) => (t ? String(t).slice(0, 5) : "");
   F.clockOf = (iso) => new Date(iso).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
